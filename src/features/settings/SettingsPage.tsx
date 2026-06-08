@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, Button, Segmented } from '@/components/ui/primitives';
+import { Section, Button, Segmented, GroupedNumberField } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
 import { seedDocument } from '@/domain/seed';
@@ -226,7 +226,7 @@ export default function SettingsPage() {
             <Segmented options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={hc.enabled ? 'on' : 'off'} onChange={(v) => updateHealthcare({ enabled: v === 'on' })} />
           </Field>
           <Field label="Part B $/mo (per person)">
-            <input type="number" className={fieldCls} value={hc.medicarePartBMonthly} onChange={(e) => updateHealthcare({ medicarePartBMonthly: Number(e.target.value) })} />
+            <GroupedNumberField className={fieldCls} value={hc.medicarePartBMonthly} onChange={(n) => updateHealthcare({ medicarePartBMonthly: n })} />
           </Field>
           <Field label="Medical Inflation %">
             <input type="number" step={0.1} className={fieldCls} value={+(hc.medicalInflation * 100).toFixed(1)} onChange={(e) => updateHealthcare({ medicalInflation: Number(e.target.value) / 100 })} />
@@ -262,7 +262,7 @@ export default function SettingsPage() {
             <Segmented options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={ltc.crissyEnabled ? 'on' : 'off'} onChange={(v) => updateLongTermCare({ crissyEnabled: v === 'on' })} />
           </Field>
           <Field label="Cost $/mo (today's $)">
-            <input type="number" className={fieldCls} value={ltc.monthly} onChange={(e) => updateLongTermCare({ monthly: Number(e.target.value) })} />
+            <GroupedNumberField className={fieldCls} value={ltc.monthly} onChange={(n) => updateLongTermCare({ monthly: n })} />
           </Field>
           <Field label="Start Age">
             <input type="number" className={fieldCls} value={ltc.startAge} onChange={(e) => updateLongTermCare({ startAge: Number(e.target.value) })} />

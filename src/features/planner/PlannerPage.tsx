@@ -1,5 +1,5 @@
 import { useActiveScenario, useStore, useEffectiveDisplayMode } from '@/state/store';
-import { Section } from '@/components/ui/primitives';
+import { Section, GroupedNumberField } from '@/components/ui/primitives';
 import {
   Grid,
   THead,
@@ -311,7 +311,7 @@ export default function PlannerPage() {
             </Field>
           ) : scn.withdrawal.type === 'fixed-amount' ? (
             <Field label="Amount / yr (today's $)">
-              <input type="number" className={fieldCls} value={scn.withdrawal.amount ?? 0} onChange={(e) => s.setWithdrawal({ amount: Number(e.target.value) })} />
+              <GroupedNumberField className={fieldCls} value={scn.withdrawal.amount ?? 0} onChange={(n) => s.setWithdrawal({ amount: n })} />
             </Field>
           ) : (
             <Field label="Driven by">

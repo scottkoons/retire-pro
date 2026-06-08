@@ -100,6 +100,61 @@ export function MoneyInput({
   );
 }
 
+/**
+ * Chrome-less integer input with live thousand separators, styled entirely by the
+ * passed `className`. Drop-in replacement for a plain `<input type="number">` dollar
+ * field in the config forms so amounts read grouped (e.g. 850,000). Caret position is
+ * restored by digit count so editing never jumps.
+ */
+export function GroupedNumberField({
+  value,
+  onChange,
+  className,
+  ariaLabel,
+  title,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  className?: string;
+  ariaLabel?: string;
+  title?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const display = Number.isFinite(value) ? Math.round(value).toLocaleString('en-US') : '0';
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const el = e.target;
+    const caret = el.selectionStart ?? el.value.length;
+    const digitsLeft = el.value.slice(0, caret).replace(/[^0-9]/g, '').length;
+    const digits = el.value.replace(/[^0-9]/g, '');
+    const num = digits === '' ? 0 : Number(digits);
+    onChange(num);
+
+    const formatted = num.toLocaleString('en-US');
+    let pos = 0;
+    let seen = 0;
+    while (pos < formatted.length && seen < digitsLeft) {
+      if (formatted[pos] >= '0' && formatted[pos] <= '9') seen++;
+      pos++;
+    }
+    requestAnimationFrame(() => ref.current?.setSelectionRange(pos, pos));
+  };
+
+  return (
+    <input
+      ref={ref}
+      type="text"
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      title={title}
+      value={display}
+      onChange={handleChange}
+      onFocus={(e) => e.target.select()}
+      className={className}
+    />
+  );
+}
+
 interface SectionProps {
   eyebrow?: ReactNode;
   title?: ReactNode;

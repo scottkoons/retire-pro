@@ -1,5 +1,5 @@
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, Segmented } from '@/components/ui/primitives';
+import { Section, Segmented, GroupedNumberField } from '@/components/ui/primitives';
 
 // Local label+input layout helper (matches the planner config-form convention).
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -48,20 +48,18 @@ export function HomeSection() {
       >
         {/* Current residence */}
         <Field label="Current value">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.currentValue}
-            onChange={(e) => s.updateHome({ currentValue: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ currentValue: n })}
           />
         </Field>
 
         <Field label="Mortgage balance">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.mortgageBalance}
-            onChange={(e) => s.updateHome({ mortgageBalance: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ mortgageBalance: n })}
           />
         </Field>
 
@@ -112,11 +110,10 @@ export function HomeSection() {
         </Field>
 
         <Field label="Purchase price">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.price}
-            onChange={(e) => s.updateHome({ price: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ price: n })}
           />
         </Field>
 
@@ -129,11 +126,10 @@ export function HomeSection() {
         </Field>
 
         <Field label="Down payment">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.downPayment}
-            onChange={(e) => s.updateHome({ downPayment: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ downPayment: n })}
           />
         </Field>
 
@@ -157,11 +153,10 @@ export function HomeSection() {
         </Field>
 
         <Field label="HOA $/mo">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.hoaMonthly}
-            onChange={(e) => s.updateHome({ hoaMonthly: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ hoaMonthly: n })}
           />
         </Field>
 
@@ -185,20 +180,18 @@ export function HomeSection() {
 
         {/* Club */}
         <Field label="Club initiation">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.clubInitiation}
-            onChange={(e) => s.updateHome({ clubInitiation: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ clubInitiation: n })}
           />
         </Field>
 
         <Field label="Club dues $/mo">
-          <input
-            type="number"
+          <GroupedNumberField
             className={fieldCls}
             value={home.clubMonthly}
-            onChange={(e) => s.updateHome({ clubMonthly: Number(e.target.value) })}
+            onChange={(n) => s.updateHome({ clubMonthly: n })}
           />
         </Field>
       </div>

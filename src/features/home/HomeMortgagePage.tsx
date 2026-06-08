@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, MoneyInput, Segmented, Button } from '@/components/ui/primitives';
+import { Section, MoneyInput, GroupedNumberField, Segmented, Button } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
 import { Grid, THead, TR, TD, NumberInput, DeleteCell, AddRow, useSort } from '@/components/grid/Grid';
 import { amortize, byYear } from '@/engine/mortgage';
@@ -311,7 +311,7 @@ export default function HomeMortgagePage() {
       <Section title="Property Costs" subtitle="Ongoing costs and the Colorado disabled-veteran exemption">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="HOA $ / mo">
-            <input type="number" className={fieldCls} value={home.hoaMonthly} onChange={(e) => s.updateHome({ hoaMonthly: Number(e.target.value) })} />
+            <GroupedNumberField className={fieldCls} value={home.hoaMonthly} onChange={(n) => s.updateHome({ hoaMonthly: n })} />
           </Field>
           <Field label="Property tax rate %">
             <input type="number" step={0.01} className={fieldCls} value={+(home.propertyTaxRate * 100).toFixed(3)} onChange={(e) => s.updateHome({ propertyTaxRate: Number(e.target.value) / 100 })} />
