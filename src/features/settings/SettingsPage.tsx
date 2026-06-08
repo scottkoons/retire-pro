@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button, Segmented } from '@/components/ui/primitives';
+import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
 import { seedDocument } from '@/domain/seed';
 import type { PersistedDocument } from '@/domain/types';
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const deleteScenario = useStore((s) => s.deleteScenario);
   const duplicateActive = useStore((s) => s.duplicateActive);
   const createFromPreset = useStore((s) => s.createFromPreset);
+  const createBlank = useStore((s) => s.createBlank);
   const setAssumption = useStore((s) => s.setAssumption);
   const updateHealthcare = useStore((s) => s.updateHealthcare);
   const updateSocialSecurity = useStore((s) => s.updateSocialSecurity);
@@ -102,22 +104,25 @@ export default function SettingsPage() {
                   Open
                 </Button>
               )}
-              <Button
-                variant="danger"
-                size="sm"
+              <button
                 disabled={scenarios.length <= 1}
                 title={scenarios.length <= 1 ? 'Keep at least one scenario' : 'Delete this scenario'}
+                aria-label={`Delete scenario ${sc.name}`}
                 onClick={() => {
                   if (scenarios.length > 1 && confirm(`Delete scenario "${sc.name}"? This cannot be undone.`)) deleteScenario(sc.id);
                 }}
+                className="shrink-0 rounded-md p-1.5 text-faint transition-colors hover:bg-error-tint hover:text-error disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-faint"
               >
-                Delete
-              </Button>
+                <IconTrash className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="label-mono mr-1">Create:</span>
+          <Button variant="outline" size="sm" onClick={createBlank}>
+            Blank scenario
+          </Button>
           <Button variant="outline" size="sm" onClick={duplicateActive}>
             Duplicate active
           </Button>

@@ -139,3 +139,15 @@ export const IconGift = (p: P) => (
     <path d="M12 8C12 8 11 3 8 3a2.5 2.5 0 0 0 0 5zM12 8C12 8 13 3 16 3a2.5 2.5 0 0 1 0 5z" />
   </svg>
 );
+export const IconPencil = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+  </svg>
+);
+export const IconFilePlus = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5M12 12v6M9 15h6" />
+  </svg>
+);

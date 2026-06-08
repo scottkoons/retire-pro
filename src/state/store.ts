@@ -30,6 +30,14 @@ import type {
 } from '@/domain/types';
 import { newId } from '@/domain/ids';
 import { applyPreset, cloneScenario, PRESETS } from '@/domain/presets';
+import {
+  emptyHomePlan,
+  neutralHealthcare,
+  defaultLongTermCare,
+  defaultInheritance,
+  defaultBusinessVenture,
+  defaultSocialSecurity,
+} from '@/domain/defaults';
 import { loadDocument, saveDocument } from '@/persistence/storage';
 import { AUTOSAVE_DEBOUNCE_MS } from '@/persistence/constants';
 
@@ -44,6 +52,7 @@ interface StoreState extends PersistedDocument {
   // scenario management
   selectScenario: (id: string) => void;
   createFromPreset: (key: PresetKey) => void;
+  createBlank: () => void;
   duplicateActive: () => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
@@ -172,6 +181,49 @@ export const useStore = create<StoreState>()(
           withPreset.kind = undefined; // a preset scenario is not a business-path variant
           s.scenarios.push(withPreset);
           s.activeScenarioId = withPreset.id;
+        });
+        schedulePersist();
+      },
+
+      createBlank: () => {
+        set((s) => {
+          // Inherit household facts (ages, inflation) from the current scenario, but
+          // start with a clean financial slate. Expense-driven so the accounts you add
+          // immediately drive the tax-aware projection.
+          const base = s.scenarios.find((x) => x.id === s.activeScenarioId) ?? s.scenarios[0];
+          const a = base.assumptions;
+          const ts = nowISO();
+          const blank: Scenario = {
+            id: newId(),
+            name: 'New Scenario',
+            presetKey: undefined,
+            kind: undefined,
+            assumptions: { ...a, startingBalance: 0 },
+            contributions: [],
+            lumpSums: [],
+            incomeStreams: [],
+            retirementPhases: [
+              { id: newId(), name: 'Retirement', startAge: a.retirementAge, endAge: a.modelEndAge, targetMonthlyIncome: 6000, enabled: true },
+            ],
+            investmentReturnPhases: [],
+            withdrawal: { type: 'percent-of-balance', rate: 0.04, taxStatus: 'taxable' },
+            accounts: [
+              { id: newId(), name: 'Taxable brokerage', kind: 'taxable', balance: 0, costBasisRatio: s.settings.defaultCostBasisRatio, enabled: true, contributionTarget: true },
+            ],
+            expenses: [],
+            home: emptyHomePlan(),
+            socialSecurity: defaultSocialSecurity(a.retirementAge, a.retirementAge, false),
+            healthcare: neutralHealthcare(),
+            longTermCare: defaultLongTermCare(),
+            inheritance: defaultInheritance(),
+            businessVenture: defaultBusinessVenture(),
+            withdrawalSequence: s.settings.defaultWithdrawalSequence ?? ['taxable', 'pretax', 'roth'],
+            spendingMode: 'expense-driven',
+            createdAt: ts,
+            updatedAt: ts,
+          };
+          s.scenarios.push(blank);
+          s.activeScenarioId = blank.id;
         });
         schedulePersist();
       },
