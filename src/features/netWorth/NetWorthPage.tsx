@@ -31,7 +31,8 @@ export default function NetWorthPage() {
   // projection's first-year growth. Same in today's vs actual $ since it is t=0.
   const currentLiquid = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
   const currentHomeEquity = home.enabled ? Math.max(0, home.currentValue - home.mortgageBalance) : 0;
-  const currentNetWorth = currentLiquid + currentHomeEquity;
+  const currentLoans = (scn.liabilities ?? []).filter((l) => l.enabled).reduce((sum, l) => sum + l.balance, 0);
+  const currentNetWorth = currentLiquid + currentHomeEquity - currentLoans;
   const today = new Date();
   const todayLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const birth = new Date(a.birthYear, a.birthMonth, a.birthDay);

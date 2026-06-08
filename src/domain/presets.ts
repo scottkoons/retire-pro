@@ -67,5 +67,6 @@ export function cloneScenario(src: Scenario, name: string, now: string): Scenari
   c.expenses = c.expenses.map((x) => ({ ...x, id: newId() }));
   c.socialSecurity = { ...c.socialSecurity, claims: c.socialSecurity.claims.map((x) => ({ ...x })) };
   if (c.home.extraPrincipalPayments) c.home.extraPrincipalPayments = c.home.extraPrincipalPayments.map((x) => ({ ...x, id: newId() }));
+  if (c.liabilities) c.liabilities = c.liabilities.map((x) => ({ ...x, id: newId() }));
   return c;
 }

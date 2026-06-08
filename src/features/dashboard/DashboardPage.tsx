@@ -61,6 +61,7 @@ export default function DashboardPage() {
   const mcFresh = mc.result && mc.configHash === currentHash;
 
   const balRetire = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
+  const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
   const guaranteed = deflate(result.guaranteedMonthlyIncome, a.retirementAge);
   const required = deflate(result.requiredPortfolioWithdrawal, a.retirementAge);
   const monthlyIncome = deflate(result.monthlyIncomeAtRetirement, a.retirementAge);
@@ -117,6 +118,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <StatTile label="Current Assets" value={fmtUSD(currentAssets)} sub="today · all accounts" accent="primary" />
             <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} tint="blue" />
             <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />

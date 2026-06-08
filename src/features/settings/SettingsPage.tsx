@@ -4,6 +4,8 @@ import { Section, Button, Segmented } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
 import { seedDocument } from '@/domain/seed';
+import { AccountsManager } from './AccountsManager';
+import { LoansManager } from './LoansManager';
 import type { PersistedDocument } from '@/domain/types';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -133,6 +135,9 @@ export default function SettingsPage() {
           ))}
         </div>
       </Section>
+
+      <AccountsManager />
+      <LoansManager />
 
       <Section title="Active Scenario" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">

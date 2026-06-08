@@ -122,6 +122,22 @@ export interface Account {
   owner?: Owner; // IRAs/401k are owner-scoped for RMDs; undefined => joint/taxable
   returnOverride?: Rate;
   contributionTarget?: boolean; // the single account routed monthly contributions land in
+  lastUpdated?: string; // ISO date the balance was last entered
+  enabled: boolean;
+  notes?: string;
+}
+
+export type LoanKind = 'mortgage' | 'auto' | 'student' | 'personal' | 'other';
+
+// A liability (car loan, etc.). The home mortgage is modeled separately in HomePlan.
+export interface Loan {
+  id: string;
+  name: string;
+  kind: LoanKind;
+  balance: Dollars;
+  rate: Rate; // APR
+  monthlyPayment: Dollars; // 0 lets the engine derive a payment from a 5-year term
+  lastUpdated?: string;
   enabled: boolean;
   notes?: string;
 }
@@ -265,6 +281,7 @@ export interface Scenario {
   longTermCare: LongTermCareConfig;
   inheritance: InheritanceConfig;
   businessVenture: BusinessVentureConfig;
+  liabilities?: Loan[]; // car/other loans (mortgage lives in home); optional for back-compat
   withdrawalSequence: AccountKind[]; // default ['taxable','pretax','roth']
   spendingMode: SpendingMode;
   kind?: BusinessPath; // identifies the Sell Early / Hold Restaurants pair

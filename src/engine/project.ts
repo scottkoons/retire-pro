@@ -478,6 +478,15 @@ export function runProjectionV2(
     lumpByYear.set(j, (lumpByYear.get(j) ?? 0) + amt);
   }
 
+  // ---- other loans (car, etc.); the home mortgage is handled separately ----
+  const loanState = (scn.liabilities ?? [])
+    .filter((l) => l.enabled)
+    .map((l) => ({
+      rate: l.rate,
+      payment: l.monthlyPayment > 0 ? l.monthlyPayment * 12 : annuityPaymentAnnual(l.balance, l.rate, 5),
+      bal: l.balance,
+    }));
+
   const months: MonthState[] = [];
   const rows: YearRow[] = [];
   const magiByYear: number[] = [];
@@ -565,6 +574,17 @@ export function runProjectionV2(
       homeCost = am.paid + propTax + hoa + clubDues; // ongoing; club initiation already in byCat.club only at closing
     }
     const homeEquity = homeEnabled ? Math.max(0, homeValue - homeMort) : 0;
+
+    // ---- amortize other loans: payment is a mandatory cost, balance reduces net worth ----
+    let loanCost = 0;
+    for (const ln of loanState) {
+      if (ln.bal <= 0) continue;
+      const am = amortizeYear(ln.bal, ln.rate, ln.payment);
+      ln.bal = am.closing;
+      loanCost += am.paid;
+    }
+    const loanBalanceTotal = loanState.reduce((sum, ln) => sum + ln.bal, 0);
+    if (loanCost > 0) byCat.other += loanCost;
 
     // ---- guaranteed income (gross, nominal), split by tax character ----
     let ordinaryGuar = 0;
@@ -682,7 +702,7 @@ export function runProjectionV2(
     // Mandatory obligations (home carrying costs, healthcare, LTC) are funded from the
     // portfolio in EVERY year so mortgage principal -> home equity is actually paid for
     // and never appears for free. Lifestyle is added only in retirement.
-    totalSpend = lifestyle + healthcareExp + homeCost + ltcExp;
+    totalSpend = lifestyle + healthcareExp + homeCost + ltcExp + loanCost;
 
     // ---- base income (fixed regardless of discretionary withdrawals) ----
     const baseIncome: TaxableIncomeInputs = {
@@ -773,7 +793,7 @@ export function runProjectionV2(
 
     const liquidEnd = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
     const investmentGrowth = liquidEnd - liquidBeforeGrowth;
-    const netWorth = liquidEnd + homeEquity;
+    const netWorth = liquidEnd + homeEquity - loanBalanceTotal;
     const guaranteedIncomeYear = ordinaryGuar + ssGross + taxFree;
 
     rows.push({

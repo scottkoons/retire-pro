@@ -13,6 +13,8 @@ import type {
   InheritanceConfig,
   InvestmentReturnPhase,
   IncomeStream,
+  Loan,
+  LoanKind,
   LongTermCareConfig,
   LumpSumEvent,
   MonthlyContribution,
@@ -99,6 +101,9 @@ interface StoreState extends PersistedDocument {
   addExtraPrincipal: () => void;
   updateExtraPrincipal: (id: string, patch: Partial<ExtraPrincipalPayment>) => void;
   removeExtraPrincipal: (id: string) => void;
+  addLoan: (kind?: LoanKind) => void;
+  updateLoan: (id: string, patch: Partial<Loan>) => void;
+  removeLoan: (id: string) => void;
   updateSocialSecurity: (patch: Partial<SocialSecurityConfig>) => void;
   updateSsClaim: (owner: Owner, patch: Partial<SocialSecurityClaim>) => void;
   updateHealthcare: (patch: Partial<HealthcareConfig>) => void;
@@ -178,11 +183,13 @@ export const useStore = create<StoreState>()(
       },
 
       createFromPreset: (key) => {
+        // Clone OUTSIDE the immer draft: cloneScenario uses structuredClone, which
+        // throws on an immer draft Proxy. get() returns the plain (frozen) state.
+        const st = get();
+        const base = st.scenarios.find((x) => x.id === st.activeScenarioId) ?? st.scenarios[0];
+        const withPreset = applyPreset(cloneScenario(base, PRESETS[key].name, nowISO()), key, nowISO());
+        withPreset.kind = undefined; // a preset scenario is not a business-path variant
         set((s) => {
-          const base = s.scenarios.find((x) => x.id === s.activeScenarioId) ?? s.scenarios[0];
-          const cloned = cloneScenario(base, PRESETS[key].name, nowISO());
-          const withPreset = applyPreset(cloned, key, nowISO());
-          withPreset.kind = undefined; // a preset scenario is not a business-path variant
           s.scenarios.push(withPreset);
           s.activeScenarioId = withPreset.id;
         });
@@ -233,10 +240,13 @@ export const useStore = create<StoreState>()(
       },
 
       duplicateActive: () => {
+        // Clone OUTSIDE the immer draft: cloneScenario uses structuredClone, which
+        // throws on an immer draft Proxy (this was the "duplicate does nothing" bug).
+        const st = get();
+        const base = st.scenarios.find((x) => x.id === st.activeScenarioId);
+        if (!base) return;
+        const cloned = cloneScenario(base, `${base.name} (Copy)`, nowISO());
         set((s) => {
-          const base = s.scenarios.find((x) => x.id === s.activeScenarioId);
-          if (!base) return;
-          const cloned = cloneScenario(base, `${base.name} (Copy)`, nowISO());
           s.scenarios.push(cloned);
           s.activeScenarioId = cloned.id;
         });
@@ -441,6 +451,18 @@ export const useStore = create<StoreState>()(
       }),
       removeExtraPrincipal: (id) => mutateActive((scn) => {
         if (scn.home.extraPrincipalPayments) scn.home.extraPrincipalPayments = scn.home.extraPrincipalPayments.filter((x) => x.id !== id);
+      }),
+
+      addLoan: (kind = 'auto') => mutateActive((scn) => {
+        if (!scn.liabilities) scn.liabilities = [];
+        scn.liabilities.push({ id: newId(), name: kind === 'auto' ? 'Car loan' : 'Loan', kind, balance: 0, rate: 0.06, monthlyPayment: 0, enabled: true });
+      }),
+      updateLoan: (id, patch) => mutateActive((scn) => {
+        const l = scn.liabilities?.find((x) => x.id === id);
+        if (l) Object.assign(l, patch);
+      }),
+      removeLoan: (id) => mutateActive((scn) => {
+        if (scn.liabilities) scn.liabilities = scn.liabilities.filter((x) => x.id !== id);
       }),
       updateSocialSecurity: (patch) => mutateActive((scn) => {
         scn.socialSecurity = { ...scn.socialSecurity, ...patch };

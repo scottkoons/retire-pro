@@ -23,6 +23,19 @@ export const AccountSchema = z.object({
   owner: Owner.optional(),
   returnOverride: Rate.optional(),
   contributionTarget: z.boolean().optional(),
+  lastUpdated: z.string().optional(),
+  enabled: z.boolean(),
+  notes: z.string().optional(),
+});
+
+export const LoanSchema = z.object({
+  id: Id,
+  name: z.string(),
+  kind: z.enum(['mortgage', 'auto', 'student', 'personal', 'other']),
+  balance: Dollars,
+  rate: Rate,
+  monthlyPayment: Dollars,
+  lastUpdated: z.string().optional(),
   enabled: z.boolean(),
   notes: z.string().optional(),
 });
@@ -230,6 +243,7 @@ export const ScenarioSchema = z.object({
   longTermCare: LongTermCareConfigSchema,
   inheritance: InheritanceConfigSchema,
   businessVenture: BusinessVentureConfigSchema,
+  liabilities: z.array(LoanSchema).optional(),
   withdrawalSequence: z.array(AccountKind).min(1),
   spendingMode: SpendingMode,
   kind: z.enum(['business-sell', 'business-hold']).optional(),
