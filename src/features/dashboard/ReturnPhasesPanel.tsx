@@ -1,20 +1,21 @@
 import clsx from 'clsx';
 import { useActiveScenario, useStore } from '@/state/store';
+import { Slider } from '@/components/ui/tiles';
 import { IconPlus, IconTrash, IconTrendingUp } from '@/components/icons';
 
-// Compact inline editor styling, sized for the dashboard (not the grid table).
-const numCls =
-  'rounded-sm border border-border-strong bg-input px-2 py-1 font-mono text-[13px] text-ink tabnum text-right transition-colors hover:border-primary/60 focus:border-primary focus:outline-none';
-const nameCls =
-  'min-w-0 flex-1 rounded-sm border border-border-strong bg-input px-2 py-1 text-[13px] text-ink transition-colors hover:border-primary/60 focus:border-primary focus:outline-none';
+const ageInputCls =
+  'w-10 rounded-sm border border-border-strong bg-input px-1 py-0.5 text-center font-mono text-[12px] text-ink tabnum transition-colors hover:border-primary/60 focus:border-primary focus:outline-none';
 
-/** Dashboard panel that replaces the single "Average Return" slider with a
- *  per-phase return editor. It reads and writes the SAME scn.investmentReturnPhases
- *  that the Phases page edits, so changes here flow straight into the projection
- *  (and Monte Carlo) and stay in sync across both screens. The global annualReturn
- *  is shown as the editable fallback used for any age no phase covers. */
+/** Dashboard panel: the average return as one tile per investment-return phase.
+ *  Each tile carries an editable name, a big % with a slider, and its age range.
+ *  Tiles fill the whole row and split evenly by count (1 = full width, 2 = halves,
+ *  3 = thirds, 4 = quarters) via CSS grid auto-fit; "Add New" splits the latest
+ *  phase in half. The tiles read/write the same scn.investmentReturnPhases the
+ *  Phases page uses, so edits flow straight into the projection and Monte Carlo.
+ *  With no phases, a single full-width tile edits the global default return. */
 export function ReturnPhasesPanel() {
   const scn = useActiveScenario();
+  const a = scn.assumptions;
   const addReturnPhase = useStore((s) => s.addReturnPhase);
   const updateReturnPhase = useStore((s) => s.updateReturnPhase);
   const removeReturnPhase = useStore((s) => s.removeReturnPhase);
@@ -22,7 +23,6 @@ export function ReturnPhasesPanel() {
 
   // Sorted copy for display; edits still target the stable phase id.
   const phases = [...scn.investmentReturnPhases].sort((x, y) => x.startAge - y.startAge);
-  const globalPct = +(scn.assumptions.annualReturn * 100).toFixed(1);
 
   return (
     <div className="rounded-xl border border-border-subtle bg-card p-5">
@@ -38,90 +38,75 @@ export function ReturnPhasesPanel() {
           onClick={addReturnPhase}
           className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-input px-2.5 py-1.5 text-[12px] font-medium text-primary transition-colors hover:border-primary"
         >
-          <IconPlus className="h-4 w-4" /> Add phase
+          <IconPlus className="h-4 w-4" /> Add New
         </button>
       </div>
-      <p className="mb-4 text-[12px] text-muted">Set an expected return per age range — drives the projection and Monte Carlo.</p>
+      <p className="mb-4 text-[12px] text-muted">
+        Each tile is an age range and its expected return — add to split the timeline. Drives the projection and Monte Carlo.
+      </p>
 
-      {phases.length === 0 ? (
-        <p className="mb-4 rounded-md border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted">
-          No phases yet — the default return below applies to every age. Add a phase to vary the return across retirement.
-        </p>
-      ) : (
-        <div className="mb-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.06em] text-faint">
-            <span className="flex-1">Phase</span>
-            <span className="w-36 text-center">Ages</span>
-            <span className="w-20 text-right">Return</span>
-            <span className="w-7" />
-          </div>
-          {phases.map((p) => (
-            <div key={p.id} className={clsx('flex items-center gap-2', !p.enabled && 'opacity-50')}>
-              <input
-                type="text"
-                value={p.name}
-                onChange={(e) => updateReturnPhase(p.id, { name: e.target.value })}
-                className={nameCls}
-                aria-label="Phase name"
-              />
-              <div className="flex w-36 items-center justify-center gap-1 text-faint">
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+        {phases.length > 0 ? (
+          phases.map((p) => (
+            <div
+              key={p.id}
+              className={clsx('rounded-xl border border-border-subtle bg-card-high p-4', !p.enabled && 'opacity-50')}
+            >
+              <div className="mb-3 flex items-start gap-2">
                 <input
-                  type="number"
-                  value={Math.round(p.startAge)}
-                  onChange={(e) => updateReturnPhase(p.id, { startAge: Number(e.target.value) })}
-                  className={clsx(numCls, 'w-14')}
-                  aria-label="Start age"
+                  type="text"
+                  value={p.name}
+                  onChange={(e) => updateReturnPhase(p.id, { name: e.target.value })}
+                  placeholder="Phase name"
+                  aria-label="Phase name"
+                  className="min-w-0 flex-1 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-border-strong focus:border-primary focus:bg-input focus:outline-none"
                 />
-                <span>–</span>
-                <input
-                  type="number"
-                  value={Math.round(p.endAge)}
-                  onChange={(e) => updateReturnPhase(p.id, { endAge: Number(e.target.value) })}
-                  className={clsx(numCls, 'w-14')}
-                  aria-label="End age"
-                />
+                <button
+                  type="button"
+                  onClick={() => removeReturnPhase(p.id)}
+                  aria-label="Delete phase"
+                  className="shrink-0 rounded p-1 text-faint transition-colors hover:text-error"
+                >
+                  <IconTrash className="h-4 w-4" />
+                </button>
               </div>
-              <div className="flex w-20 items-center justify-end gap-0.5">
-                <input
-                  type="number"
-                  step={0.1}
-                  value={+(p.expectedReturn * 100).toFixed(1)}
-                  onChange={(e) => updateReturnPhase(p.id, { expectedReturn: Number(e.target.value) / 100 })}
-                  className={clsx(numCls, 'w-14')}
-                  aria-label="Expected return"
-                />
-                <span className="text-faint">%</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-head text-[34px] font-bold leading-none text-ink tabnum">
+                  {+(p.expectedReturn * 100).toFixed(1)}
+                </span>
+                <span className="font-mono text-[14px] text-muted">%</span>
               </div>
-              <button
-                type="button"
-                onClick={() => removeReturnPhase(p.id)}
-                aria-label="Delete phase"
-                className="flex w-7 justify-end rounded p-1 text-faint transition-colors hover:text-error"
-              >
-                <IconTrash className="h-4 w-4" />
-              </button>
+              <div className="mt-3">
+                <Slider min={0} max={0.12} step={0.001} value={p.expectedReturn} onChange={(v) => updateReturnPhase(p.id, { expectedReturn: v })} aria-label="Expected return" />
+              </div>
+              <div className="mt-4 flex items-center gap-1.5 text-[11px]">
+                <span className="font-mono uppercase tracking-[0.06em] text-faint">Ages</span>
+                <input type="number" value={Math.round(p.startAge)} onChange={(e) => updateReturnPhase(p.id, { startAge: Number(e.target.value) })} className={ageInputCls} aria-label="Start age" />
+                <span className="text-faint">–</span>
+                <input type="number" value={Math.round(p.endAge)} onChange={(e) => updateReturnPhase(p.id, { endAge: Number(e.target.value) })} className={ageInputCls} aria-label="End age" />
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Global fallback return — always editable, used for ages no phase covers. */}
-      <div className="flex items-center gap-2 border-t border-border-subtle pt-3">
-        <span className="flex-1 text-[13px] text-muted">
-          {phases.length ? 'Default — ages no phase covers' : 'Default return — all ages'}
-        </span>
-        <div className="flex w-20 items-center justify-end gap-0.5">
-          <input
-            type="number"
-            step={0.1}
-            value={globalPct}
-            onChange={(e) => setAssumption('annualReturn', Number(e.target.value) / 100)}
-            className={clsx(numCls, 'w-14')}
-            aria-label="Default return"
-          />
-          <span className="text-faint">%</span>
-        </div>
-        <span className="w-7" />
+          ))
+        ) : (
+          // No phases yet: one full-width tile editing the global default (applies to every age).
+          <div className="rounded-xl border border-border-subtle bg-card-high p-4">
+            <div className="mb-3 px-1 text-[13px] font-semibold text-ink">
+              All ages <span className="ml-1 font-normal text-faint">· default</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-head text-[34px] font-bold leading-none text-ink tabnum">{+(a.annualReturn * 100).toFixed(1)}</span>
+              <span className="font-mono text-[14px] text-muted">%</span>
+            </div>
+            <div className="mt-3">
+              <Slider min={0} max={0.12} step={0.001} value={a.annualReturn} onChange={(v) => setAssumption('annualReturn', v)} aria-label="Default return" />
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-[11px]">
+              <span className="font-mono uppercase tracking-[0.06em] text-faint">Ages</span>
+              <span className="font-mono tabnum text-muted">{Math.round(a.currentAge)} – {Math.round(a.modelEndAge)}</span>
+              <span className="ml-1 text-faint">· Add New to split by age</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

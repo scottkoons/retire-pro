@@ -92,6 +92,23 @@ export default function DashboardPage() {
       <div className="flex min-w-0 flex-col gap-6 xl:col-span-8">
         {/* Tiles */}
         <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-end gap-2">
+            <span className="label-mono">Show amounts in</span>
+            <Segmented
+              size="sm"
+              options={[
+                { value: 'actual', label: 'Actual $' },
+                { value: 'today', label: "Today's $" },
+              ]}
+              value={displayMode}
+              onChange={(v) => setOverride(v)}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="amber" />
+            <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
+            <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
+          </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <ControlTile label="Target Retirement Age" icon={<IconCalendar className="h-5 w-5" />} value={Math.round(a.retirementAge)} unit="years">
               <Slider min={50} max={75} value={Math.round(a.retirementAge)} onChange={(v) => setAssumption('retirementAge', v)} aria-label="Retirement age" />
@@ -117,24 +134,6 @@ export default function DashboardPage() {
           </div>
 
           <ReturnPhasesPanel />
-
-          <div className="flex items-center justify-end gap-2">
-            <span className="label-mono">Show amounts in</span>
-            <Segmented
-              size="sm"
-              options={[
-                { value: 'actual', label: 'Actual $' },
-                { value: 'today', label: "Today's $" },
-              ]}
-              value={displayMode}
-              onChange={(v) => setOverride(v)}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="amber" />
-            <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
-            <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
-          </div>
         </div>
 
         {/* Wealth chart */}

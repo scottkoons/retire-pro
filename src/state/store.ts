@@ -371,13 +371,34 @@ export const useStore = create<StoreState>()(
       }),
 
       addReturnPhase: () => mutateActive((scn) => {
-        scn.investmentReturnPhases.push({
+        const phases = scn.investmentReturnPhases;
+        const a = scn.assumptions;
+        // First phase spans the whole plan at the global return (one tile, full row).
+        if (phases.length === 0) {
+          phases.push({
+            id: newId(),
+            name: 'Phase 1',
+            startAge: Math.round(a.currentAge),
+            endAge: Math.round(a.modelEndAge),
+            expectedReturn: a.annualReturn,
+            volatility: 0.12,
+            enabled: true,
+          });
+          return;
+        }
+        // Otherwise split the latest phase in half; the new phase takes the upper half.
+        const last = phases.reduce((acc, p) => (p.startAge >= acc.startAge ? p : acc), phases[0]);
+        const lo = Math.round(last.startAge);
+        const hi = Math.round(last.endAge);
+        const mid = hi - lo >= 2 ? Math.round((lo + hi) / 2) : Math.min(hi, lo + 1);
+        last.endAge = mid;
+        phases.push({
           id: newId(),
-          name: 'New return phase',
-          startAge: scn.assumptions.currentAge,
-          endAge: scn.assumptions.modelEndAge,
-          expectedReturn: scn.assumptions.annualReturn,
-          volatility: 0.12,
+          name: `Phase ${phases.length + 1}`,
+          startAge: mid,
+          endAge: hi,
+          expectedReturn: last.expectedReturn,
+          volatility: last.volatility,
           enabled: true,
         });
       }),
