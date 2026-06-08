@@ -133,8 +133,7 @@ export default function DashboardPage() {
               onChange={(v) => setOverride(v)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatTile label="Current Assets" value={fmtUSD(currentAssets)} sub="all accounts" accent="primary" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="blue" />
             <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
