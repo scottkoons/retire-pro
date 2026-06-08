@@ -10,7 +10,8 @@ import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components
 import { WealthChart } from '@/components/charts/WealthChart';
 import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
 import { ScenarioRail } from './ScenarioRail';
-import { IconCalendar, IconTrendingUp, IconBank, IconDice, IconDiamond } from '@/components/icons';
+import { ReturnPhasesPanel } from './ReturnPhasesPanel';
+import { IconCalendar, IconBank, IconDice, IconDiamond } from '@/components/icons';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, pctValue } from '@/lib/format';
 
@@ -91,12 +92,9 @@ export default function DashboardPage() {
       <div className="flex min-w-0 flex-col gap-6 xl:col-span-8">
         {/* Tiles */}
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <ControlTile label="Target Retirement Age" icon={<IconCalendar className="h-5 w-5" />} value={Math.round(a.retirementAge)} unit="years">
               <Slider min={50} max={75} value={Math.round(a.retirementAge)} onChange={(v) => setAssumption('retirementAge', v)} aria-label="Retirement age" />
-            </ControlTile>
-            <ControlTile label="Average Return (%)" icon={<IconTrendingUp className="h-5 w-5" />} value={pctValue(a.annualReturn)} unit="%">
-              <Slider min={0} max={0.12} step={0.001} value={a.annualReturn} onChange={(v) => setAssumption('annualReturn', v)} aria-label="Average return" />
             </ControlTile>
             <ControlTile label="Starting Amount" icon={<IconBank className="h-5 w-5" />} value={fmtUSDAbbrev(currentAssets)}>
               {/* Read-only: the starting amount is the total of your accounts. Edit balances in the Planner. */}
@@ -106,13 +104,10 @@ export default function DashboardPage() {
                 title="Total of your accounts — edit balances in the Planner"
                 className="flex w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-input px-3 py-2 text-left transition-colors hover:border-primary"
               >
-                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-faint">Total of accounts</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-faint">Accounts</span>
                 <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(currentAssets)}</span>
               </button>
             </ControlTile>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <ControlTile label="Withdrawal Rate" value={pctValue(scn.withdrawal.rate ?? 0.04, 2)} unit="%">
               <Slider min={0.02} max={0.08} step={0.0025} value={scn.withdrawal.rate ?? 0.04} onChange={(v) => setWithdrawal({ rate: v })} aria-label="Withdrawal rate" />
             </ControlTile>
@@ -120,6 +115,8 @@ export default function DashboardPage() {
               <Slider min={0} max={0.06} step={0.001} value={a.inflation} onChange={(v) => setAssumption('inflation', v)} aria-label="Inflation" />
             </ControlTile>
           </div>
+
+          <ReturnPhasesPanel />
 
           <div className="flex items-center justify-end gap-2">
             <span className="label-mono">Show amounts in</span>
