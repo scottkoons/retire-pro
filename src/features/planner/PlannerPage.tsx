@@ -16,6 +16,9 @@ import {
 import { fmtUSD, fmtUSDAbbrev } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
+import { AccountsSection } from './sections/AccountsSection';
+import { ExpensesSection } from './sections/ExpensesSection';
+import { HomeSection } from './sections/HomeSection';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
   { value: 'today', label: "Today's $" },
@@ -83,6 +86,11 @@ export default function PlannerPage() {
           </Field>
         </div>
       </Section>
+
+      {/* v2 tax-aware modeling */}
+      <AccountsSection />
+      <ExpensesSection />
+      <HomeSection />
 
       {/* Monthly Contributions */}
       <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows`}>

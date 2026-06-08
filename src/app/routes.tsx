@@ -7,6 +7,9 @@ import YearByYearPage from '@/features/yearByYear/YearByYearPage';
 import MonteCarloPage from '@/features/monteCarlo/MonteCarloPage';
 import SummaryPage from '@/features/summary/SummaryPage';
 import SettingsPage from '@/features/settings/SettingsPage';
+import NetWorthPage from '@/features/netWorth/NetWorthPage';
+import CashFlowPage from '@/features/cashFlow/CashFlowPage';
+import CheckupPage from '@/features/checkup/CheckupPage';
 
 export const router = createHashRouter([
   {
@@ -14,6 +17,9 @@ export const router = createHashRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: 'net-worth', element: <NetWorthPage /> },
+      { path: 'cash-flow', element: <CashFlowPage /> },
+      { path: 'checkup', element: <CheckupPage /> },
       { path: 'planner', element: <PlannerPage /> },
       { path: 'phases', element: <PhasesPage /> },
       { path: 'year-by-year', element: <YearByYearPage /> },

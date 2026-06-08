@@ -9,17 +9,38 @@ import {
   IconDoc,
   IconSettings,
   IconChevronLeft,
+  IconBank,
+  IconTrendingUp,
+  IconDiamond,
 } from '@/components/icons';
 import { useStore } from '@/state/store';
 
-const NAV = [
-  { to: '/', label: 'Dashboard', Icon: IconDashboard, end: true },
-  { to: '/planner', label: 'Planner Sheet', Icon: IconSheet },
-  { to: '/phases', label: 'Retirement Phases', Icon: IconPhases },
-  { to: '/year-by-year', label: 'Year-by-Year', Icon: IconTable },
-  { to: '/monte-carlo', label: 'Monte Carlo', Icon: IconDice },
-  { to: '/summary', label: 'Plan Summary', Icon: IconDoc },
-  { to: '/settings', label: 'Settings', Icon: IconSettings },
+const NAV_GROUPS = [
+  {
+    heading: 'Overview',
+    items: [
+      { to: '/', label: 'Dashboard', Icon: IconDashboard, end: true },
+      { to: '/net-worth', label: 'Net Worth', Icon: IconBank },
+      { to: '/cash-flow', label: 'Cash Flow & Taxes', Icon: IconTrendingUp },
+      { to: '/checkup', label: 'Plan Checkup', Icon: IconDiamond },
+    ],
+  },
+  {
+    heading: 'Plan',
+    items: [
+      { to: '/planner', label: 'Planner Sheet', Icon: IconSheet },
+      { to: '/phases', label: 'Retirement Phases', Icon: IconPhases },
+      { to: '/year-by-year', label: 'Year-by-Year', Icon: IconTable },
+    ],
+  },
+  {
+    heading: 'Analysis',
+    items: [
+      { to: '/monte-carlo', label: 'Monte Carlo', Icon: IconDice },
+      { to: '/summary', label: 'Plan Summary', Icon: IconDoc },
+      { to: '/settings', label: 'Settings', Icon: IconSettings },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -46,29 +67,34 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className={clsx('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
-        {NAV.map(({ to, label, Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              clsx(
-                'relative mb-1 flex items-center rounded-md py-2 text-[14px] transition-colors',
-                collapsed ? 'justify-center px-0' : 'gap-3 px-3',
-                isActive ? 'bg-primary-tint font-medium text-ink' : 'text-muted hover:bg-hover hover:text-ink',
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && <span className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-primary" />}
-                <Icon className={clsx('h-5 w-5 shrink-0', isActive && 'text-primary')} />
-                {!collapsed && <span className="whitespace-nowrap">{label}</span>}
-              </>
-            )}
-          </NavLink>
+      <nav className={clsx('flex-1 overflow-y-auto py-2', collapsed ? 'px-2' : 'px-3')}>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.heading} className="mb-2">
+            {!collapsed && <div className="label-mono px-3 pb-1 pt-3 text-faint">{group.heading}</div>}
+            {group.items.map(({ to, label, Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                title={collapsed ? label : undefined}
+                className={({ isActive }) =>
+                  clsx(
+                    'relative mb-1 flex items-center rounded-md py-2 text-[14px] transition-colors',
+                    collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+                    isActive ? 'bg-primary-tint font-medium text-ink' : 'text-muted hover:bg-hover hover:text-ink',
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-primary" />}
+                    <Icon className={clsx('h-5 w-5 shrink-0', isActive && 'text-primary')} />
+                    {!collapsed && <span className="whitespace-nowrap">{label}</span>}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 

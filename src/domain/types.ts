@@ -118,7 +118,7 @@ export interface Account {
   name: string;
   kind: AccountKind; // tax-treatment axis (orthogonal to TaxStatus)
   balance: Dollars; // current nominal balance
-  costBasisRatio?: Rate; // taxable only: fraction of a withdrawal that is realized gain (0..1)
+  costBasisRatio?: Rate; // taxable only: fraction of the balance that is cost basis (0..1); realized gain on a withdrawal = 1 - costBasisRatio
   owner?: Owner; // IRAs/401k are owner-scoped for RMDs; undefined => joint/taxable
   returnOverride?: Rate;
   contributionTarget?: boolean; // the single account routed monthly contributions land in

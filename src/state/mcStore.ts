@@ -18,7 +18,7 @@ interface McState {
 let worker: Worker | null = null;
 
 // Bump when the projection/withdrawal math changes so cached MC results invalidate.
-const ENGINE_VERSION = 4;
+const ENGINE_VERSION = 5;
 
 function mcConfigHash(scn: Scenario, settings: Settings, criterion: SuccessCriterion): string {
   return String(
@@ -47,6 +47,8 @@ function mcConfigHash(scn: Scenario, settings: Settings, criterion: SuccessCrite
         sim: settings.monteCarlo.simulations,
         vol: settings.monteCarlo.returnVolatility,
         rmdStart: settings.rmdStartAge,
+        cbr: settings.defaultCostBasisRatio,
+        wseqDefault: settings.defaultWithdrawalSequence,
         criterion,
       }),
     ),
@@ -94,6 +96,7 @@ export const useMcStore = create<McState>((set, get) => ({
     const paths = Math.min(10000, Math.max(200, Math.round(settings.monteCarlo.simulations)));
     const req: MonteCarloRequest = {
       scenario,
+      settings,
       paths,
       volatilityFallback: settings.monteCarlo.returnVolatility,
       seed: Number(hash) >>> 0,

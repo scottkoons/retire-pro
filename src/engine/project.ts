@@ -7,7 +7,19 @@ import type {
   Scenario,
   YearRow,
 } from '@/domain/types';
+import type { Account, AccountKind, ExpenseCategory, Owner, Settings } from '@/domain/types';
 import { ageToMonthIndex, dateToMonthIndex, monthIndexToAge, monthlyRate } from './timeline';
+import {
+  resolveTaxConfig,
+  estimateAnnualTaxes,
+  solveGrossWithdrawal,
+  rmd as rmdAmount,
+  irmaaPartBSurchargeMonthly,
+  type TaxConfig,
+  type TaxableIncomeInputs,
+  type TaxContext,
+  type GrossUpSource,
+} from './tax';
 
 export interface MonthState {
   t: number;
@@ -76,8 +88,10 @@ function streamNominalAt(scn: Scenario, s: Scenario['incomeStreams'][number], t:
   return s.monthlyAmountToday * Math.pow(1 + cm, t); // COLA anchored from today (t=0)
 }
 
-/** Run the deterministic (or, with a stochastic provider, one Monte Carlo) projection. */
-export function runProjection(scn: Scenario, provider: ReturnProvider = fixedProvider): ProjectionBundle {
+/** Legacy v1 single-balance projection. Preserved verbatim so migrated v1 documents
+ *  (home/healthcare/SS off, no expenses) keep projecting identically. The v2 engine
+ *  below handles tax-aware, multi-account scenarios; runProjection dispatches between them. */
+export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fixedProvider): ProjectionBundle {
   const a = scn.assumptions;
   const years = Math.max(1, Math.round(a.modelEndAge - a.currentAge + 1)); // inclusive => 40
   const T = years * 12;
@@ -292,4 +306,561 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   const taxFreePerMo = components.filter((c) => c.taxStatus === 'tax-free').reduce((s, c) => s + c.monthlyNominal, 0);
 
   return { age, components, taxablePerMo, taxFreePerMo };
+}
+
+// ===========================================================================
+// v2 tax-aware, multi-account engine
+//
+// Annual loop (taxes, RMDs, IRMAA, and gross-up are all annual concepts).
+// Accumulation years (age < retirementAge) only add contributions / lump sums /
+// inheritance and grow; the household's spending need is funded from the
+// portfolio only in retirement (matching the v1 decision that pre-retirement
+// guaranteed income is informational). The home is amortized every year so net
+// worth and equity track correctly even before retirement.
+// ===========================================================================
+
+export interface ProjectionOpts {
+  /** Inject / override tax tables (e.g. a future user-tuned TaxConfig). */
+  taxConfig?: Partial<TaxConfig>;
+}
+
+/** A scenario uses the v2 engine once any tax/account/expense feature is active.
+ *  Migrated v1 docs (home/healthcare/SS off, no expenses) fall through to the
+ *  legacy path so their numbers are unchanged until the user opts in. */
+export function usesV2(scn: Scenario): boolean {
+  return (
+    scn.home?.enabled === true ||
+    scn.healthcare?.enabled === true ||
+    scn.socialSecurity?.enabled === true ||
+    scn.spendingMode === 'expense-driven' ||
+    (Array.isArray(scn.expenses) && scn.expenses.some((e) => e.enabled))
+  );
+}
+
+/** Social Security benefit as a multiple of the FRA benefit, given the claim age.
+ *  Early: -5/9% per month for the first 36, -5/12% beyond. Delayed: +2/3% per
+ *  month past FRA, capped at age 70. */
+export function ssAdjustmentFactor(claimAge: number, fra: number): number {
+  const months = Math.round((claimAge - fra) * 12);
+  if (months === 0) return 1;
+  if (months < 0) {
+    const early = -months;
+    const first = Math.min(early, 36);
+    const beyond = Math.max(0, early - 36);
+    return Math.max(0, 1 - (first * 5) / 900 - (beyond * 5) / 1200);
+  }
+  const delay = Math.min(months, Math.round((70 - fra) * 12));
+  return 1 + (delay * 2) / 300;
+}
+
+/** Standard amortizing annual payment (principal & interest) for a loan. */
+function annuityPaymentAnnual(principal: number, annualRate: number, years: number): number {
+  if (principal <= 0 || years <= 0) return 0;
+  const r = annualRate / 12;
+  const n = years * 12;
+  const monthly = r === 0 ? principal / n : (principal * r) / (1 - Math.pow(1 + r, -n));
+  return monthly * 12;
+}
+
+/** Amortize one year of a mortgage (12 monthly periods). */
+function amortizeYear(
+  balance: number,
+  annualRate: number,
+  annualPayment: number,
+): { interest: number; principal: number; paid: number; closing: number } {
+  let bal = balance;
+  const mr = annualRate / 12;
+  const pmt = annualPayment / 12;
+  let interest = 0;
+  let principal = 0;
+  for (let m = 0; m < 12 && bal > 0; m++) {
+    const intM = bal * mr;
+    const prinM = Math.min(bal, pmt - intM);
+    bal -= Math.max(0, prinM);
+    interest += intM;
+    principal += Math.max(0, prinM);
+  }
+  return { interest, principal, paid: interest + principal, closing: Math.max(0, bal) };
+}
+
+const ZERO_BY_CAT = (): Record<ExpenseCategory, number> => ({
+  housing: 0,
+  club: 0,
+  travel: 0,
+  living: 0,
+  healthcare: 0,
+  longTermCare: 0,
+  other: 0,
+});
+
+export function runProjectionV2(
+  scn: Scenario,
+  settings: Settings,
+  provider: ReturnProvider = fixedProvider,
+  opts?: ProjectionOpts,
+): ProjectionBundle {
+  const a = scn.assumptions;
+  const years = Math.max(1, Math.round(a.modelEndAge - a.currentAge + 1));
+  const infl = a.inflation;
+  const offset = a.spouseAgeOffset ?? 0;
+  const baseCfg = resolveTaxConfig(opts?.taxConfig);
+  const rmdStartAge = settings.rmdStartAge ?? baseCfg.rmdStartAge;
+  const cfg: TaxConfig = rmdStartAge === baseCfg.rmdStartAge ? baseCfg : { ...baseCfg, rmdStartAge };
+  const seq: AccountKind[] = scn.withdrawalSequence?.length
+    ? scn.withdrawalSequence
+    : settings.defaultWithdrawalSequence ?? ['taxable', 'pretax', 'roth'];
+  const ssEnabled = scn.socialSecurity?.enabled === true;
+
+  // ---- account state, tracked by kind (per-owner for pretax RMDs) ----
+  const acctEnabled = scn.accounts.filter((x) => x.enabled);
+  let taxableBal = sumBal(acctEnabled, 'taxable');
+  let rothBal = sumBal(acctEnabled, 'roth');
+  let pretaxSelf = acctEnabled.filter((x) => x.kind === 'pretax' && (x.owner ?? 'self') === 'self').reduce((s, x) => s + Math.max(0, x.balance), 0);
+  let pretaxSpouse = acctEnabled.filter((x) => x.kind === 'pretax' && x.owner === 'spouse').reduce((s, x) => s + Math.max(0, x.balance), 0);
+
+  // Constant realized-gain fraction on taxable withdrawals (balance-weighted at t0).
+  // costBasisRatio is the BASIS fraction (what you paid), so the taxable gain on a
+  // withdrawal is (1 - costBasisRatio).
+  const taxableAccts = acctEnabled.filter((x) => x.kind === 'taxable');
+  const taxableStart = taxableAccts.reduce((s, x) => s + Math.max(0, x.balance), 0);
+  const defaultBasis = settings.defaultCostBasisRatio ?? 0.5;
+  const basisRatio =
+    taxableStart > 0
+      ? taxableAccts.reduce((s, x) => s + Math.max(0, x.balance) * (x.costBasisRatio ?? defaultBasis), 0) / taxableStart
+      : defaultBasis;
+  const gainRatio = Math.max(0, Math.min(1, 1 - basisRatio));
+
+  // Where do monthly contributions land?
+  const target = acctEnabled.find((x) => x.contributionTarget) ?? acctEnabled.find((x) => x.kind === 'pretax') ?? acctEnabled[0];
+  const targetKind: AccountKind = target?.kind ?? 'pretax';
+  const targetOwner: Owner = target?.owner ?? 'self';
+
+  const addCash = (kind: AccountKind, owner: Owner, amt: number) => {
+    if (!amt) return;
+    if (kind === 'taxable') taxableBal += amt;
+    else if (kind === 'roth') rothBal += amt;
+    else if (owner === 'spouse') pretaxSpouse += amt;
+    else pretaxSelf += amt;
+  };
+
+  // ---- home state machine ----
+  const home = scn.home;
+  const homeEnabled = home?.enabled === true;
+  let homeValue = homeEnabled ? home.currentValue : 0;
+  let homeMort = homeEnabled ? home.mortgageBalance : 0;
+  let homePhase: 'current' | 'new' = 'current';
+  let loanRate = homeEnabled ? home.loanRate : 0;
+  let paymentAnnual = homeEnabled ? annuityPaymentAnnual(homeMort, loanRate, home.termYears) : 0;
+  let clubActive = homeEnabled && !home.plannedPurchase; // club tied to the planned (new) home
+
+  // ---- lumps & inheritance pre-resolved to integer years ----
+  const lumpByYear = new Map<number, number>();
+  for (const l of scn.lumpSums) {
+    if (!l.enabled) continue;
+    const j = Math.max(0, Math.round(l.age - a.currentAge));
+    const cpiToday = Math.pow(1 + infl, j);
+    const amt = l.dollarBasis === 'today' ? l.amount * cpiToday : l.amount;
+    lumpByYear.set(j, (lumpByYear.get(j) ?? 0) + amt);
+  }
+
+  const months: MonthState[] = [];
+  const rows: YearRow[] = [];
+  const magiByYear: number[] = [];
+  let depletionAge: number | null = null;
+  let balanceAtRetire = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
+  let guaranteedAtRetire = 0;
+  let withdrawalAtRetire = 0;
+  const tRetIndex = Math.max(0, Math.round(a.retirementAge - a.currentAge));
+
+  for (let j = 0; j < years; j++) {
+    const age = a.currentAge + j;
+    const spouseAge = age + offset;
+    const calYear = a.birthYear + Math.round(age);
+    const yearsFromBase = Math.max(0, calYear - cfg.baseYear);
+    const cpiTax = cfg.indexBracketsToInflation ? Math.pow(1 + infl, yearsFromBase) : 1;
+    const cpiToday = Math.pow(1 + infl, j);
+    const liquidStart = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
+    const retired = age >= a.retirementAge;
+    if (j === tRetIndex) balanceAtRetire = liquidStart;
+
+    const { expectedReturn, volatility } = resolveReturn(scn, age);
+    const r = provider({ age, yearIndex: j, expectedReturn, volatility });
+
+    const byCat = ZERO_BY_CAT();
+
+    // ---- inflows that happen every year ----
+    let contribThisYear = 0;
+    for (const c of scn.contributions) {
+      if (!c.enabled) continue;
+      if (age >= c.startAge && age < c.endAge) {
+        const yrs = Math.min(c.endAge, age + 1) - Math.max(c.startAge, age); // fraction of this year active
+        const frac = Math.max(0, Math.min(1, yrs));
+        contribThisYear += (c.dollarBasis === 'today' ? c.monthlyAmount * cpiToday : c.monthlyAmount) * 12 * frac;
+      }
+    }
+    addCash(targetKind, targetOwner, contribThisYear);
+
+    const lumpThisYear = lumpByYear.get(j) ?? 0;
+    if (lumpThisYear) addCash('taxable', 'self', lumpThisYear);
+
+    // inheritance (non-taxable cash inflow to the chosen account kind)
+    const inh = scn.inheritance;
+    if (inh?.enabled && Math.round(inh.age - a.currentAge) === j) {
+      const amt = inh.dollarBasis === 'today' ? inh.amount * cpiToday : inh.amount;
+      addCash(inh.toAccountKind, 'self', amt);
+    }
+
+    // ---- home: purchase transition, amortization, costs (every year) ----
+    let homeCost = 0;
+    let mortInterest = 0;
+    if (homeEnabled) {
+      if (home.plannedPurchase && homePhase === 'current' && age >= home.purchaseAge) {
+        if (home.sellCurrent) {
+          const proceeds = homeValue * (1 - home.sellingCostPct) - homeMort;
+          taxableBal += Math.max(0, proceeds); // primary-residence gain assumed excluded
+        }
+        // acquire the planned home
+        const newMort = home.financed ? Math.max(0, home.price - home.downPayment) : 0;
+        if (home.downPayment > 0) taxableBal -= home.downPayment;
+        if (home.clubInitiation > 0) {
+          taxableBal -= home.clubInitiation; // one-time capital cost at closing (funded from taxable, not part of totalSpend)
+        }
+        homeValue = home.price;
+        homeMort = newMort;
+        loanRate = home.loanRate;
+        paymentAnnual = annuityPaymentAnnual(homeMort, loanRate, home.termYears);
+        homePhase = 'new';
+        clubActive = true;
+      }
+      const am = amortizeYear(homeMort, loanRate, paymentAnnual);
+      homeMort = am.closing;
+      mortInterest = am.interest;
+      homeValue *= 1 + home.growthRate;
+      const exemptValue = home.disabledVetExemption ? Math.min(homeValue, 200_000) * 0.5 : 0;
+      const propTax = Math.max(0, homeValue - exemptValue) * home.propertyTaxRate;
+      const hoa = home.hoaMonthly * 12;
+      const clubDues = clubActive ? home.clubMonthly * 12 : 0;
+      byCat.housing += am.paid + propTax + hoa;
+      byCat.club += clubDues;
+      homeCost = am.paid + propTax + hoa + clubDues; // ongoing; club initiation already in byCat.club only at closing
+    }
+    const homeEquity = homeEnabled ? Math.max(0, homeValue - homeMort) : 0;
+
+    // ---- guaranteed income (gross, nominal), split by tax character ----
+    let ordinaryGuar = 0;
+    let ssGross = 0;
+    let taxFree = 0;
+    for (const s of scn.incomeStreams) {
+      if (!s.enabled || age < s.startAge || age > s.endAge) continue;
+      const annual = streamNominalAt(scn, s, j * 12, age) * 12;
+      if (annual <= 0) continue;
+      const isSS = /social security/i.test(s.name);
+      if (s.taxStatus === 'tax-free') taxFree += annual;
+      else if (isSS && ssEnabled) continue; // SS claims drive it instead
+      else if (isSS) ssGross += annual;
+      else ordinaryGuar += annual;
+    }
+    if (ssEnabled) {
+      for (const c of scn.socialSecurity.claims) {
+        if (!c.enabled) continue;
+        const oAge = c.owner === 'spouse' ? spouseAge : age;
+        if (oAge + 1e-9 < c.claimAge) continue;
+        const monthly = c.benefitAtFRA * ssAdjustmentFactor(c.claimAge, c.fra) * Math.pow(1 + c.cola, j);
+        ssGross += monthly * 12;
+      }
+    }
+    const bv = scn.businessVenture;
+    if (bv?.enabled && age >= bv.startAge && age < bv.endAge) {
+      const grow = bv.dollarBasis === 'today' ? Math.pow(1 + bv.cola, j) : Math.pow(1 + bv.cola, Math.max(0, age - bv.startAge));
+      ordinaryGuar += bv.monthlyIncome * grow * 12;
+    }
+
+    // ---- spending need (funded only in retirement) ----
+    const ctx: TaxContext = {
+      primaryAge: age,
+      spouseAge,
+      calendarYear: calYear,
+      cpiFactor: cpiTax,
+      magiTwoYearsPrior: magiByYear[j - 2] ?? 0,
+    };
+
+    let rmdTotal = 0;
+    let withdrawals = 0;
+    let drawnPretax = 0;
+    let drawnTaxable = 0;
+    let drawnRoth = 0;
+    let federalTax = 0;
+    let stateTax = 0;
+    let capGainsTax = 0;
+    let niit = 0;
+    let irmaaExp = 0;
+    let totalTax = 0;
+    let ssTaxable = 0;
+    let magi = 0;
+    let effectiveRate = 0;
+    let marginalRate = 0;
+    let netSpendable = 0;
+    let totalSpend = 0;
+
+    // ---- RMDs (forced pretax draws); rmdAmount returns 0 before rmdStartAge ----
+    const rmdSelf = rmdAmount(age, pretaxSelf, cfg);
+    const rmdSpouse = rmdAmount(spouseAge, pretaxSpouse, cfg);
+    pretaxSelf -= Math.min(pretaxSelf, rmdSelf);
+    pretaxSpouse -= Math.min(pretaxSpouse, rmdSpouse);
+    rmdTotal = rmdSelf + rmdSpouse;
+
+    // ---- healthcare (Medicare Part B base + IRMAA surcharge), an after-tax cost.
+    //      Driven by Medicare eligibility, not retirement, so a 65-67 gap is modeled. ----
+    let healthcareExp = 0;
+    const hc = scn.healthcare;
+    if (hc?.enabled) {
+      const selfElig = age >= hc.medicareStartAge;
+      const spouseElig = spouseAge >= hc.medicareStartAge;
+      const beneficiaries = hc.bothCarryPartB ? (selfElig ? 1 : 0) + (spouseElig ? 1 : 0) : selfElig ? 1 : 0;
+      if (beneficiaries > 0) {
+        const partB = hc.medicarePartBMonthly * Math.pow(1 + hc.medicalInflation, yearsFromBase) * 12;
+        const surcharge = hc.irmaaEnabled ? irmaaPartBSurchargeMonthly(ctx.magiTwoYearsPrior ?? 0, cfg, yearsFromBase) * 12 : 0;
+        healthcareExp = beneficiaries * (partB + surcharge);
+        irmaaExp = beneficiaries * surcharge;
+        byCat.healthcare += healthcareExp;
+      }
+    }
+
+    // ---- long-term care (Crissy), an after-tax cost during the care window ----
+    let ltcExp = 0;
+    const ltc = scn.longTermCare;
+    if (ltc?.crissyEnabled) {
+      if (ltc.useInsuranceInstead) ltcExp = ltc.insurancePremium ?? 0;
+      else if (spouseAge >= ltc.startAge && spouseAge < ltc.startAge + ltc.years) ltcExp = ltc.monthly * 12 * cpiToday;
+      byCat.longTermCare += ltcExp;
+    }
+
+    // ---- lifestyle: funded from the portfolio ONLY in retirement. Pre-retirement
+    //      living is assumed covered by earned income modeled off-engine (so that the
+    //      explicit contributions remain net savings). ----
+    let lifestyle = 0;
+    if (retired) {
+      if (scn.spendingMode === 'expense-driven') {
+        for (const e of scn.expenses) {
+          if (!e.enabled || age < e.startAge || age >= e.endAge) continue;
+          const rate = e.inflationRate ?? (e.category === 'healthcare' ? (scn.healthcare?.medicalInflation ?? infl) : infl);
+          const amt = e.dollarBasis === 'today' ? e.amount * Math.pow(1 + rate, j) : e.amount;
+          lifestyle += amt;
+          byCat[e.category] += amt;
+        }
+      } else {
+        for (const ph of scn.retirementPhases) {
+          if (ph.enabled && age >= ph.startAge && age < ph.endAge) {
+            const amt = ph.targetMonthlyIncome * 12 * cpiToday;
+            lifestyle += amt;
+            byCat.living += amt;
+          }
+        }
+      }
+    }
+
+    // Mandatory obligations (home carrying costs, healthcare, LTC) are funded from the
+    // portfolio in EVERY year so mortgage principal -> home equity is actually paid for
+    // and never appears for free. Lifestyle is added only in retirement.
+    totalSpend = lifestyle + healthcareExp + homeCost + ltcExp;
+
+    // ---- base income (fixed regardless of discretionary withdrawals) ----
+    const baseIncome: TaxableIncomeInputs = {
+      ordinaryIncome: ordinaryGuar + rmdTotal,
+      longTermGains: 0,
+      socialSecurityGross: ssGross,
+      taxExemptInterest: 0,
+      taxFreeIncome: taxFree,
+    };
+    const baseRes = estimateAnnualTaxes({ income: baseIncome, ctx, cfg });
+    const guaranteedGross = ordinaryGuar + rmdTotal + ssGross + taxFree;
+    const guaranteedNet = guaranteedGross - baseRes.totalTax;
+    const netNeed = Math.max(0, totalSpend - guaranteedNet);
+
+    // ---- sequenced gross-up withdrawal to meet the net need ----
+    const srcMeta: Array<{ kind: AccountKind; src: GrossUpSource }> = [];
+    for (const kind of seq) {
+      if (kind === 'taxable' && taxableBal > 0) srcMeta.push({ kind, src: { character: 'ltcg', capacity: taxableBal, gainRatio } });
+      else if (kind === 'pretax' && pretaxSelf + pretaxSpouse > 0) srcMeta.push({ kind, src: { character: 'ordinary', capacity: pretaxSelf + pretaxSpouse } });
+      else if (kind === 'roth' && rothBal > 0) srcMeta.push({ kind, src: { character: 'taxFree', capacity: rothBal } });
+    }
+    let shortfall = netNeed;
+    if (netNeed > 0 && srcMeta.length) {
+      const g = solveGrossWithdrawal({ netNeed, baseIncome, ctx, cfg, sources: srcMeta.map((m) => m.src) });
+      shortfall = g.shortfall;
+      srcMeta.forEach((m, i) => {
+        const take = g.draws[i] ?? 0;
+        if (m.kind === 'taxable') {
+          taxableBal -= take;
+          drawnTaxable += take;
+        } else if (m.kind === 'roth') {
+          rothBal -= take;
+          drawnRoth += take;
+        } else {
+          // pretax: drain self then spouse
+          const fromSelf = Math.min(pretaxSelf, take);
+          pretaxSelf -= fromSelf;
+          const fromSpouse = Math.min(pretaxSpouse, take - fromSelf);
+          pretaxSpouse -= fromSpouse;
+          drawnPretax += fromSelf + fromSpouse;
+        }
+      });
+    }
+    withdrawals = rmdTotal + drawnTaxable + drawnPretax + drawnRoth;
+
+    // Surplus guaranteed income (e.g. an RMD beyond the need) is reinvested in taxable,
+    // but ONLY in retirement; pre-retirement surplus guaranteed income is informational
+    // (the household's to spend off-engine) and is not banked.
+    if (retired && netNeed <= 0 && guaranteedNet > totalSpend) {
+      taxableBal += guaranteedNet - totalSpend;
+    }
+
+    // ---- final taxes on the realized income ----
+    const finalIncome: TaxableIncomeInputs = {
+      ordinaryIncome: ordinaryGuar + rmdTotal + drawnPretax,
+      longTermGains: drawnTaxable * gainRatio,
+      socialSecurityGross: ssGross,
+      taxExemptInterest: 0,
+      taxFreeIncome: taxFree,
+    };
+    const fin = estimateAnnualTaxes({ income: finalIncome, ctx, cfg });
+    federalTax = fin.ordinaryTax;
+    capGainsTax = fin.capGainsTax;
+    stateTax = fin.stateTax;
+    niit = fin.niit;
+    totalTax = fin.totalTax;
+    ssTaxable = fin.taxableSS;
+    magi = fin.magi;
+    effectiveRate = fin.effectiveRate;
+    marginalRate = fin.marginalOrdinaryRate;
+    netSpendable = guaranteedGross + drawnTaxable + drawnPretax + drawnRoth - totalTax - irmaaExp;
+
+    // depletion: spending need could not be met from any account
+    if (shortfall > 1 && depletionAge === null) depletionAge = age;
+
+    if (j === tRetIndex) {
+      guaranteedAtRetire = (ordinaryGuar + ssGross + taxFree + rmdTotal) / 12;
+      withdrawalAtRetire = (drawnTaxable + drawnPretax + drawnRoth) / 12;
+    }
+    magiByYear[j] = magi;
+
+    // ---- growth applies to end-of-year balances (after all flows) ----
+    const liquidBeforeGrowth = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
+    taxableBal = Math.max(0, taxableBal) * (1 + r);
+    pretaxSelf = Math.max(0, pretaxSelf) * (1 + r);
+    pretaxSpouse = Math.max(0, pretaxSpouse) * (1 + r);
+    rothBal = Math.max(0, rothBal) * (1 + r);
+
+    const liquidEnd = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
+    const investmentGrowth = liquidEnd - liquidBeforeGrowth;
+    const netWorth = liquidEnd + homeEquity;
+    const guaranteedIncomeYear = ordinaryGuar + ssGross + taxFree;
+
+    rows.push({
+      age: Math.round(age),
+      year: calYear,
+      monthIndexEnd: j * 12 + 11,
+      cpiFactor: cpiToday,
+      startingBalance: liquidStart,
+      contributions: contribThisYear,
+      lumpSums: lumpThisYear,
+      investmentGrowth,
+      guaranteedIncome: guaranteedIncomeYear,
+      withdrawals,
+      endingBalance: liquidEnd,
+      endingBalanceToday: liquidEnd / cpiToday,
+      taxablePerMo: 0,
+      taxFreePerMo: 0,
+      // v2 fields
+      netWorth,
+      netWorthToday: netWorth / cpiToday,
+      homeEquity,
+      mortgageBalance: homeMort,
+      accountBalances: { taxable: taxableBal, pretax: pretaxSelf + pretaxSpouse, roth: rothBal },
+      rmd: rmdTotal,
+      expensesByCategory: byCat,
+      federalTax,
+      stateTax,
+      capGainsTax,
+      niit,
+      irmaa: irmaaExp,
+      totalTax,
+      ssTaxable,
+      magi,
+      effectiveRate,
+      marginalRate,
+      netSpendable,
+    });
+
+    // synthesize 12 flat monthly slices for month-based consumers (income breakdown)
+    for (let m = 0; m < 12; m++) {
+      months.push({
+        t: j * 12 + m,
+        age: age + m / 12,
+        startingBalance: liquidStart,
+        contributions: contribThisYear / 12,
+        lumpSums: m === 0 ? lumpThisYear : 0,
+        growth: investmentGrowth / 12,
+        guaranteedIncome: guaranteedIncomeYear / 12,
+        targetSpend: totalSpend / 12,
+        withdrawal: withdrawals / 12,
+        endingBalance: liquidEnd,
+        cpi: cpiToday,
+      });
+    }
+  }
+
+  const markers: MarkerPoint[] = scn.lumpSums
+    .filter((l) => l.enabled)
+    .map((l) => {
+      const j = Math.max(0, Math.round(l.age - a.currentAge));
+      return { age: a.currentAge + j, balance: rows[Math.min(j, rows.length - 1)]?.endingBalance ?? 0, label: l.name, amount: lumpByYear.get(j) ?? l.amount };
+    })
+    .filter((mk) => mk.age >= a.currentAge && mk.age <= a.modelEndAge);
+
+  const lastRow = rows[rows.length - 1];
+  const endingBalance = lastRow?.endingBalance ?? 0;
+  const endingBalanceToday = lastRow?.endingBalanceToday ?? 0;
+  const cpiRet = Math.pow(1 + infl, tRetIndex);
+  const status: PlanStatus =
+    depletionAge !== null
+      ? 'shortfall'
+      : endingBalanceToday > balanceAtRetire / cpiRet * 0.25
+        ? 'onTrack'
+        : endingBalanceToday > 0
+          ? 'caution'
+          : 'shortfall';
+
+  const result: ProjectionResult = {
+    rows,
+    markers,
+    projectedBalanceAtRetirement: balanceAtRetire,
+    projectedBalanceAtRetirementToday: balanceAtRetire / cpiRet,
+    guaranteedMonthlyIncome: guaranteedAtRetire,
+    requiredPortfolioWithdrawal: withdrawalAtRetire,
+    monthlyIncomeAtRetirement: guaranteedAtRetire + withdrawalAtRetire,
+    annualIncomeAtRetirement: (guaranteedAtRetire + withdrawalAtRetire) * 12,
+    endingBalance,
+    endingBalanceToday,
+    depletionAge,
+    status,
+  };
+
+  return { result, months };
+}
+
+function sumBal(accts: Account[], kind: AccountKind): number {
+  return accts.filter((x) => x.kind === kind).reduce((s, x) => s + Math.max(0, x.balance), 0);
+}
+
+/** Public entry point: dispatch to the tax-aware v2 engine when the scenario uses
+ *  v2 features, else the legacy v1 path (keeps migrated documents unchanged). */
+export function runProjection(
+  scn: Scenario,
+  settings?: Settings,
+  provider: ReturnProvider = fixedProvider,
+  opts?: ProjectionOpts,
+): ProjectionBundle {
+  if (settings && usesV2(scn)) return runProjectionV2(scn, settings, provider, opts);
+  return runProjectionLegacy(scn, provider);
 }

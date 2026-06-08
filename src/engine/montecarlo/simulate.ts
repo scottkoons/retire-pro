@@ -34,7 +34,7 @@ export function runMonteCarlo(
   req: MonteCarloRequest,
   onProgress?: (completed: number, total: number) => void,
 ): MonteCarloResult {
-  const { scenario, paths, volatilityFallback, seed, criterion } = req;
+  const { scenario, settings, paths, volatilityFallback, seed, criterion } = req;
   const a = scenario.assumptions;
   const years = Math.max(1, Math.round(a.modelEndAge - a.currentAge + 1));
 
@@ -50,7 +50,7 @@ export function runMonteCarlo(
   for (let p = 0; p < paths; p++) {
     const rng = mulberry32((seed + p * 2654435761) >>> 0);
     const provider = makeProvider(rng, volatilityFallback);
-    const { result } = runProjection(scenario, provider);
+    const { result } = runProjection(scenario, settings, provider);
 
     result.rows.forEach((row, j) => {
       if (j < years) {

@@ -17,6 +17,7 @@ export function ExportPdfButton({
   const { result } = useProjection();
   const displayMode = useEffectiveDisplayMode();
   const household = useStore((s) => s.settings.household);
+  const settings = useStore((s) => s.settings);
   const mc = useMcStore((s) => s.result);
 
   const [open, setOpen] = useState(false);
@@ -32,6 +33,7 @@ export function ExportPdfButton({
         projection: result,
         displayMode,
         household,
+        settings,
         monteCarlo: mc ?? undefined,
         includeMonteCarlo: includeMc && !!mc,
       });

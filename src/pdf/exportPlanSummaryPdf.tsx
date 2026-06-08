@@ -1,8 +1,9 @@
 import { Document, Page, View, Text, StyleSheet, Svg, Path, Line, Circle, G, pdf } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
-import type { DisplayMode, ProjectionResult, Scenario } from '@/domain/types';
+import type { DisplayMode, ProjectionResult, Scenario, Settings } from '@/domain/types';
 import type { MonteCarloResult, PercentilePoint } from '@/engine/montecarlo/types';
 import { buildPlanSummaryModel, type PlanSummaryModel } from '@/selectors/planSummary';
+import { planCheckup } from '@/selectors/checkup';
 import { fmtUSD, fmtUSDAbbrev, fmtPct } from '@/lib/format';
 
 const C = {
@@ -170,7 +171,112 @@ function WealthSvg({
   );
 }
 
-function PlanSummaryPdf({ model, projection, mc }: { model: PlanSummaryModel; projection: ProjectionResult; mc: MonteCarloResult | null }) {
+function hasV2(p: ProjectionResult): boolean {
+  return p.rows.some((r) => r.netWorth != null);
+}
+
+function V2Page({
+  projection,
+  scenario,
+  settings,
+  displayMode,
+  household,
+  generatedOn,
+  mcSuccess,
+}: {
+  projection: ProjectionResult;
+  scenario: Scenario;
+  settings?: Settings;
+  displayMode: DisplayMode;
+  household: string;
+  generatedOn: string;
+  mcSuccess?: number;
+}) {
+  const rows = projection.rows;
+  const nwVal = (r: ProjectionResult['rows'][number]) => (displayMode === 'today' ? r.netWorthToday ?? 0 : r.netWorth ?? 0);
+  const peak = Math.max(0, ...rows.map(nwVal));
+  const peakRow = rows.find((r) => nwVal(r) === peak);
+  const retAge = Math.round(scenario.assumptions.retirementAge);
+  const atRet = rows.find((r) => r.age >= retAge);
+  const last = rows[rows.length - 1];
+  const lifetimeTax = rows.reduce((sum, r) => sum + (r.totalTax ?? 0) + (r.irmaa ?? 0), 0);
+  const peakEff = Math.max(0, ...rows.map((r) => r.effectiveRate ?? 0));
+  const peakEquity = Math.max(0, ...rows.map((r) => (displayMode === 'today' ? (r.homeEquity ?? 0) / r.cpiFactor : r.homeEquity ?? 0)));
+
+  const taxRows = rows.filter((r) => r.age >= retAge && (r.age - retAge) % 5 === 0);
+  const insights = settings ? planCheckup({ rows, result: projection, scn: scenario, settings, mcSuccess }) : [];
+
+  return (
+    <Page size="LETTER" style={s.page}>
+      <Text style={s.eyebrow}>Net Worth, Taxes & Checkup</Text>
+      <Text style={s.h1}>{scenario.name}</Text>
+      <Text style={s.sub}>
+        {household} · {generatedOn} · {displayMode === 'today' ? "Today's $" : 'Actual $'}
+      </Text>
+      <View style={s.rule} />
+
+      <Text style={s.sectionTitle}>Net Worth & Lifetime Tax</Text>
+      <View style={s.tileRow}>
+        <Tile label="Peak Net Worth" value={`${fmtUSD(peak)}${peakRow ? ` @ ${peakRow.age}` : ''}`} />
+        <Tile label={`At Retirement (${retAge})`} value={fmtUSD(atRet ? nwVal(atRet) : 0)} />
+        <Tile label={`Ending (${last?.age ?? ''})`} value={fmtUSD(last ? nwVal(last) : 0)} />
+        <Tile label="Lifetime Tax (nominal)" value={fmtUSD(lifetimeTax)} />
+        <Tile label="Peak Effective Rate" value={fmtPct(peakEff)} />
+        <Tile label="Peak Home Equity" value={fmtUSD(peakEquity)} />
+      </View>
+
+      <Text style={s.sectionTitle}>Taxes by Age (every 5 years)</Text>
+      <View style={s.table}>
+        <Row header widths={[16, 21, 15, 16, 16, 16]} cells={['Age', 'Total Tax', 'Eff %', 'IRMAA', 'RMD', 'MAGI']} />
+        {taxRows.map((r, i) => (
+          <Row
+            key={i}
+            widths={[16, 21, 15, 16, 16, 16]}
+            cells={[String(r.age), fmtUSD(r.totalTax ?? 0), fmtPct(r.effectiveRate ?? 0), fmtUSD(r.irmaa ?? 0), fmtUSD(r.rmd ?? 0), fmtUSDAbbrev(r.magi ?? 0)]}
+          />
+        ))}
+      </View>
+
+      {insights.length > 0 && (
+        <View>
+          <Text style={s.sectionTitle}>Plan Checkup</Text>
+          {insights.map((ins, i) => (
+            <View key={i} style={{ marginBottom: 5 }}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 9.5, color: ins.severity === 'warning' ? C.bad : ins.severity === 'caution' ? C.warn : C.text }}>
+                {ins.severity === 'warning' ? '⚠ ' : ''}
+                {ins.title}
+              </Text>
+              <Text style={{ fontSize: 8.5, color: C.muted, marginTop: 1 }}>{ins.detail}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={[s.sub, { marginTop: 10 }]}>
+        Tax estimates use 2025 federal MFJ and Colorado rules indexed to inflation; IRMAA is a Medicare surcharge, not income tax. Illustrative only, not tax advice.
+      </Text>
+
+      <View style={s.footer} fixed>
+        <Text style={s.footText}>RetirePro · {scenario.name} · {generatedOn}</Text>
+        <Text style={s.footText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+      </View>
+    </Page>
+  );
+}
+
+function PlanSummaryPdf({
+  model,
+  projection,
+  mc,
+  scenario,
+  settings,
+}: {
+  model: PlanSummaryModel;
+  projection: ProjectionResult;
+  mc: MonteCarloResult | null;
+  scenario: Scenario;
+  settings?: Settings;
+}) {
   const k = model.keyResults;
   const a = model.assumptions;
   return (
@@ -268,6 +374,18 @@ function PlanSummaryPdf({ model, projection, mc }: { model: PlanSummaryModel; pr
           <Text style={s.footText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
+
+      {hasV2(projection) && (
+        <V2Page
+          projection={projection}
+          scenario={scenario}
+          settings={settings}
+          displayMode={model.displayMode}
+          household={model.household}
+          generatedOn={model.generatedOn}
+          mcSuccess={mc?.successProbability}
+        />
+      )}
     </Document>
   );
 }
@@ -277,6 +395,7 @@ export interface ExportArgs {
   projection: ProjectionResult;
   displayMode: DisplayMode;
   household: string;
+  settings?: Settings;
   monteCarlo?: MonteCarloResult;
   includeMonteCarlo?: boolean;
 }
@@ -285,7 +404,9 @@ export async function exportPlanSummaryPdf(args: ExportArgs): Promise<void> {
   const includeMc = args.includeMonteCarlo ?? !!args.monteCarlo;
   const mc = includeMc ? args.monteCarlo ?? null : null;
   const model = buildPlanSummaryModel(args.scenario, args.projection, mc, args.displayMode, args.household);
-  const blob = await pdf(<PlanSummaryPdf model={model} projection={args.projection} mc={mc} />).toBlob();
+  const blob = await pdf(
+    <PlanSummaryPdf model={model} projection={args.projection} mc={mc} scenario={args.scenario} settings={args.settings} />,
+  ).toBlob();
   const date = new Date().toISOString().slice(0, 10);
   const safe = args.scenario.name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'Scenario';
   saveAs(blob, `RetirePro_Plan_${safe}_${date}.pdf`);

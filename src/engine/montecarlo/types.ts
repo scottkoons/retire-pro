@@ -1,9 +1,10 @@
-import type { Scenario } from '@/domain/types';
+import type { Scenario, Settings } from '@/domain/types';
 
 export type SuccessCriterion = 'survival' | 'meetSpending';
 
 export interface MonteCarloRequest {
   scenario: Scenario;
+  settings: Settings; // carried so the tax-aware v2 engine can run inside the worker
   paths: number;
   volatilityFallback: number;
   seed: number;
