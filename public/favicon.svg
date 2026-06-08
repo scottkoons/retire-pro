@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="7" fill="#0d1420"/>
+  <!-- rising wealth curve: area + line + end node, in the brand orange -->
+  <path d="M5 22.5 L12.5 15.5 L18.5 18 L27 7.5 V25 H5 Z" fill="#f97316" fill-opacity="0.16"/>
+  <path d="M5 22.5 L12.5 15.5 L18.5 18 L27 7.5" fill="none" stroke="#f97316" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="27" cy="7.5" r="3" fill="#f97316" stroke="#0d1420" stroke-width="1.2"/>
+</svg>
