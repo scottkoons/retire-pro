@@ -27,6 +27,16 @@ export default function NetWorthPage() {
   const a = scn.assumptions;
   const home = scn.home;
 
+  // Net worth as of right now (today), from the current inputs — independent of the
+  // projection's first-year growth. Same in today's vs actual $ since it is t=0.
+  const currentLiquid = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
+  const currentHomeEquity = home.enabled ? Math.max(0, home.currentValue - home.mortgageBalance) : 0;
+  const currentNetWorth = currentLiquid + currentHomeEquity;
+  const today = new Date();
+  const todayLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const birth = new Date(a.birthYear, a.birthMonth, a.birthDay);
+  const actualAge = Math.floor((today.getTime() - birth.getTime()) / (365.2425 * 86_400_000));
+
   const hasNetWorth = rows.some((r) => r.netWorth != null);
 
   // Home value (nominal = equity + mortgage), deflated to today's $ when requested.
@@ -65,6 +75,13 @@ export default function NetWorthPage() {
           Account balances and home equity over time.
           <span className="ml-2 rounded bg-input px-2 py-0.5 font-mono text-[11px] text-muted">{displayMode === 'today' ? "today's $" : 'actual $'}</span>
         </p>
+      </div>
+
+      {/* Net worth as of today */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatTile label="Current Net Worth" value={fmtUSD(currentNetWorth)} sub={`as of ${todayLabel} · age ${actualAge}`} accent="primary" />
+        <StatTile label="Liquid Accounts" value={fmtUSD(currentLiquid)} sub="today" tint="blue" />
+        <StatTile label="Home Equity" value={fmtUSD(currentHomeEquity)} sub="today" tint="amber" />
       </div>
 
       {/* Home value & appreciation — editable here */}
