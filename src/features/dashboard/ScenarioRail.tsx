@@ -2,7 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Card, Button, MoneyInput } from '@/components/ui/primitives';
+import { Card, Button, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown } from '@/components/icons';
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import { fmtUSD } from '@/lib/format';
@@ -13,7 +13,6 @@ import type { DollarBasis, TaxStatus } from '@/domain/types';
 const control =
   'h-9 w-full rounded-md border border-border-strong bg-input px-2.5 text-[13px] text-ink transition-colors focus:border-primary focus:outline-none';
 const dateInput = clsx(control, 'font-mono tabnum [color-scheme:dark]');
-const selectInput = clsx(control, '[color-scheme:dark]');
 
 // Each section gets its own colour so monthly (recurring) and lump-sum (one-time)
 // money read as two distinct kinds of thing at a glance.
@@ -216,13 +215,7 @@ export function ScenarioRail() {
                       />
                     </Field>
                     <Field label="Dollar basis" className="col-span-2">
-                      <select className={selectInput} value={c.dollarBasis} onChange={(e) => s.updateContribution(c.id, { dollarBasis: e.target.value as DollarBasis })}>
-                        {basisOpts.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                      <Segmented size="sm" options={basisOpts} value={c.dollarBasis} onChange={(v) => s.updateContribution(c.id, { dollarBasis: v })} />
                     </Field>
                   </div>
 
@@ -276,7 +269,7 @@ export function ScenarioRail() {
                   </Field>
 
                   <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Field label="Date">
+                    <Field label="Date" className="col-span-2">
                       <input
                         type="month"
                         className={dateInput}
@@ -287,23 +280,11 @@ export function ScenarioRail() {
                         }}
                       />
                     </Field>
-                    <Field label="Dollar basis">
-                      <select className={selectInput} value={l.dollarBasis} onChange={(e) => s.updateLumpSum(l.id, { dollarBasis: e.target.value as DollarBasis })}>
-                        {basisOpts.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                    <Field label="Dollar basis" className="col-span-2">
+                      <Segmented size="sm" options={basisOpts} value={l.dollarBasis} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} />
                     </Field>
                     <Field label="Tax status" className="col-span-2">
-                      <select className={selectInput} value={l.taxStatus ?? 'taxable'} onChange={(e) => s.updateLumpSum(l.id, { taxStatus: e.target.value as TaxStatus })}>
-                        {taxOpts.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                      <Segmented size="sm" options={taxOpts} value={l.taxStatus ?? 'taxable'} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} />
                     </Field>
                   </div>
 
