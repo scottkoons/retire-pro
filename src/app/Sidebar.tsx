@@ -12,6 +12,7 @@ import {
   IconBank,
   IconTrendingUp,
   IconDiamond,
+  IconHome,
 } from '@/components/icons';
 import { useStore } from '@/state/store';
 
@@ -29,6 +30,7 @@ const NAV_GROUPS = [
     heading: 'Plan',
     items: [
       { to: '/planner', label: 'Planner Sheet', Icon: IconSheet },
+      { to: '/home', label: 'Home & Mortgage', Icon: IconHome },
       { to: '/phases', label: 'Retirement Phases', Icon: IconPhases },
       { to: '/year-by-year', label: 'Year-by-Year', Icon: IconTable },
     ],

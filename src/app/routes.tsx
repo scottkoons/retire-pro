@@ -10,6 +10,7 @@ import SettingsPage from '@/features/settings/SettingsPage';
 import NetWorthPage from '@/features/netWorth/NetWorthPage';
 import CashFlowPage from '@/features/cashFlow/CashFlowPage';
 import CheckupPage from '@/features/checkup/CheckupPage';
+import HomeMortgagePage from '@/features/home/HomeMortgagePage';
 
 export const router = createHashRouter([
   {
@@ -21,6 +22,7 @@ export const router = createHashRouter([
       { path: 'cash-flow', element: <CashFlowPage /> },
       { path: 'checkup', element: <CheckupPage /> },
       { path: 'planner', element: <PlannerPage /> },
+      { path: 'home', element: <HomeMortgagePage /> },
       { path: 'phases', element: <PhasesPage /> },
       { path: 'year-by-year', element: <YearByYearPage /> },
       { path: 'monte-carlo', element: <MonteCarloPage /> },

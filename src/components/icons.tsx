@@ -139,6 +139,13 @@ export const IconGift = (p: P) => (
     <path d="M12 8C12 8 11 3 8 3a2.5 2.5 0 0 0 0 5zM12 8C12 8 13 3 16 3a2.5 2.5 0 0 1 0 5z" />
   </svg>
 );
+export const IconHome = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 11.5 12 4l9 7.5" />
+    <path d="M5 10v10h14V10" />
+    <path d="M9 20v-6h6v6" />
+  </svg>
+);
 export const IconPencil = (p: P) => (
   <svg {...base(p)}>
     <path d="M12 20h9" />

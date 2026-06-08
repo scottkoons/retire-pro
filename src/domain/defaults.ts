@@ -19,6 +19,10 @@ export function defaultHomePlan(): HomePlan {
     growthRate: 0.03,
     sellCurrent: true,
     sellingCostPct: 0.065,
+    mortgageRate: 0.0425, // PLACEHOLDER existing-loan rate
+    mortgageTermYears: 22, // PLACEHOLDER remaining term
+    extraMonthlyPrincipal: 0,
+    extraPrincipalPayments: [],
     plannedPurchase: true,
     purchaseAge: 59,
     price: 1_750_000,
@@ -45,6 +49,8 @@ export function emptyHomePlan(): HomePlan {
     growthRate: 0.03,
     sellCurrent: false,
     sellingCostPct: 0.065,
+    extraMonthlyPrincipal: 0,
+    extraPrincipalPayments: [],
     plannedPurchase: false,
     purchaseAge: 65,
     price: 0,

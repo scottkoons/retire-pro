@@ -140,6 +140,15 @@ export interface ExpenseItem {
   notes?: string;
 }
 
+// A one-time extra principal payment toward the current mortgage.
+export interface ExtraPrincipalPayment {
+  id: string;
+  age: Age; // when the payment is made
+  amount: Dollars;
+  enabled: boolean;
+  notes?: string;
+}
+
 export interface HomePlan {
   enabled: boolean;
   // current residence
@@ -148,6 +157,11 @@ export interface HomePlan {
   growthRate: Rate;
   sellCurrent: boolean;
   sellingCostPct: Rate;
+  // current-mortgage detail (optional; fall back to loanRate/termYears for the payment)
+  mortgageRate?: Rate; // current loan APR
+  mortgageTermYears?: number; // current loan remaining term, years
+  extraMonthlyPrincipal?: Dollars; // recurring extra principal per month
+  extraPrincipalPayments?: ExtraPrincipalPayment[]; // one-time extra principal events
   // planned purchase
   plannedPurchase: boolean;
   purchaseAge: Age;

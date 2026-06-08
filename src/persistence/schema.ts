@@ -41,6 +41,14 @@ export const ExpenseItemSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const ExtraPrincipalPaymentSchema = z.object({
+  id: Id,
+  age: Age,
+  amount: Dollars,
+  enabled: z.boolean(),
+  notes: z.string().optional(),
+});
+
 export const HomePlanSchema = z.object({
   enabled: z.boolean(),
   currentValue: Dollars,
@@ -48,6 +56,10 @@ export const HomePlanSchema = z.object({
   growthRate: Rate,
   sellCurrent: z.boolean(),
   sellingCostPct: Rate,
+  mortgageRate: Rate.optional(),
+  mortgageTermYears: z.number().int().positive().optional(),
+  extraMonthlyPrincipal: Dollars.optional(),
+  extraPrincipalPayments: z.array(ExtraPrincipalPaymentSchema).optional(),
   plannedPurchase: z.boolean(),
   purchaseAge: Age,
   price: Dollars,

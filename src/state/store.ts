@@ -7,6 +7,7 @@ import type {
   DisplayMode,
   ExpenseCategory,
   ExpenseItem,
+  ExtraPrincipalPayment,
   HealthcareConfig,
   HomePlan,
   InheritanceConfig,
@@ -95,6 +96,9 @@ interface StoreState extends PersistedDocument {
 
   // v2 config blocks
   updateHome: (patch: Partial<HomePlan>) => void;
+  addExtraPrincipal: () => void;
+  updateExtraPrincipal: (id: string, patch: Partial<ExtraPrincipalPayment>) => void;
+  removeExtraPrincipal: (id: string) => void;
   updateSocialSecurity: (patch: Partial<SocialSecurityConfig>) => void;
   updateSsClaim: (owner: Owner, patch: Partial<SocialSecurityClaim>) => void;
   updateHealthcare: (patch: Partial<HealthcareConfig>) => void;
@@ -426,6 +430,17 @@ export const useStore = create<StoreState>()(
       // ---- v2 config blocks ----
       updateHome: (patch) => mutateActive((scn) => {
         scn.home = { ...scn.home, ...patch };
+      }),
+      addExtraPrincipal: () => mutateActive((scn) => {
+        if (!scn.home.extraPrincipalPayments) scn.home.extraPrincipalPayments = [];
+        scn.home.extraPrincipalPayments.push({ id: newId(), age: Math.round(scn.assumptions.currentAge) + 1, amount: 0, enabled: true });
+      }),
+      updateExtraPrincipal: (id, patch) => mutateActive((scn) => {
+        const p = scn.home.extraPrincipalPayments?.find((x) => x.id === id);
+        if (p) Object.assign(p, patch);
+      }),
+      removeExtraPrincipal: (id) => mutateActive((scn) => {
+        if (scn.home.extraPrincipalPayments) scn.home.extraPrincipalPayments = scn.home.extraPrincipalPayments.filter((x) => x.id !== id);
       }),
       updateSocialSecurity: (patch) => mutateActive((scn) => {
         scn.socialSecurity = { ...scn.socialSecurity, ...patch };

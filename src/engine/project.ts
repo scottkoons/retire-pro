@@ -362,23 +362,37 @@ function annuityPaymentAnnual(principal: number, annualRate: number, years: numb
   return monthly * 12;
 }
 
-/** Amortize one year of a mortgage (12 monthly periods). */
+/** Amortize one year of a mortgage (12 monthly periods), applying any extra
+ *  principal (a one-time lump at the start of the year plus a recurring monthly
+ *  amount). `principal` and `paid` include the extra, since it is real cash out. */
 function amortizeYear(
   balance: number,
   annualRate: number,
   annualPayment: number,
+  extraMonthly = 0,
+  extraLump = 0,
 ): { interest: number; principal: number; paid: number; closing: number } {
   let bal = balance;
   const mr = annualRate / 12;
   const pmt = annualPayment / 12;
   let interest = 0;
   let principal = 0;
+  if (extraLump > 0 && bal > 0) {
+    const e = Math.min(bal, extraLump);
+    bal -= e;
+    principal += e;
+  }
   for (let m = 0; m < 12 && bal > 0; m++) {
     const intM = bal * mr;
-    const prinM = Math.min(bal, pmt - intM);
-    bal -= Math.max(0, prinM);
+    const prinM = Math.max(0, Math.min(bal, pmt - intM));
+    bal -= prinM;
     interest += intM;
-    principal += Math.max(0, prinM);
+    principal += prinM;
+    if (extraMonthly > 0 && bal > 0) {
+      const e = Math.min(bal, extraMonthly);
+      bal -= e;
+      principal += e;
+    }
   }
   return { interest, principal, paid: interest + principal, closing: Math.max(0, bal) };
 }
@@ -449,8 +463,9 @@ export function runProjectionV2(
   let homeValue = homeEnabled ? home.currentValue : 0;
   let homeMort = homeEnabled ? home.mortgageBalance : 0;
   let homePhase: 'current' | 'new' = 'current';
-  let loanRate = homeEnabled ? home.loanRate : 0;
-  let paymentAnnual = homeEnabled ? annuityPaymentAnnual(homeMort, loanRate, home.termYears) : 0;
+  // The current loan uses its own rate/remaining term when provided, else falls back.
+  let loanRate = homeEnabled ? home.mortgageRate ?? home.loanRate : 0;
+  let paymentAnnual = homeEnabled ? annuityPaymentAnnual(homeMort, loanRate, home.mortgageTermYears ?? home.termYears) : 0;
   let clubActive = homeEnabled && !home.plannedPurchase; // club tied to the planned (new) home
 
   // ---- lumps & inheritance pre-resolved to integer years ----
@@ -532,7 +547,12 @@ export function runProjectionV2(
         homePhase = 'new';
         clubActive = true;
       }
-      const am = amortizeYear(homeMort, loanRate, paymentAnnual);
+      // extra principal toward the active mortgage: recurring monthly + one-time at this age
+      const extraMonthly = home.extraMonthlyPrincipal ?? 0;
+      const extraLumpThisYear = (home.extraPrincipalPayments ?? [])
+        .filter((p) => p.enabled && Math.round(p.age) === Math.round(age))
+        .reduce((s, p) => s + p.amount, 0);
+      const am = amortizeYear(homeMort, loanRate, paymentAnnual, extraMonthly, extraLumpThisYear);
       homeMort = am.closing;
       mortInterest = am.interest;
       homeValue *= 1 + home.growthRate;
