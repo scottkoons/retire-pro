@@ -20,6 +20,13 @@ export default function SettingsPage() {
   const setTheme = useStore((s) => s.setTheme);
   const replaceDocument = useStore((s) => s.replaceDocument);
   const scn = useActiveScenario();
+  const scenarios = useStore((s) => s.scenarios);
+  const activeId = useStore((s) => s.activeScenarioId);
+  const selectScenario = useStore((s) => s.selectScenario);
+  const renameScenario = useStore((s) => s.renameScenario);
+  const deleteScenario = useStore((s) => s.deleteScenario);
+  const duplicateActive = useStore((s) => s.duplicateActive);
+  const createFromPreset = useStore((s) => s.createFromPreset);
   const setAssumption = useStore((s) => s.setAssumption);
   const updateHealthcare = useStore((s) => s.updateHealthcare);
   const updateSocialSecurity = useStore((s) => s.updateSocialSecurity);
@@ -69,6 +76,58 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-6">
       <h1 className="font-head text-head-lg text-ink">Settings</h1>
+
+      <Section title="Scenarios" subtitle="Rename, switch, duplicate, or delete your saved plans">
+        <div className="flex flex-col gap-2">
+          {scenarios.map((sc) => (
+            <div key={sc.id} className="flex items-center gap-2 rounded-lg border border-border-subtle bg-card-high px-3 py-2">
+              <button
+                onClick={() => selectScenario(sc.id)}
+                title={sc.id === activeId ? 'Active scenario' : 'Make active'}
+                aria-label={sc.id === activeId ? 'Active scenario' : 'Make active'}
+                className={`h-2.5 w-2.5 shrink-0 rounded-full ${sc.id === activeId ? 'bg-primary' : 'bg-border-strong hover:bg-muted'}`}
+              />
+              <input
+                key={`${sc.id}:${sc.name}`}
+                defaultValue={sc.name}
+                onBlur={(e) => renameScenario(sc.id, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+                className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-[14px] text-ink hover:border-border-strong focus:border-primary focus:bg-input focus:outline-none"
+              />
+              {sc.presetKey && <span className="shrink-0 rounded-full bg-input px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted">{sc.presetKey}</span>}
+              {sc.id !== activeId && (
+                <Button variant="ghost" size="sm" onClick={() => selectScenario(sc.id)}>
+                  Open
+                </Button>
+              )}
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={scenarios.length <= 1}
+                title={scenarios.length <= 1 ? 'Keep at least one scenario' : 'Delete this scenario'}
+                onClick={() => {
+                  if (scenarios.length > 1 && confirm(`Delete scenario "${sc.name}"? This cannot be undone.`)) deleteScenario(sc.id);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="label-mono mr-1">Create:</span>
+          <Button variant="outline" size="sm" onClick={duplicateActive}>
+            Duplicate active
+          </Button>
+          {(['conservative', 'moderate', 'aggressive'] as const).map((k) => (
+            <Button key={k} variant="outline" size="sm" onClick={() => createFromPreset(k)} className="capitalize">
+              {k} preset
+            </Button>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Active Scenario" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
