@@ -171,9 +171,10 @@ export function ScenarioRail() {
           onClick={() => s.toggleRail(true)}
           aria-label="Collapse scenario inputs"
           title="Collapse"
-          className="shrink-0 rounded-md p-1.5 text-muted transition-colors hover:bg-hover hover:text-ink"
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:bg-hover hover:text-ink"
         >
-          <IconChevronLeft className="h-5 w-5 rotate-180" />
+          <span>Collapse</span>
+          <IconChevronLeft className="h-4 w-4 rotate-180" />
         </button>
       </div>
 
