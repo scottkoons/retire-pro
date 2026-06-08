@@ -3,7 +3,7 @@ import { useActiveScenario, useEffectiveDisplayMode } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { Section, Segmented } from '@/components/ui/primitives';
 import { StatTile, Slider } from '@/components/ui/tiles';
-import { Grid, THead, TR, TD } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, useSort } from '@/components/grid/Grid';
 import { CashFlowSankey } from '@/components/charts/CashFlowSankey';
 import { TaxChart } from '@/components/charts/TaxChart';
 import { SsClaimCompare } from '@/components/charts/SsClaimCompare';
@@ -22,6 +22,21 @@ export default function CashFlowPage() {
   const [flowAge, setFlowAge] = useState(Math.round(a.retirementAge));
   const flowRow = rows.find((r) => r.age === flowAge) ?? rows[rows.length - 1];
   const hasV2 = rows.some((r) => r.totalTax != null || r.netWorth != null);
+
+  // Tax Detail grid (read-only): retirement-year rows, sortable by every column.
+  const taxRows = rows.filter((r) => r.age >= Math.round(a.retirementAge));
+  const taxSort = useSort(
+    taxRows,
+    {
+      age: (r) => r.age,
+      totalTax: (r) => r.totalTax ?? 0,
+      effectiveRate: (r) => r.effectiveRate ?? 0,
+      marginalRate: (r) => r.marginalRate ?? 0,
+      irmaa: (r) => r.irmaa ?? 0,
+      rmd: (r) => r.rmd ?? 0,
+    },
+    { key: 'age', dir: 'asc' },
+  );
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
@@ -76,19 +91,19 @@ export default function CashFlowPage() {
           <Section title="Tax Detail (retirement years)">
             <Grid minWidth={620}>
               <THead
+                sort={taxSort.sort}
+                onSort={taxSort.onSort}
                 cols={[
-                  { label: 'Age' },
-                  { label: 'Total Tax', align: 'right' },
-                  { label: 'Eff Rate', align: 'right' },
-                  { label: 'Marginal', align: 'right' },
-                  { label: 'IRMAA', align: 'right' },
-                  { label: 'RMD', align: 'right' },
+                  { label: 'Age', sortKey: 'age' },
+                  { label: 'Total Tax', align: 'right', sortKey: 'totalTax' },
+                  { label: 'Eff Rate', align: 'right', sortKey: 'effectiveRate' },
+                  { label: 'Marginal', align: 'right', sortKey: 'marginalRate' },
+                  { label: 'IRMAA', align: 'right', sortKey: 'irmaa' },
+                  { label: 'RMD', align: 'right', sortKey: 'rmd' },
                 ]}
               />
               <tbody>
-                {rows
-                  .filter((r) => r.age >= Math.round(a.retirementAge))
-                  .map((r) => (
+                {taxSort.sorted.map((r) => (
                     <TR key={r.age}>
                       <TD><span className="font-mono tabnum text-muted">{r.age}</span></TD>
                       <TD align="right"><span className="font-mono tabnum text-ink">{fmtUSD(r.totalTax ?? 0)}</span></TD>

@@ -12,6 +12,7 @@ import {
   NumberInput,
   SelectInput,
   MonthYearInput,
+  useSort,
 } from '@/components/grid/Grid';
 import { fmtUSD, fmtUSDAbbrev } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
@@ -52,6 +53,51 @@ export default function PlannerPage() {
   const fieldCls = 'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[14px] text-ink focus:border-primary focus:outline-none';
 
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
+
+  // Sortable Monthly Contributions table.
+  const contribSort = useSort(
+    scn.contributions,
+    {
+      name: (c) => c.name.toLowerCase(),
+      startAge: (c) => c.startAge,
+      endAge: (c) => c.endAge,
+      monthlyAmount: (c) => c.monthlyAmount,
+      dollarBasis: (c) => c.dollarBasis.toLowerCase(),
+      months: (c) => Math.max(0, Math.round((c.endAge - c.startAge) * 12)),
+      total: (c) => Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount,
+    },
+    { key: 'startAge', dir: 'asc' },
+  );
+
+  // Sortable Lump Sum Events table; Date/Age share one numeric key.
+  const lumpSort = useSort(
+    scn.lumpSums,
+    {
+      name: (l) => l.name.toLowerCase(),
+      age: (l) => (l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age),
+      amount: (l) => l.amount,
+      dollarBasis: (l) => l.dollarBasis.toLowerCase(),
+      taxStatus: (l) => (l.taxStatus ?? 'taxable').toLowerCase(),
+    },
+    { key: 'age', dir: 'asc' },
+  );
+
+  // Sortable Income Streams table.
+  const incomeSort = useSort(
+    scn.incomeStreams,
+    {
+      name: (st) => st.name.toLowerCase(),
+      monthlyAmountToday: (st) => st.monthlyAmountToday,
+      startAge: (st) => st.startAge,
+      endAge: (st) => st.endAge,
+      cola: (st) => st.cola ?? a.inflation,
+      owner: (st) => st.owner.toLowerCase(),
+      taxStatus: (st) => st.taxStatus.toLowerCase(),
+      atRet: (st) => streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, a.retirementAge - a.currentAge),
+      at90: (st) => streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, 90 - a.currentAge),
+    },
+    { key: 'startAge', dir: 'asc' },
+  );
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
@@ -96,18 +142,20 @@ export default function PlannerPage() {
       <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows`}>
         <Grid minWidth={760}>
           <THead
+            sort={contribSort.sort}
+            onSort={contribSort.onSort}
             cols={[
-              { label: 'Name', w: '24%' },
-              { label: 'Start' },
-              { label: 'End' },
-              { label: 'Monthly $', align: 'right' },
-              { label: 'Basis' },
-              { label: 'Months', align: 'right' },
-              { label: 'Total', align: 'right' },
+              { label: 'Name', w: '24%', sortKey: 'name' },
+              { label: 'Start', sortKey: 'startAge' },
+              { label: 'End', sortKey: 'endAge' },
+              { label: 'Monthly $', align: 'right', sortKey: 'monthlyAmount' },
+              { label: 'Basis', sortKey: 'dollarBasis' },
+              { label: 'Months', align: 'right', sortKey: 'months' },
+              { label: 'Total', align: 'right', sortKey: 'total' },
             ]}
           />
           <tbody>
-            {scn.contributions.map((c) => {
+            {contribSort.sorted.map((c) => {
               const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
               return (
                 <TR key={c.id} dim={!c.enabled}>
@@ -147,17 +195,19 @@ export default function PlannerPage() {
       <Section title="Lump Sum Events" subtitle="Shown as dots on the wealth chart">
         <Grid minWidth={720}>
           <THead
+            sort={lumpSort.sort}
+            onSort={lumpSort.onSort}
             cols={[
-              { label: 'Name', w: '30%' },
-              { label: 'Date' },
-              { label: 'Age', align: 'right' },
-              { label: 'Amount', align: 'right' },
-              { label: 'Basis' },
-              { label: 'Tax' },
+              { label: 'Name', w: '30%', sortKey: 'name' },
+              { label: 'Date', sortKey: 'age' },
+              { label: 'Age', align: 'right', sortKey: 'age' },
+              { label: 'Amount', align: 'right', sortKey: 'amount' },
+              { label: 'Basis', sortKey: 'dollarBasis' },
+              { label: 'Tax', sortKey: 'taxStatus' },
             ]}
           />
           <tbody>
-            {scn.lumpSums.map((l) => (
+            {lumpSort.sorted.map((l) => (
               <TR key={l.id} dim={!l.enabled}>
                 <TD><TextInput value={l.name} onChange={(v) => s.updateLumpSum(l.id, { name: v })} /></TD>
                 <TD>
@@ -192,20 +242,22 @@ export default function PlannerPage() {
       <Section title="Retirement Income Streams" subtitle="Entered in today's dollars; COLA compounds from today">
         <Grid minWidth={860}>
           <THead
+            sort={incomeSort.sort}
+            onSort={incomeSort.onSort}
             cols={[
-              { label: 'Source', w: '22%' },
-              { label: "Today $/mo", align: 'right' },
-              { label: 'Start', align: 'right' },
-              { label: 'End', align: 'right' },
-              { label: 'COLA %', align: 'right' },
-              { label: 'Owner' },
-              { label: 'Tax' },
-              { label: `@ ${Math.round(a.retirementAge)}`, align: 'right' },
-              { label: '@ 90', align: 'right' },
+              { label: 'Source', w: '22%', sortKey: 'name' },
+              { label: "Today $/mo", align: 'right', sortKey: 'monthlyAmountToday' },
+              { label: 'Start', align: 'right', sortKey: 'startAge' },
+              { label: 'End', align: 'right', sortKey: 'endAge' },
+              { label: 'COLA %', align: 'right', sortKey: 'cola' },
+              { label: 'Owner', sortKey: 'owner' },
+              { label: 'Tax', sortKey: 'taxStatus' },
+              { label: `@ ${Math.round(a.retirementAge)}`, align: 'right', sortKey: 'atRet' },
+              { label: '@ 90', align: 'right', sortKey: 'at90' },
             ]}
           />
           <tbody>
-            {scn.incomeStreams.map((st) => {
+            {incomeSort.sorted.map((st) => {
               const cola = st.cola ?? a.inflation;
               const atRet = streamNominalAtAge(st.monthlyAmountToday, cola, st.inflationAdjusted, a.retirementAge - a.currentAge);
               const at90 = streamNominalAtAge(st.monthlyAmountToday, cola, st.inflationAdjusted, 90 - a.currentAge);

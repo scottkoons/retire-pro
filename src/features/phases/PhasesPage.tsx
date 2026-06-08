@@ -1,10 +1,33 @@
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section } from '@/components/ui/primitives';
-import { Grid, THead, TR, TD, DeleteCell, AddRow, TextInput, NumberInput } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, DeleteCell, AddRow, TextInput, NumberInput, useSort } from '@/components/grid/Grid';
 
 export default function PhasesPage() {
   const scn = useActiveScenario();
   const s = useStore();
+
+  const spendingSorted = useSort(
+    scn.retirementPhases,
+    {
+      name: (p) => p.name.toLowerCase(),
+      startAge: (p) => p.startAge,
+      endAge: (p) => p.endAge,
+      targetMonthlyIncome: (p) => p.targetMonthlyIncome,
+    },
+    { key: 'startAge', dir: 'asc' },
+  );
+
+  const returnSorted = useSort(
+    scn.investmentReturnPhases,
+    {
+      name: (p) => p.name.toLowerCase(),
+      startAge: (p) => p.startAge,
+      endAge: (p) => p.endAge,
+      expectedReturn: (p) => p.expectedReturn,
+      volatility: (p) => p.volatility,
+    },
+    { key: 'startAge', dir: 'asc' },
+  );
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
@@ -16,15 +39,17 @@ export default function PhasesPage() {
       <Section title="Spending Phases" subtitle="Target monthly income (today's $) over an age window">
         <Grid minWidth={620}>
           <THead
+            sort={spendingSorted.sort}
+            onSort={spendingSorted.onSort}
             cols={[
-              { label: 'Name', w: '34%' },
-              { label: 'Start age', align: 'right' },
-              { label: 'End age', align: 'right' },
-              { label: 'Target $/mo', align: 'right' },
+              { label: 'Name', w: '34%', sortKey: 'name' },
+              { label: 'Start age', align: 'right', sortKey: 'startAge' },
+              { label: 'End age', align: 'right', sortKey: 'endAge' },
+              { label: 'Target $/mo', align: 'right', sortKey: 'targetMonthlyIncome' },
             ]}
           />
           <tbody>
-            {scn.retirementPhases.map((p) => (
+            {spendingSorted.sorted.map((p) => (
               <TR key={p.id} dim={!p.enabled}>
                 <TD><TextInput value={p.name} onChange={(v) => s.updateRetirementPhase(p.id, { name: v })} /></TD>
                 <TD align="right"><NumberInput value={p.startAge} onChange={(v) => s.updateRetirementPhase(p.id, { startAge: v })} /></TD>
@@ -41,16 +66,18 @@ export default function PhasesPage() {
       <Section title="Investment Return Phases" subtitle="Override the global return and volatility by age range (leave empty to use the global return)">
         <Grid minWidth={680}>
           <THead
+            sort={returnSorted.sort}
+            onSort={returnSorted.onSort}
             cols={[
-              { label: 'Name', w: '28%' },
-              { label: 'Start age', align: 'right' },
-              { label: 'End age', align: 'right' },
-              { label: 'Return %', align: 'right' },
-              { label: 'Volatility %', align: 'right' },
+              { label: 'Name', w: '28%', sortKey: 'name' },
+              { label: 'Start age', align: 'right', sortKey: 'startAge' },
+              { label: 'End age', align: 'right', sortKey: 'endAge' },
+              { label: 'Return %', align: 'right', sortKey: 'expectedReturn' },
+              { label: 'Volatility %', align: 'right', sortKey: 'volatility' },
             ]}
           />
           <tbody>
-            {scn.investmentReturnPhases.map((p) => (
+            {returnSorted.sorted.map((p) => (
               <TR key={p.id} dim={!p.enabled}>
                 <TD><TextInput value={p.name} onChange={(v) => s.updateReturnPhase(p.id, { name: v })} /></TD>
                 <TD align="right"><NumberInput value={p.startAge} onChange={(v) => s.updateReturnPhase(p.id, { startAge: v })} /></TD>

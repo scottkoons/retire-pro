@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section } from '@/components/ui/primitives';
-import { Grid, THead, TR, TD, TextInput, NumberInput, SelectInput, DeleteCell, AddRow } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, TextInput, NumberInput, SelectInput, DeleteCell, AddRow, useSort } from '@/components/grid/Grid';
 import { fmtUSD, fmtDate, todayISO } from '@/lib/format';
 import type { LoanKind } from '@/domain/types';
 
@@ -19,6 +19,18 @@ export function LoansManager() {
   const loans = scn.liabilities ?? [];
   const total = loans.filter((l) => l.enabled).reduce((sum, l) => sum + l.balance, 0);
 
+  const { sorted, sort, onSort } = useSort(
+    loans,
+    {
+      name: (l) => l.name.toLowerCase(),
+      kind: (l) => l.kind.toLowerCase(),
+      balance: (l) => l.balance,
+      rate: (l) => l.rate,
+      payment: (l) => l.monthlyPayment,
+    },
+    { key: 'balance', dir: 'desc' },
+  );
+
   return (
     <Section
       title="Loans"
@@ -26,17 +38,19 @@ export function LoansManager() {
     >
       <Grid minWidth={720}>
         <THead
+          sort={sort}
+          onSort={onSort}
           cols={[
-            { label: 'Loan', w: '26%' },
-            { label: 'Type' },
-            { label: 'Balance', align: 'right' },
-            { label: 'Rate %', align: 'right' },
-            { label: 'Payment / mo', align: 'right' },
+            { label: 'Loan', w: '26%', sortKey: 'name' },
+            { label: 'Type', sortKey: 'kind' },
+            { label: 'Balance', align: 'right', sortKey: 'balance' },
+            { label: 'Rate %', align: 'right', sortKey: 'rate' },
+            { label: 'Payment / mo', align: 'right', sortKey: 'payment' },
             { label: 'Updated', align: 'right' },
           ]}
         />
         <tbody>
-          {loans.map((l) => (
+          {sorted.map((l) => (
             <TR key={l.id} dim={!l.enabled}>
               <TD><TextInput value={l.name} onChange={(v) => s.updateLoan(l.id, { name: v })} /></TD>
               <TD><SelectInput value={l.kind} options={kindOpts} onChange={(v) => s.updateLoan(l.id, { kind: v })} /></TD>

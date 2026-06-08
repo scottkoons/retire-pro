@@ -1,6 +1,39 @@
-import type { ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { IconPlus, IconTrash } from '@/components/icons';
+
+export interface SortState {
+  key: string;
+  dir: 'asc' | 'desc';
+}
+
+/** Sort a row list by clickable columns. Pass accessors keyed by column sortKey.
+ *  Returns the sorted rows plus the current sort and a toggle handler for THead. */
+export function useSort<T>(
+  rows: T[],
+  accessors: Record<string, (row: T) => number | string>,
+  initial: SortState,
+): { sorted: T[]; sort: SortState; onSort: (key: string) => void } {
+  const [sort, setSort] = useState<SortState>(initial);
+  const onSort = (key: string) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  const sorted = useMemo(() => {
+    const acc = accessors[sort.key];
+    if (!acc) return rows;
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const x = acc(a);
+      const y = acc(b);
+      if (x < y) return sort.dir === 'asc' ? -1 : 1;
+      if (x > y) return sort.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return arr;
+    // accessors is a fresh object each render; intentionally keyed on rows + sort only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, sort]);
+  return { sorted, sort, onSort };
+}
 
 export function Grid({ children, minWidth }: { children: ReactNode; minWidth?: number }) {
   return (
@@ -12,22 +45,46 @@ export function Grid({ children, minWidth }: { children: ReactNode; minWidth?: n
   );
 }
 
-export function THead({ cols }: { cols: { label: string; align?: 'left' | 'right' | 'center'; w?: string }[] }) {
+export function THead({
+  cols,
+  sort,
+  onSort,
+}: {
+  cols: { label: string; align?: 'left' | 'right' | 'center'; w?: string; sortKey?: string }[];
+  sort?: SortState;
+  onSort?: (key: string) => void;
+}) {
   return (
     <thead>
       <tr className="bg-card-high">
-        {cols.map((c, i) => (
-          <th
-            key={i}
-            style={{ width: c.w }}
-            className={clsx(
-              'border-b border-border-strong px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-muted',
-              c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left',
-            )}
-          >
-            {c.label}
-          </th>
-        ))}
+        {cols.map((c, i) => {
+          const sortable = !!c.sortKey && !!onSort;
+          const active = !!sort && c.sortKey === sort.key;
+          const alignCls = c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left';
+          return (
+            <th
+              key={i}
+              style={{ width: c.w }}
+              className={clsx('border-b border-border-strong px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em]', active ? 'text-ink' : 'text-muted', alignCls)}
+            >
+              {sortable ? (
+                <button
+                  type="button"
+                  onClick={() => onSort!(c.sortKey!)}
+                  className={clsx('group inline-flex items-center gap-1 uppercase tracking-[0.06em] transition-colors hover:text-ink', c.align === 'right' && 'flex-row-reverse', c.align === 'center' && 'justify-center')}
+                  title={`Sort by ${c.label}`}
+                >
+                  <span>{c.label}</span>
+                  <span className={clsx('text-[9px] leading-none', active ? 'text-primary' : 'text-faint opacity-0 group-hover:opacity-100')}>
+                    {active ? (sort!.dir === 'asc' ? '▲' : '▼') : '▲'}
+                  </span>
+                </button>
+              ) : (
+                c.label
+              )}
+            </th>
+          );
+        })}
         <th className="w-10 border-b border-border-strong" />
       </tr>
     </thead>

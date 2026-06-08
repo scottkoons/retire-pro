@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, MoneyInput, Segmented, Button } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
-import { Grid, THead, TR, TD, NumberInput, DeleteCell, AddRow } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, NumberInput, DeleteCell, AddRow, useSort } from '@/components/grid/Grid';
 import { amortize, byYear } from '@/engine/mortgage';
 import { fmtUSD, fmtPct } from '@/lib/format';
 
@@ -68,6 +68,46 @@ export default function HomeMortgagePage() {
 
   const [detailYear, setDetailYear] = useState(1);
   const monthRows = withExtra.schedule.slice((detailYear - 1) * 12, detailYear * 12);
+
+  // ---- column sorting ----
+  // One-time extra payments (editable): default by At Age ascending.
+  const lumpsSort = useSort(
+    lumps,
+    {
+      age: (p) => p.age,
+      amount: (p) => p.amount,
+    },
+    { key: 'age', dir: 'asc' },
+  );
+
+  // Yearly amortization schedule (read-only): default by Age ascending.
+  const yearsSort = useSort(
+    years,
+    {
+      age: (y) => currentAge + y.yearIndex + 1,
+      paid: (y) => y.paid,
+      principal: (y) => y.principal,
+      interest: (y) => y.interest,
+      extra: (y) => y.extra,
+      endBalance: (y) => y.endingBalance,
+      equity: (y) => Math.max(0, home.currentValue * Math.pow(1 + home.growthRate, y.yearIndex + 1) - y.endingBalance),
+    },
+    { key: 'age', dir: 'asc' },
+  );
+
+  // Monthly detail (read-only): default by Month ascending.
+  const monthSort = useSort(
+    monthRows,
+    {
+      month: (m) => m.month,
+      payment: (m) => m.payment,
+      principal: (m) => m.principal,
+      interest: (m) => m.interest,
+      extra: (m) => m.extra,
+      balance: (m) => m.balance,
+    },
+    { key: 'month', dir: 'asc' },
+  );
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
@@ -141,14 +181,16 @@ export default function HomeMortgagePage() {
           <div className="label-mono mb-2">One-time extra payments</div>
           <Grid minWidth={420}>
             <THead
+              sort={lumpsSort.sort}
+              onSort={lumpsSort.onSort}
               cols={[
-                { label: 'At Age', align: 'right' },
-                { label: 'Amount', align: 'right' },
+                { label: 'At Age', align: 'right', sortKey: 'age' },
+                { label: 'Amount', align: 'right', sortKey: 'amount' },
                 { label: 'On', align: 'center' },
               ]}
             />
             <tbody>
-              {lumps.map((p) => (
+              {lumpsSort.sorted.map((p) => (
                 <TR key={p.id} dim={!p.enabled}>
                   <TD align="right"><NumberInput value={p.age} onChange={(v) => s.updateExtraPrincipal(p.id, { age: v })} /></TD>
                   <TD align="right"><NumberInput value={p.amount} prefix="$" onChange={(v) => s.updateExtraPrincipal(p.id, { amount: v })} /></TD>
@@ -183,18 +225,20 @@ export default function HomeMortgagePage() {
         <Section title="Amortization Schedule" subtitle={`${withExtra.schedule.length} months to payoff`}>
           <Grid minWidth={720}>
             <THead
+              sort={yearsSort.sort}
+              onSort={yearsSort.onSort}
               cols={[
-                { label: 'Age' },
-                { label: 'Paid', align: 'right' },
-                { label: 'Principal', align: 'right' },
-                { label: 'Interest', align: 'right' },
-                { label: 'Extra', align: 'right' },
-                { label: 'End Balance', align: 'right' },
-                { label: 'Home Equity', align: 'right' },
+                { label: 'Age', sortKey: 'age' },
+                { label: 'Paid', align: 'right', sortKey: 'paid' },
+                { label: 'Principal', align: 'right', sortKey: 'principal' },
+                { label: 'Interest', align: 'right', sortKey: 'interest' },
+                { label: 'Extra', align: 'right', sortKey: 'extra' },
+                { label: 'End Balance', align: 'right', sortKey: 'endBalance' },
+                { label: 'Home Equity', align: 'right', sortKey: 'equity' },
               ]}
             />
             <tbody>
-              {years.map((y) => {
+              {yearsSort.sorted.map((y) => {
                 const yr = y.yearIndex + 1;
                 const value = home.currentValue * Math.pow(1 + home.growthRate, yr);
                 const equity = Math.max(0, value - y.endingBalance);
@@ -231,17 +275,19 @@ export default function HomeMortgagePage() {
             </div>
             <Grid minWidth={560}>
               <THead
+                sort={monthSort.sort}
+                onSort={monthSort.onSort}
                 cols={[
-                  { label: 'Month' },
-                  { label: 'Payment', align: 'right' },
-                  { label: 'Principal', align: 'right' },
-                  { label: 'Interest', align: 'right' },
-                  { label: 'Extra', align: 'right' },
-                  { label: 'Balance', align: 'right' },
+                  { label: 'Month', sortKey: 'month' },
+                  { label: 'Payment', align: 'right', sortKey: 'payment' },
+                  { label: 'Principal', align: 'right', sortKey: 'principal' },
+                  { label: 'Interest', align: 'right', sortKey: 'interest' },
+                  { label: 'Extra', align: 'right', sortKey: 'extra' },
+                  { label: 'Balance', align: 'right', sortKey: 'balance' },
                 ]}
               />
               <tbody>
-                {monthRows.map((m) => (
+                {monthSort.sorted.map((m) => (
                   <TR key={m.month}>
                     <TD><span className="font-mono tabnum text-muted">{m.month}</span></TD>
                     <TD align="right"><span className="font-mono tabnum text-ink">{fmtUSD(m.payment)}</span></TD>

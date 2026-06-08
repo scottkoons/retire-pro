@@ -11,6 +11,7 @@ import {
   TextInput,
   NumberInput,
   SelectInput,
+  useSort,
 } from '@/components/grid/Grid';
 import type { ExpenseCategory, DollarBasis, SpendingMode } from '@/domain/types';
 
@@ -34,6 +35,22 @@ export function ExpensesSection() {
   const s = useStore();
 
   const isPhaseTarget = scn.spendingMode === 'phase-target';
+
+  // Column-header sorting for the expenses grid. Numeric accessors for dollar/age/percent
+  // columns; lowercased strings for the text/category columns. Default: Start Age ascending.
+  const { sorted, sort, onSort } = useSort(
+    scn.expenses,
+    {
+      name: (e) => e.name.toLowerCase(),
+      category: (e) => e.category.toLowerCase(),
+      amount: (e) => e.amount,
+      dollarBasis: (e) => e.dollarBasis.toLowerCase(),
+      startAge: (e) => e.startAge,
+      endAge: (e) => e.endAge,
+      inflationRate: (e) => e.inflationRate ?? 0,
+    },
+    { key: 'startAge', dir: 'asc' },
+  );
 
   return (
     <Section
@@ -70,18 +87,20 @@ export function ExpensesSection() {
       <div className={clsx(isPhaseTarget && 'opacity-60')}>
         <Grid minWidth={820}>
           <THead
+            sort={sort}
+            onSort={onSort}
             cols={[
-              { label: 'Expense', w: '24%' },
-              { label: 'Category' },
-              { label: 'Annual $', align: 'right' },
-              { label: 'Basis' },
-              { label: 'Start Age', align: 'right' },
-              { label: 'End Age', align: 'right' },
-              { label: 'Infl Ovr', align: 'right' },
+              { label: 'Expense', w: '24%', sortKey: 'name' },
+              { label: 'Category', sortKey: 'category' },
+              { label: 'Annual $', align: 'right', sortKey: 'amount' },
+              { label: 'Basis', sortKey: 'dollarBasis' },
+              { label: 'Start Age', align: 'right', sortKey: 'startAge' },
+              { label: 'End Age', align: 'right', sortKey: 'endAge' },
+              { label: 'Infl Ovr', align: 'right', sortKey: 'inflationRate' },
             ]}
           />
           <tbody>
-            {scn.expenses.map((e) => (
+            {sorted.map((e) => (
               <TR key={e.id} dim={!e.enabled}>
                 <TD>
                   <TextInput value={e.name} onChange={(v) => s.updateExpense(e.id, { name: v })} />

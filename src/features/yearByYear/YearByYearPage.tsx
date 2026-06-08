@@ -2,6 +2,7 @@ import { useActiveScenario, useEffectiveDisplayMode } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { Section } from '@/components/ui/primitives';
 import { fmtUSD } from '@/lib/format';
+import { useSort } from '@/components/grid/Grid';
 
 export default function YearByYearPage() {
   const scn = useActiveScenario();
@@ -9,19 +10,39 @@ export default function YearByYearPage() {
   const displayMode = useEffectiveDisplayMode();
   const retireAge = Math.round(scn.assumptions.retirementAge);
 
-  const cols = [
-    'Age',
-    'Year',
-    'Starting',
-    'Contributions',
-    'Lump sums',
-    'Growth',
-    'Guaranteed',
-    'Withdrawals',
-    'Ending',
-    "Today's $",
-    'Actual $',
+  // label + sortKey per column; sortKey matches the accessor key below and the data column order.
+  const cols: { label: string; sortKey: string }[] = [
+    { label: 'Age', sortKey: 'age' },
+    { label: 'Year', sortKey: 'year' },
+    { label: 'Starting', sortKey: 'startingBalance' },
+    { label: 'Contributions', sortKey: 'contributions' },
+    { label: 'Lump sums', sortKey: 'lumpSums' },
+    { label: 'Growth', sortKey: 'investmentGrowth' },
+    { label: 'Guaranteed', sortKey: 'guaranteedIncome' },
+    { label: 'Withdrawals', sortKey: 'withdrawals' },
+    { label: 'Ending', sortKey: 'endingBalance' },
+    { label: "Today's $", sortKey: 'endingBalanceToday' },
+    { label: 'Actual $', sortKey: 'endingBalanceActual' },
   ];
+
+  // Every column is numeric, so each accessor returns a number.
+  const { sorted, sort, onSort } = useSort(
+    result.rows,
+    {
+      age: (r) => r.age,
+      year: (r) => r.year,
+      startingBalance: (r) => r.startingBalance,
+      contributions: (r) => r.contributions,
+      lumpSums: (r) => r.lumpSums,
+      investmentGrowth: (r) => r.investmentGrowth,
+      guaranteedIncome: (r) => r.guaranteedIncome,
+      withdrawals: (r) => r.withdrawals,
+      endingBalance: (r) => r.endingBalance,
+      endingBalanceToday: (r) => r.endingBalanceToday,
+      endingBalanceActual: (r) => r.endingBalance,
+    },
+    { key: 'age', dir: 'asc' },
+  );
 
   const cell = (n: number) => <span className="font-mono tabnum text-ink">{fmtUSD(n)}</span>;
 
@@ -40,20 +61,40 @@ export default function YearByYearPage() {
           <table className="w-full border-collapse text-[12px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-card-high">
-                {cols.map((c, i) => (
-                  <th
-                    key={c}
-                    className={`border-b border-border-strong px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.05em] text-muted ${
-                      i < 2 ? 'text-left' : 'text-right'
-                    }`}
-                  >
-                    {c}
-                  </th>
-                ))}
+                {cols.map((c, i) => {
+                  const left = i < 2;
+                  const active = sort.key === c.sortKey;
+                  return (
+                    <th
+                      key={c.sortKey}
+                      className={`border-b border-border-strong px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.05em] ${
+                        active ? 'text-ink' : 'text-muted'
+                      } ${left ? 'text-left' : 'text-right'}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onSort(c.sortKey)}
+                        className={`group inline-flex items-center gap-1 uppercase tracking-[0.05em] transition-colors hover:text-ink ${
+                          left ? '' : 'flex-row-reverse'
+                        }`}
+                        title={`Sort by ${c.label}`}
+                      >
+                        <span>{c.label}</span>
+                        <span
+                          className={`text-[9px] leading-none ${
+                            active ? 'text-primary' : 'text-faint opacity-0 group-hover:opacity-100'
+                          }`}
+                        >
+                          {active ? (sort.dir === 'asc' ? '▲' : '▼') : '▲'}
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {result.rows.map((r) => {
+              {sorted.map((r) => {
                 const isRetire = r.age === retireAge;
                 return (
                   <tr key={r.age} className={`border-b border-border-subtle hover:bg-hover ${isRetire ? 'bg-primary-tint' : ''}`}>

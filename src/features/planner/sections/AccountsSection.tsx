@@ -10,6 +10,7 @@ import {
   TextInput,
   NumberInput,
   SelectInput,
+  useSort,
 } from '@/components/grid/Grid';
 import { IconDiamond } from '@/components/icons';
 import type { AccountKind } from '@/domain/types';
@@ -45,22 +46,38 @@ export function AccountsSection() {
     s.reorderWithdrawalSequence(next);
   };
 
+  // Column-header sorting for the accounts grid. Default: Balance, descending.
+  const { sorted, sort, onSort } = useSort(
+    scn.accounts,
+    {
+      name: (a) => a.name.toLowerCase(),
+      kind: (a) => KIND_LABEL[a.kind].toLowerCase(),
+      balance: (a) => a.balance,
+      costBasis: (a) => (a.kind === 'taxable' ? (a.costBasisRatio ?? 0.5) : -1),
+      owner: (a) => (a.kind === 'taxable' ? 'joint' : (a.owner ?? 'self')),
+      returnOverride: (a) => a.returnOverride ?? -Infinity,
+    },
+    { key: 'balance', dir: 'desc' },
+  );
+
   return (
     <Section title="Accounts" subtitle="Balances drive the tax-aware projection">
       <Grid minWidth={860}>
         <THead
+          sort={sort}
+          onSort={onSort}
           cols={[
-            { label: 'Account', w: '22%' },
-            { label: 'Type' },
-            { label: 'Balance', align: 'right' },
-            { label: 'Cost Basis %', align: 'right' },
-            { label: 'Owner' },
-            { label: 'Return Ovr', align: 'right' },
+            { label: 'Account', w: '22%', sortKey: 'name' },
+            { label: 'Type', sortKey: 'kind' },
+            { label: 'Balance', align: 'right', sortKey: 'balance' },
+            { label: 'Cost Basis %', align: 'right', sortKey: 'costBasis' },
+            { label: 'Owner', sortKey: 'owner' },
+            { label: 'Return Ovr', align: 'right', sortKey: 'returnOverride' },
             { label: 'Contrib Target', align: 'center' },
           ]}
         />
         <tbody>
-          {scn.accounts.map((acc) => (
+          {sorted.map((acc) => (
             <TR key={acc.id} dim={!acc.enabled}>
               <TD>
                 <TextInput value={acc.name} onChange={(v) => s.updateAccount(acc.id, { name: v })} />

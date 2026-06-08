@@ -3,7 +3,7 @@ import { useActiveScenario, useEffectiveDisplayMode, useStore } from '@/state/st
 import { useProjection } from '@/selectors/projection';
 import { Section, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
-import { Grid, THead, TR, TD } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, useSort } from '@/components/grid/Grid';
 import { NetWorthChart } from '@/components/charts/NetWorthChart';
 import { fmtUSD } from '@/lib/format';
 
@@ -68,6 +68,21 @@ export default function NetWorthPage() {
     return { peak, peakAge: peakRow?.age, atRet: atRet ? val(atRet) : 0, ending: last ? val(last) : 0, peakEquity };
   }, [rows, displayMode, a.retirementAge]);
 
+  // Sortable Home Value by Age table. Accessors mirror the per-row display math
+  // (deflated to today's $ when requested) so a sort reflects the values shown.
+  const homeMort = (r: (typeof rows)[number]) => (displayMode === 'today' ? (r.mortgageBalance ?? 0) / r.cpiFactor : r.mortgageBalance ?? 0);
+  const homeEq = (r: (typeof rows)[number]) => (displayMode === 'today' ? (r.homeEquity ?? 0) / r.cpiFactor : r.homeEquity ?? 0);
+  const { sorted: homeByAgeSorted, sort: homeSort, onSort: onHomeSort } = useSort(
+    homeByAge,
+    {
+      age: (r) => r.age,
+      homeValue: (r) => homeValueAt(r),
+      mortgage: (r) => homeMort(r),
+      equity: (r) => homeEq(r),
+    },
+    { key: 'age', dir: 'asc' },
+  );
+
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
       <div>
@@ -126,15 +141,17 @@ export default function NetWorthPage() {
         <Section title="Home Value by Age" subtitle={`Appreciating at ${(home.growthRate * 100).toFixed(1)}% / yr`}>
           <Grid minWidth={520}>
             <THead
+              sort={homeSort}
+              onSort={onHomeSort}
               cols={[
-                { label: 'Age' },
-                { label: 'Home Value', align: 'right' },
-                { label: 'Mortgage', align: 'right' },
-                { label: 'Equity', align: 'right' },
+                { label: 'Age', sortKey: 'age' },
+                { label: 'Home Value', align: 'right', sortKey: 'homeValue' },
+                { label: 'Mortgage', align: 'right', sortKey: 'mortgage' },
+                { label: 'Equity', align: 'right', sortKey: 'equity' },
               ]}
             />
             <tbody>
-              {homeByAge.map((r) => {
+              {homeByAgeSorted.map((r) => {
                 const mort = displayMode === 'today' ? (r.mortgageBalance ?? 0) / r.cpiFactor : r.mortgageBalance ?? 0;
                 const eq = displayMode === 'today' ? (r.homeEquity ?? 0) / r.cpiFactor : r.homeEquity ?? 0;
                 return (
