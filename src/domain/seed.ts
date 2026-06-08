@@ -103,7 +103,7 @@ function baseScenario(name: string, path: BusinessPath): Scenario {
 }
 
 export function defaultUi(): UiState {
-  return { displayModeOverride: null, chartRange: 'MAX', showMonteCarloBand: false, sidebarCollapsed: false };
+  return { displayModeOverride: null, chartRange: 'MAX', showMonteCarloBand: false, sidebarCollapsed: false, railCollapsed: false };
 }
 
 export function seedDocument(): { doc: PersistedDocument; ui: UiState } {

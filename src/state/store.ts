@@ -119,6 +119,7 @@ interface StoreState extends PersistedDocument {
   setChartRange: (r: '10Y' | 'MAX') => void;
   toggleMcBand: (on?: boolean) => void;
   toggleSidebar: (on?: boolean) => void;
+  toggleRail: (on?: boolean) => void;
 
   // document-level
   replaceDocument: (doc: PersistedDocument) => void;
@@ -554,6 +555,12 @@ export const useStore = create<StoreState>()(
       toggleSidebar: (on) => {
         set((s) => {
           s.ui.sidebarCollapsed = on ?? !s.ui.sidebarCollapsed;
+        });
+        schedulePersist();
+      },
+      toggleRail: (on) => {
+        set((s) => {
+          s.ui.railCollapsed = on ?? !s.ui.railCollapsed;
         });
         schedulePersist();
       },

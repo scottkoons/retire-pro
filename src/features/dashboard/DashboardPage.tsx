@@ -11,7 +11,7 @@ import { WealthChart } from '@/components/charts/WealthChart';
 import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
 import { ScenarioRail } from './ScenarioRail';
 import { ReturnPhasesPanel } from './ReturnPhasesPanel';
-import { IconCalendar, IconBank, IconDice, IconDiamond } from '@/components/icons';
+import { IconCalendar, IconBank, IconDice, IconDiamond, IconChevronLeft } from '@/components/icons';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, pctValue } from '@/lib/format';
 
@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const toggleMcBand = useStore((s) => s.toggleMcBand);
   const setChartRange = useStore((s) => s.setChartRange);
   const setOverride = useStore((s) => s.setDisplayModeOverride);
+  const toggleRail = useStore((s) => s.toggleRail);
 
   const mc = useMcStore();
   const a = scn.assumptions;
@@ -91,11 +92,22 @@ export default function DashboardPage() {
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
       {/* MAIN COLUMN */}
-      <div className="flex min-w-0 flex-col gap-6 xl:col-span-8">
+      <div className={`flex min-w-0 flex-col gap-6 ${ui.railCollapsed ? 'xl:col-span-12' : 'xl:col-span-8'}`}>
         {/* Tiles */}
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-end gap-2">
-            <span className="label-mono">Show amounts in</span>
+          <div className="flex items-center gap-2">
+            {ui.railCollapsed && (
+              <button
+                type="button"
+                onClick={() => toggleRail(false)}
+                title="Show scenario inputs"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-card px-3 py-1.5 text-[12px] font-medium text-muted transition-colors hover:border-primary hover:text-ink"
+              >
+                <IconChevronLeft className="h-4 w-4" />
+                <IconDiamond className="h-3 w-3 text-primary" /> Scenario inputs
+              </button>
+            )}
+            <span className="label-mono ml-auto">Show amounts in</span>
             <Segmented
               size="sm"
               options={[
@@ -243,10 +255,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* RIGHT RAIL — scenario inputs */}
-      <div className="xl:col-span-4">
-        <ScenarioRail />
-      </div>
+      {/* RIGHT RAIL — scenario inputs (collapsible) */}
+      {!ui.railCollapsed && (
+        <div className="xl:col-span-4">
+          <ScenarioRail />
+        </div>
+      )}
     </div>
   );
 }

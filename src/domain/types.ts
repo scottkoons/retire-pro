@@ -320,6 +320,7 @@ export interface UiState {
   chartRange: '10Y' | 'MAX';
   showMonteCarloBand: boolean;
   sidebarCollapsed: boolean;
+  railCollapsed: boolean;
 }
 
 // ----------------------------- Engine outputs ------------------------------

@@ -284,6 +284,7 @@ export const UiStateSchema = z.object({
   chartRange: z.enum(['10Y', 'MAX']),
   showMonteCarloBand: z.boolean(),
   sidebarCollapsed: z.boolean().default(false),
+  railCollapsed: z.boolean().default(false),
 });
 
 export const BackupFileSchema = z.object({

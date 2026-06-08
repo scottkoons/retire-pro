@@ -39,20 +39,31 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden border-r border-border-subtle bg-card">
-      <div className={clsx('flex items-center py-5', collapsed ? 'justify-center px-2' : 'justify-between px-5')}>
-        {!collapsed && (
+      {/* Brand */}
+      <div className={clsx('flex items-center py-5', collapsed ? 'justify-center px-2' : 'px-5')}>
+        {!collapsed ? (
           <span className="whitespace-nowrap font-head text-[22px] font-bold tracking-tight">
             <span className="text-primary">Retire</span>
             <span className="text-ink">Pro</span>
           </span>
+        ) : (
+          <span className="font-head text-[22px] font-bold tracking-tight text-primary">R</span>
         )}
+      </div>
+
+      {/* Collapse / expand control — labelled, sits directly above the Plan group. */}
+      <div className={clsx(collapsed ? 'px-2' : 'px-3')}>
         <button
           onClick={() => toggle()}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={collapsed ? 'Expand' : 'Collapse'}
-          className="rounded-md p-1.5 text-muted transition-colors hover:bg-hover hover:text-ink"
+          className={clsx(
+            'flex w-full items-center rounded-md py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:bg-hover hover:text-ink',
+            collapsed ? 'justify-center px-0' : 'gap-2 px-3',
+          )}
         >
-          <IconChevronLeft className={clsx('h-5 w-5 transition-transform duration-200', collapsed && 'rotate-180')} />
+          <IconChevronLeft className={clsx('h-4 w-4 shrink-0 transition-transform duration-200', collapsed && 'rotate-180')} />
+          {!collapsed && <span>Collapse</span>}
         </button>
       </div>
 

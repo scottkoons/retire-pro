@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Link } from 'react-router-dom';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Card, Button, MoneyInput, Segmented } from '@/components/ui/primitives';
-import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown } from '@/components/icons';
+import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown, IconChevronLeft } from '@/components/icons';
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import { fmtUSD } from '@/lib/format';
 import type { DollarBasis, TaxStatus } from '@/domain/types';
@@ -167,9 +166,15 @@ export function ScenarioRail() {
           </div>
           <div className="mt-1 text-[16px] font-semibold leading-tight text-ink">{scn.name}</div>
         </div>
-        <Link to="/planner" className="shrink-0 font-mono text-[12px] text-primary hover:underline">
-          Full sheet →
-        </Link>
+        <button
+          type="button"
+          onClick={() => s.toggleRail(true)}
+          aria-label="Collapse scenario inputs"
+          title="Collapse"
+          className="shrink-0 rounded-md p-1.5 text-muted transition-colors hover:bg-hover hover:text-ink"
+        >
+          <IconChevronLeft className="h-5 w-5 rotate-180" />
+        </button>
       </div>
 
       <div className="max-h-[calc(100vh-9rem)] space-y-7 overflow-auto px-5 py-5">
