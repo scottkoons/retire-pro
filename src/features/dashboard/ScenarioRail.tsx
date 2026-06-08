@@ -89,18 +89,22 @@ function EventCard({
   name,
   onName,
   onDelete,
+  enabled,
+  onToggle,
   children,
 }: {
   accent: Accent;
   name: string;
   onName: (v: string) => void;
   onDelete: () => void;
+  enabled: boolean;
+  onToggle: () => void;
   children: React.ReactNode;
 }) {
   return (
     <div className="relative overflow-hidden rounded-xl border border-border-subtle bg-card-high pl-4 pr-3.5 pt-3.5 pb-3">
-      {/* Coloured spine identifies the row's category. */}
-      <span className={clsx('absolute inset-y-0 left-0 w-1', accent.bar)} aria-hidden />
+      {/* Coloured spine identifies the row's category; greys out when deactivated. */}
+      <span className={clsx('absolute inset-y-0 left-0 w-1', enabled ? accent.bar : 'bg-border-strong')} aria-hidden />
       <div className="mb-3 flex items-center gap-2">
         <input
           value={name}
@@ -108,11 +112,19 @@ function EventCard({
           placeholder="Name"
           className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[14px] font-semibold text-ink transition-colors hover:border-border-strong focus:border-primary focus:bg-input focus:outline-none"
         />
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={onToggle}
+          title={enabled ? 'Active — uncheck to deactivate (keeps the values)' : 'Inactive — check to include in the plan'}
+          aria-label="Include in the plan"
+          className="h-4 w-4 shrink-0 cursor-pointer accent-primary"
+        />
         <button onClick={onDelete} aria-label="Delete" className="shrink-0 rounded-md p-1.5 text-faint transition-colors hover:bg-error-tint hover:text-error">
           <IconTrash className="h-4 w-4" />
         </button>
       </div>
-      {children}
+      <div className={clsx(!enabled && 'opacity-45')}>{children}</div>
     </div>
   );
 }
@@ -179,7 +191,7 @@ export function ScenarioRail() {
             {scn.contributions.map((c) => {
               const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
               return (
-                <EventCard key={c.id} accent={MONTHLY} name={c.name} onName={(v) => s.updateContribution(c.id, { name: v })} onDelete={() => s.removeContribution(c.id)}>
+                <EventCard key={c.id} accent={MONTHLY} name={c.name} onName={(v) => s.updateContribution(c.id, { name: v })} onDelete={() => s.removeContribution(c.id)} enabled={c.enabled} onToggle={() => s.updateContribution(c.id, { enabled: !c.enabled })}>
                   {/* Hero: the monthly amount, large and grouped. */}
                   <Field label="Contribution / month">
                     <MoneyInput
@@ -257,7 +269,7 @@ export function ScenarioRail() {
             {scn.lumpSums.map((l) => {
               const age = l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age;
               return (
-                <EventCard key={l.id} accent={LUMP} name={l.name} onName={(v) => s.updateLumpSum(l.id, { name: v })} onDelete={() => s.removeLumpSum(l.id)}>
+                <EventCard key={l.id} accent={LUMP} name={l.name} onName={(v) => s.updateLumpSum(l.id, { name: v })} onDelete={() => s.removeLumpSum(l.id)} enabled={l.enabled} onToggle={() => s.updateLumpSum(l.id, { enabled: !l.enabled })}>
                   {/* Hero: the one-time amount, large and grouped. */}
                   <Field label="One-time amount">
                     <MoneyInput

@@ -184,7 +184,7 @@ export default function PlannerPage() {
                   <TD><SelectInput value={c.dollarBasis} options={basisOpts} onChange={(v) => s.updateContribution(c.id, { dollarBasis: v })} /></TD>
                   <TD align="right"><span className="font-mono text-muted tabnum">{months}</span></TD>
                   <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(months * c.monthlyAmount)}</span></TD>
-                  <DeleteCell onClick={() => s.removeContribution(c.id)} />
+                  <DeleteCell onClick={() => s.removeContribution(c.id)} enabled={c.enabled} onToggle={() => s.updateContribution(c.id, { enabled: !c.enabled })} />
                 </TR>
               );
             })}
@@ -225,7 +225,7 @@ export default function PlannerPage() {
                 <TD align="right"><NumberInput value={l.amount} prefix="$" onChange={(v) => s.updateLumpSum(l.id, { amount: v })} /></TD>
                 <TD><SelectInput value={l.dollarBasis} options={basisOpts} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} /></TD>
                 <TD><SelectInput value={l.taxStatus ?? 'taxable'} options={taxOpts} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} /></TD>
-                <DeleteCell onClick={() => s.removeLumpSum(l.id)} />
+                <DeleteCell onClick={() => s.removeLumpSum(l.id)} enabled={l.enabled} onToggle={() => s.updateLumpSum(l.id, { enabled: !l.enabled })} />
               </TR>
             ))}
           </tbody>
@@ -274,7 +274,7 @@ export default function PlannerPage() {
                   <TD><SelectInput value={st.taxStatus} options={taxOpts} onChange={(v) => s.updateIncomeStream(st.id, { taxStatus: v })} /></TD>
                   <TD align="right"><span className="font-mono text-muted tabnum">{fmtUSD(atRet)}</span></TD>
                   <TD align="right"><span className="font-mono text-muted tabnum">{fmtUSD(at90)}</span></TD>
-                  <DeleteCell onClick={() => s.removeIncomeStream(st.id)} />
+                  <DeleteCell onClick={() => s.removeIncomeStream(st.id)} enabled={st.enabled} onToggle={() => s.updateIncomeStream(st.id, { enabled: !st.enabled })} />
                 </TR>
               );
             })}

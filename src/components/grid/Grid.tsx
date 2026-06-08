@@ -109,16 +109,37 @@ export function TD({ children, align, className }: { children?: ReactNode; align
   );
 }
 
-export function DeleteCell({ onClick }: { onClick: () => void }) {
+export function DeleteCell({
+  onClick,
+  enabled,
+  onToggle,
+}: {
+  onClick: () => void;
+  /** When provided, shows an always-visible "active" checkbox before the trash. */
+  enabled?: boolean;
+  onToggle?: () => void;
+}) {
   return (
-    <td className="px-2 text-center">
-      <button
-        onClick={onClick}
-        className="rounded p-1 text-faint opacity-0 transition-opacity hover:text-error group-hover:opacity-100"
-        aria-label="Delete row"
-      >
-        <IconTrash className="h-4 w-4" />
-      </button>
+    <td className="px-2">
+      <div className="flex items-center justify-end gap-1.5">
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={enabled ?? true}
+            onChange={onToggle}
+            title={enabled ? 'Active — uncheck to deactivate (keeps the values)' : 'Inactive — check to include in the plan'}
+            aria-label="Include this item in the plan"
+            className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary"
+          />
+        )}
+        <button
+          onClick={onClick}
+          className="rounded p-1 text-faint opacity-0 transition-opacity hover:text-error group-hover:opacity-100"
+          aria-label="Delete row"
+        >
+          <IconTrash className="h-4 w-4" />
+        </button>
+      </div>
     </td>
   );
 }
