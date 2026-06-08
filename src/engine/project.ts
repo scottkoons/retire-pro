@@ -28,6 +28,7 @@ export interface MonthState {
   contributions: number;
   lumpSums: number;
   growth: number;
+  returnRate: number; // resolved annual return used for this month's growth
   guaranteedIncome: number;
   targetSpend: number;
   withdrawal: number;
@@ -177,6 +178,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
       contributions: C,
       lumpSums: L,
       growth,
+      returnRate: expectedReturn,
       guaranteedIncome: G,
       targetSpend: S,
       withdrawal: W,
@@ -253,6 +255,7 @@ function rollupYears(months: MonthState[], currentAge: number, birthYear: number
       contributions: sum((m) => m.contributions),
       lumpSums: sum((m) => m.lumpSums),
       investmentGrowth: sum((m) => m.growth),
+      returnRate: slice[0].returnRate,
       guaranteedIncome: sum((m) => m.guaranteedIncome),
       withdrawals: sum((m) => m.withdrawal),
       endingBalance: last.endingBalance,
@@ -812,6 +815,7 @@ export function runProjectionV2(
       contributions: contribThisYear,
       lumpSums: lumpThisYear,
       investmentGrowth,
+      returnRate: expectedReturn,
       guaranteedIncome: guaranteedIncomeYear,
       withdrawals,
       endingBalance: liquidEnd,
@@ -848,6 +852,7 @@ export function runProjectionV2(
         contributions: contribThisYear / 12,
         lumpSums: m === 0 ? lumpThisYear : 0,
         growth: investmentGrowth / 12,
+        returnRate: expectedReturn,
         guaranteedIncome: guaranteedIncomeYear / 12,
         targetSpend: totalSpend / 12,
         withdrawal: withdrawals / 12,

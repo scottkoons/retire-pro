@@ -333,6 +333,7 @@ export interface YearRow {
   contributions: number;
   lumpSums: number;
   investmentGrowth: number;
+  returnRate: number; // annual return applied this year (resolved from investment return phases, global annualReturn as fallback)
   guaranteedIncome: number;
   withdrawals: number;
   endingBalance: number; // nominal

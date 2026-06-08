@@ -1,7 +1,7 @@
 import { useActiveScenario, useEffectiveDisplayMode } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { Section } from '@/components/ui/primitives';
-import { fmtUSD } from '@/lib/format';
+import { fmtUSD, fmtPct } from '@/lib/format';
 import { useSort } from '@/components/grid/Grid';
 
 export default function YearByYearPage() {
@@ -17,6 +17,7 @@ export default function YearByYearPage() {
     { label: 'Starting', sortKey: 'startingBalance' },
     { label: 'Contributions', sortKey: 'contributions' },
     { label: 'Lump sums', sortKey: 'lumpSums' },
+    { label: 'Return', sortKey: 'returnRate' },
     { label: 'Growth', sortKey: 'investmentGrowth' },
     { label: 'Guaranteed', sortKey: 'guaranteedIncome' },
     { label: 'Withdrawals', sortKey: 'withdrawals' },
@@ -34,6 +35,7 @@ export default function YearByYearPage() {
       startingBalance: (r) => r.startingBalance,
       contributions: (r) => r.contributions,
       lumpSums: (r) => r.lumpSums,
+      returnRate: (r) => r.returnRate,
       investmentGrowth: (r) => r.investmentGrowth,
       guaranteedIncome: (r) => r.guaranteedIncome,
       withdrawals: (r) => r.withdrawals,
@@ -106,6 +108,7 @@ export default function YearByYearPage() {
                     <td className="px-3 py-1.5 text-right">{cell(r.startingBalance)}</td>
                     <td className="px-3 py-1.5 text-right">{cell(r.contributions)}</td>
                     <td className="px-3 py-1.5 text-right">{r.lumpSums ? <span className="font-mono tabnum text-cat-4">{fmtUSD(r.lumpSums)}</span> : <span className="text-faint">—</span>}</td>
+                    <td className="px-3 py-1.5 text-right"><span className="font-mono tabnum text-muted">{fmtPct(r.returnRate, 1)}</span></td>
                     <td className="px-3 py-1.5 text-right"><span className="font-mono tabnum text-success">{fmtUSD(r.investmentGrowth)}</span></td>
                     <td className="px-3 py-1.5 text-right">{cell(r.guaranteedIncome)}</td>
                     <td className="px-3 py-1.5 text-right">{r.withdrawals ? <span className="font-mono tabnum text-cat-1">{fmtUSD(r.withdrawals)}</span> : <span className="text-faint">—</span>}</td>
