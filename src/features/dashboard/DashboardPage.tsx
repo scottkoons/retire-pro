@@ -63,6 +63,8 @@ export default function DashboardPage() {
   const mcFresh = mc.result && mc.configHash === currentHash;
 
   const balRetire = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
+  // Principal still invested at the end of the plan horizon (modelEndAge).
+  const endHorizon = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
   const monthlyIncome = deflate(result.monthlyIncomeAtRetirement, a.retirementAge);
   const maxComponent = Math.max(1, ...breakdown.components.map((c) => c.monthlyNominal));
@@ -104,10 +106,11 @@ export default function DashboardPage() {
               onChange={(v) => setOverride(v)}
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="amber" />
             <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
+            <StatTile label={`End of Horizon (${Math.round(a.modelEndAge)})`} value={fmtUSD(endHorizon)} sub="Remaining principal" tint="blue" />
           </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <ControlTile label="Target Retirement Age" icon={<IconCalendar className="h-5 w-5" />} value={Math.round(a.retirementAge)} unit="years">
