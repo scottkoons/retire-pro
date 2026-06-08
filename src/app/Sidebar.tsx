@@ -9,28 +9,15 @@ import {
   IconDoc,
   IconSettings,
   IconChevronLeft,
-  IconBank,
-  IconTrendingUp,
-  IconDiamond,
-  IconHome,
 } from '@/components/icons';
 import { useStore } from '@/state/store';
 
 const NAV_GROUPS = [
   {
-    heading: 'Overview',
-    items: [
-      { to: '/', label: 'Dashboard', Icon: IconDashboard, end: true },
-      { to: '/net-worth', label: 'Net Worth', Icon: IconBank },
-      { to: '/cash-flow', label: 'Cash Flow & Taxes', Icon: IconTrendingUp },
-      { to: '/checkup', label: 'Plan Checkup', Icon: IconDiamond },
-    ],
-  },
-  {
     heading: 'Plan',
     items: [
+      { to: '/', label: 'Dashboard', Icon: IconDashboard, end: true },
       { to: '/planner', label: 'Planner Sheet', Icon: IconSheet },
-      { to: '/home', label: 'Home & Mortgage', Icon: IconHome },
       { to: '/phases', label: 'Retirement Phases', Icon: IconPhases },
       { to: '/year-by-year', label: 'Year-by-Year', Icon: IconTable },
     ],

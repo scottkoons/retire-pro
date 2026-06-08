@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, Button, Segmented, GroupedNumberField } from '@/components/ui/primitives';
+import { Section, Button, Segmented } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
 import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
-import { LoansManager } from './LoansManager';
 import type { PersistedDocument } from '@/domain/types';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -32,13 +31,7 @@ export default function SettingsPage() {
   const createFromPreset = useStore((s) => s.createFromPreset);
   const createBlank = useStore((s) => s.createBlank);
   const setAssumption = useStore((s) => s.setAssumption);
-  const updateHealthcare = useStore((s) => s.updateHealthcare);
-  const updateSocialSecurity = useStore((s) => s.updateSocialSecurity);
-  const updateSsClaim = useStore((s) => s.updateSsClaim);
-  const updateLongTermCare = useStore((s) => s.updateLongTermCare);
   const docFor = useStore;
-  const hc = scn.healthcare;
-  const ltc = scn.longTermCare;
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -137,7 +130,6 @@ export default function SettingsPage() {
       </Section>
 
       <AccountsManager />
-      <LoansManager />
 
       <Section title="Active Scenario" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -195,80 +187,6 @@ export default function SettingsPage() {
               value={settings.theme}
               onChange={(v) => setTheme(v)}
             />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Tax & RMD" subtitle="Drives the tax-aware projection">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="RMD Start Age">
-            <input type="number" className={fieldCls} value={settings.rmdStartAge} onChange={(e) => updateSettings({ rmdStartAge: Number(e.target.value) })} />
-          </Field>
-          <Field label="Default Cost Basis %">
-            <input
-              type="number"
-              step={5}
-              className={fieldCls}
-              value={+((settings.defaultCostBasisRatio ?? 0.5) * 100).toFixed(0)}
-              onChange={(e) => updateSettings({ defaultCostBasisRatio: Math.max(0, Math.min(1, Number(e.target.value) / 100)) })}
-            />
-          </Field>
-          <Field label="Withdrawal Order">
-            <div className={`${fieldCls} text-muted`}>{settings.defaultWithdrawalSequence.join(' → ')}</div>
-          </Field>
-        </div>
-        <p className="mt-3 text-[12px] text-faint">Per-scenario withdrawal order is edited in the Planner Sheet under Accounts.</p>
-      </Section>
-
-      <Section title="Healthcare & Medicare" subtitle={`Active scenario: ${scn.name}`}>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="Model Healthcare">
-            <Segmented options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={hc.enabled ? 'on' : 'off'} onChange={(v) => updateHealthcare({ enabled: v === 'on' })} />
-          </Field>
-          <Field label="Part B $/mo (per person)">
-            <GroupedNumberField className={fieldCls} value={hc.medicarePartBMonthly} onChange={(n) => updateHealthcare({ medicarePartBMonthly: n })} />
-          </Field>
-          <Field label="Medical Inflation %">
-            <input type="number" step={0.1} className={fieldCls} value={+(hc.medicalInflation * 100).toFixed(1)} onChange={(e) => updateHealthcare({ medicalInflation: Number(e.target.value) / 100 })} />
-          </Field>
-          <Field label="Medicare Start Age">
-            <input type="number" className={fieldCls} value={hc.medicareStartAge} onChange={(e) => updateHealthcare({ medicareStartAge: Number(e.target.value) })} />
-          </Field>
-          <Field label="Both Carry Part B">
-            <Segmented options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={hc.bothCarryPartB ? 'yes' : 'no'} onChange={(v) => updateHealthcare({ bothCarryPartB: v === 'yes' })} />
-          </Field>
-          <Field label="Model IRMAA">
-            <Segmented options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={hc.irmaaEnabled ? 'yes' : 'no'} onChange={(v) => updateHealthcare({ irmaaEnabled: v === 'yes' })} />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Social Security" subtitle="When on, claim ages drive the projection instead of income streams">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="Use SS Module">
-            <Segmented options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={scn.socialSecurity.enabled ? 'on' : 'off'} onChange={(v) => updateSocialSecurity({ enabled: v === 'on' })} />
-          </Field>
-          {scn.socialSecurity.claims.map((claim) => (
-            <Field key={claim.owner} label={`${claim.owner === 'self' ? 'Self' : 'Spouse'} Claim Age`}>
-              <input type="number" className={fieldCls} value={claim.claimAge} onChange={(e) => updateSsClaim(claim.owner, { claimAge: Number(e.target.value) })} />
-            </Field>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Long-Term Care Stress Test" subtitle="Models an uncovered care cost (off by default)">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Field label="Enable LTC">
-            <Segmented options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} value={ltc.crissyEnabled ? 'on' : 'off'} onChange={(v) => updateLongTermCare({ crissyEnabled: v === 'on' })} />
-          </Field>
-          <Field label="Cost $/mo (today's $)">
-            <GroupedNumberField className={fieldCls} value={ltc.monthly} onChange={(n) => updateLongTermCare({ monthly: n })} />
-          </Field>
-          <Field label="Start Age">
-            <input type="number" className={fieldCls} value={ltc.startAge} onChange={(e) => updateLongTermCare({ startAge: Number(e.target.value) })} />
-          </Field>
-          <Field label="Years">
-            <input type="number" className={fieldCls} value={ltc.years} onChange={(e) => updateLongTermCare({ years: Number(e.target.value) })} />
           </Field>
         </div>
       </Section>

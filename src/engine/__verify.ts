@@ -65,10 +65,10 @@ console.log('\n[2] v1 parity: dispatcher == legacy for a migrated-style scenario
 }
 
 // -------------------------------------------------------------------------
-console.log('\n[3] Seed "Sell Early" v2 projection sanity');
+console.log('\n[3] v2 engine sanity (called directly; dispatch is disabled in the simplified app)');
 {
-  check('usesV2(Sell Early) === true', usesV2(sell) === true);
-  const { result, months } = runProjection(sell, settings);
+  check('usesV2 forced false (simplified app routes to legacy)', usesV2(sell) === false);
+  const { result, months } = runProjectionV2(sell, settings);
   const rows = result.rows;
   check('40 yearly rows (56..95)', rows.length === 40, `got ${rows.length}`);
   check('months = 480', months.length === 480, `got ${months.length}`);
@@ -132,7 +132,7 @@ console.log('\n[5] SS claim adjustment (enable SS config, vary claim age)');
     const s: Scenario = structuredClone(sell);
     s.socialSecurity.enabled = true;
     s.socialSecurity.claims = s.socialSecurity.claims.map((c) => ({ ...c, claimAge, fra: 67 }));
-    const { result } = runProjection(s, settings);
+    const { result } = runProjectionV2(s, settings);
     // find guaranteed income at age 72 (both claimed by then)
     return result.rows.find((r) => r.age === 72)?.guaranteedIncome ?? 0;
   };

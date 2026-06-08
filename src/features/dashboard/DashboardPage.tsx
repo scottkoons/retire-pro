@@ -12,7 +12,7 @@ import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
 import { ScenarioRail } from './ScenarioRail';
 import { IconCalendar, IconTrendingUp, IconBank, IconDice, IconDiamond } from '@/components/icons';
 import { chart } from '@/theme/tokens';
-import { fmtUSD, fmtUSDAbbrev, fmtPct, pctValue } from '@/lib/format';
+import { fmtUSD, fmtUSDAbbrev, pctValue } from '@/lib/format';
 
 // Enable the Monte Carlo overlay once per session on the first dashboard view.
 let bandAutoEnabled = false;
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const ui = useStore((s) => s.ui);
   const toggleMcBand = useStore((s) => s.toggleMcBand);
   const setChartRange = useStore((s) => s.setChartRange);
+  const setOverride = useStore((s) => s.setDisplayModeOverride);
 
   const mc = useMcStore();
   const a = scn.assumptions;
@@ -62,8 +63,6 @@ export default function DashboardPage() {
 
   const balRetire = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
-  const guaranteed = deflate(result.guaranteedMonthlyIncome, a.retirementAge);
-  const required = deflate(result.requiredPortfolioWithdrawal, a.retirementAge);
   const monthlyIncome = deflate(result.monthlyIncomeAtRetirement, a.retirementAge);
   const maxComponent = Math.max(1, ...breakdown.components.map((c) => c.monthlyNominal));
 
@@ -122,18 +121,23 @@ export default function DashboardPage() {
             </ControlTile>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <StatTile label="Current Assets" value={fmtUSD(currentAssets)} sub="today · all accounts" accent="primary" />
-            <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} tint="blue" />
+          <div className="flex items-center justify-end gap-2">
+            <span className="label-mono">Show amounts in</span>
+            <Segmented
+              size="sm"
+              options={[
+                { value: 'actual', label: 'Actual $' },
+                { value: 'today', label: "Today's $" },
+              ]}
+              value={displayMode}
+              onChange={(v) => setOverride(v)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatTile label="Current Assets" value={fmtUSD(currentAssets)} sub="all accounts" accent="primary" />
+            <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="blue" />
             <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
-            <StatTile label="Guaranteed / mo" value={fmtUSD(guaranteed)} />
-            <StatTile label="Portfolio Draw / mo" value={fmtUSD(required)} />
-            <StatTile
-              label="MC Success"
-              value={mc.result ? fmtPct(mc.result.successProbability, 0) : '—'}
-              sub={mc.running ? `${Math.round(mc.progress * 100)}%` : mcFresh ? 'current' : mc.result ? 'stale' : 'not run'}
-            />
           </div>
         </div>
 
@@ -189,7 +193,7 @@ export default function DashboardPage() {
                 <span className="inline-block h-0 w-4 border-t-2" style={{ borderColor: chart.primary }} /> Projected (deterministic)
               </span>
               <span className="ml-auto">
-                {mc.result.paths.toLocaleString()} sims · {fmtPct(mc.result.successProbability, 0)} success
+                {mc.result.paths.toLocaleString()} simulations
                 {!mcFresh && <span className="ml-2 text-caution">· stale, re-run</span>}
               </span>
             </div>

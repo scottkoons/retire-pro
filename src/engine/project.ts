@@ -324,10 +324,17 @@ export interface ProjectionOpts {
   taxConfig?: Partial<TaxConfig>;
 }
 
-/** A scenario uses the v2 engine once any tax/account/expense feature is active.
- *  Migrated v1 docs (home/healthcare/SS off, no expenses) fall through to the
- *  legacy path so their numbers are unchanged until the user opts in. */
-export function usesV2(scn: Scenario): boolean {
+/** SIMPLIFIED APP: the tax-aware v2 surfaces (Net Worth, Cash Flow & Taxes, Home &
+ *  Mortgage) were removed, so every scenario now uses the simple accumulation engine
+ *  and "Balance at Retirement" always means investment growth (no home/expense drain).
+ *  The v2 engine code is kept intact for reversibility — restore the predicate below
+ *  (and re-add the routes) to bring it back. */
+export function usesV2(_scn: Scenario): boolean {
+  return false;
+}
+
+/** The original v2 activation predicate, retained for when v2 is re-enabled. */
+export function usesV2Full(scn: Scenario): boolean {
   return (
     scn.home?.enabled === true ||
     scn.healthcare?.enabled === true ||

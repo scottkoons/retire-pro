@@ -17,9 +17,6 @@ import {
 import { fmtUSD, fmtUSDAbbrev } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
-import { AccountsSection } from './sections/AccountsSection';
-import { ExpensesSection } from './sections/ExpensesSection';
-import { HomeSection } from './sections/HomeSection';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
   { value: 'today', label: "Today's $" },
@@ -125,10 +122,10 @@ export default function PlannerPage() {
             <input type="number" className={fieldCls} value={a.modelEndAge} onChange={(e) => s.setAssumption('modelEndAge', Number(e.target.value))} />
           </Field>
           <Field label="Starting Balance">
-            {/* Read-only: total of your accounts (below). Edit balances in the Accounts table. */}
+            {/* Read-only: total of your accounts. Edit balances in Settings -> Accounts & Assets. */}
             <div
               className={`${fieldCls} flex items-center justify-between`}
-              title="Total of your accounts — edit balances in the Accounts table below"
+              title="Total of your accounts — edit balances in Settings, Accounts & Assets"
             >
               <span className="tabnum">{fmtUSD(accountsTotal)}</span>
               <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.06em] text-faint">accounts</span>
@@ -142,11 +139,6 @@ export default function PlannerPage() {
           </Field>
         </div>
       </Section>
-
-      {/* v2 tax-aware modeling */}
-      <AccountsSection />
-      <ExpensesSection />
-      <HomeSection />
 
       {/* Monthly Contributions */}
       <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows`}>

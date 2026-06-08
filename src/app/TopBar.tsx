@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useStore, useEffectiveDisplayMode, useActiveScenario } from '@/state/store';
-import { Button, ScenarioChip, Segmented } from '@/components/ui/primitives';
+import { useStore, useActiveScenario } from '@/state/store';
+import { Button, ScenarioChip } from '@/components/ui/primitives';
 import { ExportPdfButton } from '@/components/ExportPdfButton';
 import { IconPlus, IconPencil, IconTrash } from '@/components/icons';
 import type { PresetKey } from '@/domain/types';
@@ -15,8 +15,6 @@ export function TopBar() {
   const duplicate = useStore((s) => s.duplicateActive);
   const renameScenario = useStore((s) => s.renameScenario);
   const deleteScenario = useStore((s) => s.deleteScenario);
-  const setOverride = useStore((s) => s.setDisplayModeOverride);
-  const displayMode = useEffectiveDisplayMode();
 
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -133,15 +131,6 @@ export function TopBar() {
             <IconTrash className="h-4 w-4" />
           </button>
         </div>
-        <div className="h-5 w-px bg-border-subtle" aria-hidden />
-        <Segmented
-          options={[
-            { value: 'today', label: "Today's $" },
-            { value: 'actual', label: 'Actual $' },
-          ]}
-          value={displayMode}
-          onChange={(v) => setOverride(v)}
-        />
         <ExportPdfButton variant="primary" size="sm" />
       </div>
     </header>

@@ -560,8 +560,6 @@ export const useActiveScenario = (): Scenario => {
 };
 
 export const useEffectiveDisplayMode = (): DisplayMode => {
-  return useStore((s) => {
-    const active = s.scenarios.find((x) => x.id === s.activeScenarioId);
-    return s.ui.displayModeOverride ?? active?.assumptions.displayMode ?? 'today';
-  });
+  // Default to actual (future) dollars; the toggle sets an explicit override.
+  return useStore((s) => s.ui.displayModeOverride ?? 'actual');
 };
