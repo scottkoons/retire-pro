@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { useStore, useEffectiveDisplayMode, useActiveScenario } from '@/state/store';
 import { Button, ScenarioChip, Segmented } from '@/components/ui/primitives';
 import { ExportPdfButton } from '@/components/ExportPdfButton';
@@ -45,62 +45,37 @@ export function TopBar() {
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border-subtle bg-base px-8 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        {scenarios.map((sc) => {
-          const isActive = sc.id === activeId;
-          return (
-            <Fragment key={sc.id}>
-              {editing && isActive ? (
-                <input
-                  autoFocus
-                  value={draft}
-                  size={Math.max(10, draft.length + 1)}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={commitEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitEdit();
-                    else if (e.key === 'Escape') setEditing(false);
-                  }}
-                  aria-label="Scenario name"
-                  className="rounded-full border border-primary bg-input px-4 py-1.5 text-[13px] font-medium text-ink focus:outline-none"
-                />
-              ) : (
-                <ScenarioChip
-                  label={sc.name}
-                  active={isActive}
-                  onClick={() => {
-                    setEditing(false);
-                    select(sc.id);
-                  }}
-                />
-              )}
-              {/* Rename / delete act on the selected scenario, shown right beside it. */}
-              {isActive && !editing && (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={startEdit}
-                    title={`Rename “${active.name}”`}
-                    aria-label="Rename the selected scenario"
-                    className="rounded-md p-1.5 text-muted transition-colors hover:bg-hover hover:text-primary"
-                  >
-                    <IconPencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={onDelete}
-                    disabled={scenarios.length <= 1}
-                    title={scenarios.length <= 1 ? 'Keep at least one scenario' : `Delete “${active.name}”`}
-                    aria-label="Delete the selected scenario"
-                    className="rounded-md p-1.5 text-muted transition-colors hover:bg-error-tint hover:text-error disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
-                  >
-                    <IconTrash className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </Fragment>
-          );
-        })}
+        {scenarios.map((sc) =>
+          editing && sc.id === activeId ? (
+            <input
+              key={sc.id}
+              autoFocus
+              value={draft}
+              size={Math.max(10, draft.length + 1)}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEdit();
+                else if (e.key === 'Escape') setEditing(false);
+              }}
+              aria-label="Scenario name"
+              className="rounded-full border border-primary bg-input px-4 py-1.5 text-[13px] font-medium text-ink focus:outline-none"
+            />
+          ) : (
+            <ScenarioChip
+              key={sc.id}
+              label={sc.name}
+              active={sc.id === activeId}
+              onClick={() => {
+                setEditing(false);
+                select(sc.id);
+              }}
+            />
+          ),
+        )}
 
         {/* Create a new scenario */}
-        <div className="relative ml-1.5 border-l border-border-subtle pl-3">
+        <div className="relative ml-1.5">
           <Button variant="outline" size="sm" onClick={() => setNewOpen((o) => !o)}>
             <IconPlus className="h-4 w-4" /> New Scenario
           </Button>
@@ -138,6 +113,27 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Rename / delete the active scenario */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={startEdit}
+            title={`Rename the active scenario (“${active.name}”)`}
+            aria-label="Rename the active scenario"
+            className={`rounded-md p-1.5 transition-colors hover:bg-hover hover:text-primary ${editing ? 'text-primary' : 'text-muted'}`}
+          >
+            <IconPencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={scenarios.length <= 1}
+            title={scenarios.length <= 1 ? 'Keep at least one scenario' : `Delete the active scenario (“${active.name}”)`}
+            aria-label="Delete the active scenario"
+            className="rounded-md p-1.5 text-muted transition-colors hover:bg-error-tint hover:text-error disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+          >
+            <IconTrash className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="h-5 w-px bg-border-subtle" aria-hidden />
         <Segmented
           options={[
             { value: 'today', label: "Today's $" },
