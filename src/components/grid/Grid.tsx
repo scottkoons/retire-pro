@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { IconPlus, IconTrash } from '@/components/icons';
 
@@ -156,6 +156,7 @@ export function NumberInput({
   suffix,
   step,
   align = 'right',
+  grouping,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -163,7 +164,13 @@ export function NumberInput({
   suffix?: string;
   step?: number;
   align?: 'left' | 'right';
+  /** Show live thousands separators (e.g. 268,000). Defaults on for dollar ($) inputs. */
+  grouping?: boolean;
 }) {
+  // Dollar amounts read far better grouped; percents and ages stay plain numeric inputs.
+  if (grouping ?? (prefix === '$')) {
+    return <GroupedNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} align={align} />;
+  }
   return (
     <span className={clsx('inline-flex items-center gap-0.5', align === 'right' && 'justify-end')}>
       {prefix && <span className="text-faint">{prefix}</span>}
@@ -172,6 +179,60 @@ export function NumberInput({
         step={step}
         value={Number.isFinite(value) ? value : 0}
         onChange={(e) => onChange(Number(e.target.value))}
+        className={clsx(inputCls, align === 'right' ? 'text-right' : 'text-left', 'tabnum')}
+      />
+      {suffix && <span className="text-faint">{suffix}</span>}
+    </span>
+  );
+}
+
+/** Whole-dollar (grouped integer) input with live thousands separators and caret
+ *  restoration, mirroring the MoneyInput chrome but sized for grid cells. */
+function GroupedNumberInput({
+  value,
+  onChange,
+  prefix,
+  suffix,
+  align = 'right',
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  prefix?: string;
+  suffix?: string;
+  align?: 'left' | 'right';
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const display = Number.isFinite(value) ? Math.round(value).toLocaleString('en-US') : '0';
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const el = e.target;
+    const caret = el.selectionStart ?? el.value.length;
+    const digitsLeft = el.value.slice(0, caret).replace(/[^0-9]/g, '').length;
+    const digits = el.value.replace(/[^0-9]/g, '');
+    const num = digits === '' ? 0 : Number(digits);
+    onChange(num);
+
+    // Restore the caret after the same digit count in the regrouped string.
+    const formatted = num.toLocaleString('en-US');
+    let pos = 0;
+    let seen = 0;
+    while (pos < formatted.length && seen < digitsLeft) {
+      if (formatted[pos] >= '0' && formatted[pos] <= '9') seen++;
+      pos++;
+    }
+    requestAnimationFrame(() => ref.current?.setSelectionRange(pos, pos));
+  };
+
+  return (
+    <span className={clsx('inline-flex items-center gap-0.5', align === 'right' && 'justify-end')}>
+      {prefix && <span className="text-faint">{prefix}</span>}
+      <input
+        ref={ref}
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={handleChange}
+        onFocus={(e) => e.target.select()}
         className={clsx(inputCls, align === 'right' ? 'text-right' : 'text-left', 'tabnum')}
       />
       {suffix && <span className="text-faint">{suffix}</span>}

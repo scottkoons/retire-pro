@@ -5,7 +5,7 @@ import { useProjection } from '@/selectors/projection';
 import { useMcStore, mcConfigHash } from '@/state/mcStore';
 import { incomeBreakdownAtAge } from '@/engine/project';
 import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
-import { Section, Button, Segmented, TaxChip, MoneyInput } from '@/components/ui/primitives';
+import { Section, Button, Segmented, TaxChip } from '@/components/ui/primitives';
 import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components/ui/tiles';
 import { WealthChart } from '@/components/charts/WealthChart';
 import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
@@ -99,12 +99,17 @@ export default function DashboardPage() {
             <ControlTile label="Average Return (%)" icon={<IconTrendingUp className="h-5 w-5" />} value={pctValue(a.annualReturn)} unit="%">
               <Slider min={0} max={0.12} step={0.001} value={a.annualReturn} onChange={(v) => setAssumption('annualReturn', v)} aria-label="Average return" />
             </ControlTile>
-            <ControlTile label="Starting Amount" icon={<IconBank className="h-5 w-5" />} value={fmtUSDAbbrev(a.startingBalance)}>
-              <MoneyInput
-                value={a.startingBalance}
-                onChange={(n) => setAssumption('startingBalance', n)}
-                ariaLabel="Starting amount"
-              />
+            <ControlTile label="Starting Amount" icon={<IconBank className="h-5 w-5" />} value={fmtUSDAbbrev(currentAssets)}>
+              {/* Read-only: the starting amount is the total of your accounts. Edit balances in the Planner. */}
+              <button
+                type="button"
+                onClick={() => navigate('/planner')}
+                title="Total of your accounts — edit balances in the Planner"
+                className="flex w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-input px-3 py-2 text-left transition-colors hover:border-primary"
+              >
+                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-faint">Total of accounts</span>
+                <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(currentAssets)}</span>
+              </button>
             </ControlTile>
           </div>
 

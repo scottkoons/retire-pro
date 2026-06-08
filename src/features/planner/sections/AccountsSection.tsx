@@ -5,6 +5,7 @@ import {
   THead,
   TR,
   TD,
+  TotalRow,
   DeleteCell,
   AddRow,
   TextInput,
@@ -13,6 +14,7 @@ import {
   useSort,
 } from '@/components/grid/Grid';
 import { IconDiamond } from '@/components/icons';
+import { fmtUSD } from '@/lib/format';
 import type { AccountKind } from '@/domain/types';
 
 const kindOpts: { value: AccountKind; label: string }[] = [
@@ -36,6 +38,9 @@ const KIND_LABEL: Record<AccountKind, string> = {
 export function AccountsSection() {
   const scn = useActiveScenario();
   const s = useStore();
+
+  // Total balance across enabled accounts; mirrors the Dashboard's starting amount.
+  const total = scn.accounts.filter((a) => a.enabled).reduce((sum, a) => sum + a.balance, 0);
 
   // Swap the chip at `i` with its neighbor at `i + dir`, then commit the new sequence.
   const moveSeq = (i: number, dir: -1 | 1) => {
@@ -134,6 +139,16 @@ export function AccountsSection() {
               <DeleteCell onClick={() => s.removeAccount(acc.id)} />
             </TR>
           ))}
+          <TotalRow>
+            <TD><span className="font-mono text-[12px] uppercase tracking-[0.06em] text-muted">Total</span></TD>
+            <TD />
+            <TD align="right"><span className="font-mono tabnum text-ink">{fmtUSD(total)}</span></TD>
+            <TD />
+            <TD />
+            <TD />
+            <TD />
+            <td />
+          </TotalRow>
         </tbody>
         <AddRow colSpan={7} onClick={() => s.addAccount()} />
       </Grid>

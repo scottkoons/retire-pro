@@ -54,6 +54,9 @@ export default function PlannerPage() {
 
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
+  // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
+  const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
+
   // Sortable Monthly Contributions table.
   const contribSort = useSort(
     scn.contributions,
@@ -122,7 +125,14 @@ export default function PlannerPage() {
             <input type="number" className={fieldCls} value={a.modelEndAge} onChange={(e) => s.setAssumption('modelEndAge', Number(e.target.value))} />
           </Field>
           <Field label="Starting Balance">
-            <input type="number" className={fieldCls} value={a.startingBalance} onChange={(e) => s.setAssumption('startingBalance', Number(e.target.value))} />
+            {/* Read-only: total of your accounts (below). Edit balances in the Accounts table. */}
+            <div
+              className={`${fieldCls} flex items-center justify-between`}
+              title="Total of your accounts — edit balances in the Accounts table below"
+            >
+              <span className="tabnum">{fmtUSD(accountsTotal)}</span>
+              <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.06em] text-faint">accounts</span>
+            </div>
           </Field>
           <Field label="Annual Return %">
             <input type="number" step={0.1} className={fieldCls} value={+(a.annualReturn * 100).toFixed(2)} onChange={(e) => s.setAssumption('annualReturn', Number(e.target.value) / 100)} />

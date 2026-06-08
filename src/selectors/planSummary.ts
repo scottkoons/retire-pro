@@ -70,7 +70,8 @@ export function buildPlanSummaryModel(
       modelEndAge: a.modelEndAge,
       annualReturn: a.annualReturn,
       inflation: a.inflation,
-      startingBalance: a.startingBalance,
+      // Source of truth is the accounts total (matches the Dashboard's starting amount).
+      startingBalance: scn.accounts.filter((acc) => acc.enabled).reduce((sum, acc) => sum + acc.balance, 0),
       withdrawal: wd,
     },
     keyResults: {

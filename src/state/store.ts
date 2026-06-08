@@ -136,6 +136,15 @@ export const useStore = create<StoreState>()(
       if (scn) scn.updatedAt = nowISO();
     };
 
+    // The Dashboard "Starting Amount" is the total of enabled accounts. Keep the
+    // legacy startingBalance mirror in lockstep on every account edit so the
+    // summary, PDF export, and legacy projection agree with the accounts total.
+    const syncStartingBalance = (scn: Scenario) => {
+      scn.assumptions.startingBalance = scn.accounts
+        .filter((a) => a.enabled)
+        .reduce((sum, a) => sum + a.balance, 0);
+    };
+
     const mutateActive = (fn: (scn: Scenario) => void) => {
       set((s) => {
         const scn = s.scenarios.find((x) => x.id === s.activeScenarioId);
@@ -392,10 +401,12 @@ export const useStore = create<StoreState>()(
           enabled: true,
           contributionTarget: false,
         });
+        syncStartingBalance(scn);
       }),
       updateAccount: (id, patch) => mutateActive((scn) => {
         const a = scn.accounts.find((x) => x.id === id);
         if (a) Object.assign(a, patch);
+        syncStartingBalance(scn);
       }),
       removeAccount: (id) => mutateActive((scn) => {
         if (scn.accounts.length <= 1) return; // schema enforces .min(1)
@@ -408,6 +419,7 @@ export const useStore = create<StoreState>()(
             scn.accounts[0];
           if (fallback) fallback.contributionTarget = true;
         }
+        syncStartingBalance(scn);
       }),
       setContributionTarget: (id) => mutateActive((scn) => {
         for (const a of scn.accounts) a.contributionTarget = a.id === id;
