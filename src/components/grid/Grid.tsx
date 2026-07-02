@@ -146,14 +146,32 @@ export function DeleteCell({
   );
 }
 
-export function AddRow({ colSpan, onClick, label = 'Add row' }: { colSpan: number; onClick: () => void; label?: string }) {
+export function AddRow({
+  colSpan,
+  onClick,
+  label = 'Add row',
+  extra,
+}: {
+  colSpan: number;
+  onClick: () => void;
+  label?: string;
+  /** Optional second add action rendered beside the first (e.g. "Add Roth 401(k)"). */
+  extra?: { label: string; onClick: () => void };
+}) {
   return (
     <tfoot>
       <tr>
         <td colSpan={colSpan + 1} className="border-t border-dashed border-border-strong p-0">
-          <button onClick={onClick} className="flex w-full items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium text-primary hover:bg-primary-tint">
-            <IconPlus className="h-4 w-4" /> {label}
-          </button>
+          <div className="flex items-stretch divide-x divide-border-subtle">
+            <button onClick={onClick} className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium text-primary hover:bg-primary-tint">
+              <IconPlus className="h-4 w-4" /> {label}
+            </button>
+            {extra && (
+              <button onClick={extra.onClick} className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium text-primary hover:bg-primary-tint">
+                <IconPlus className="h-4 w-4" /> {extra.label}
+              </button>
+            )}
+          </div>
         </td>
       </tr>
     </tfoot>

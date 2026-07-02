@@ -90,7 +90,7 @@ interface StoreState extends PersistedDocument {
   removeReturnPhase: (id: string) => void;
 
   // v2 accounts
-  addAccount: (kind?: AccountKind) => void;
+  addAccount: (kind?: AccountKind, name?: string) => void;
   updateAccount: (id: string, patch: Partial<Account>) => void;
   removeAccount: (id: string) => void;
   setContributionTarget: (id: string) => void;
@@ -444,10 +444,10 @@ export const useStore = create<StoreState>()(
       }),
 
       // ---- v2 accounts ----
-      addAccount: (kind = 'taxable') => mutateActive((scn) => {
+      addAccount: (kind = 'taxable', name) => mutateActive((scn) => {
         scn.accounts.push({
           id: newId(),
-          name: kind === 'roth' ? 'Roth IRA' : kind === 'pretax' ? 'Pre-tax account' : 'Taxable account',
+          name: name ?? (kind === 'roth' ? 'Roth IRA' : kind === 'pretax' ? 'Pre-tax account' : 'Taxable account'),
           kind,
           balance: 0,
           costBasisRatio: kind === 'taxable' ? get().settings.defaultCostBasisRatio : undefined,
