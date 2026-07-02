@@ -33,6 +33,8 @@ function WealthTooltip({ active, payload, label }: TooltipProps<number, string>)
   const balance = get('balance') as number | undefined;
   const p50 = get('p50') as number | undefined;
   const band = get('band') as number[] | undefined;
+  // The full data point rides along with every series entry; income lives there.
+  const point = payload[0]?.payload as { monthlyIncome?: number; guaranteedMo?: number; drawMo?: number } | undefined;
   return (
     <div className="rounded-lg border border-border-strong bg-card-high px-3 py-2 shadow-overlay">
       <div className="label-mono mb-1.5">Age {label}</div>
@@ -56,6 +58,20 @@ function WealthTooltip({ active, payload, label }: TooltipProps<number, string>)
           <span className="ml-auto font-mono tabnum text-muted">
             {fmtUSDAbbrev(band[0])} – {fmtUSDAbbrev(band[1])}
           </span>
+        </div>
+      )}
+      {point?.monthlyIncome != null && point.monthlyIncome > 0 && (
+        <div className="mt-1.5 border-t border-border-subtle pt-1.5">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="h-2 w-2 rounded-full" style={{ background: chart.success }} />
+            <span className="text-muted">Monthly income</span>
+            <span className="ml-auto font-mono tabnum font-semibold text-ink">{fmtUSD(point.monthlyIncome)}</span>
+          </div>
+          {(point.drawMo ?? 0) > 0 && (
+            <div className="mt-0.5 pl-4 text-[11px] text-faint">
+              guaranteed {fmtUSDAbbrev(point.guaranteedMo ?? 0)} + portfolio draw {fmtUSDAbbrev(point.drawMo ?? 0)}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -126,9 +142,17 @@ export function WealthChart({ rows, markers, retireAge, displayMode, band, range
         const balance = displayMode === 'today' ? r.endingBalanceToday : r.endingBalance;
         const b = bandByAge.get(r.age);
         const defl = displayMode === 'today' && b ? b.cpi : 1;
+        // Monthly income received this year (guaranteed + portfolio draw), in
+        // the chart's display mode, for the hover tooltip.
+        const deflRow = displayMode === 'today' ? r.cpiFactor : 1;
+        const guaranteedMo = r.guaranteedIncome / 12 / deflRow;
+        const drawMo = r.withdrawals / 12 / deflRow;
         return {
           age: r.age,
           balance,
+          monthlyIncome: guaranteedMo + drawMo,
+          guaranteedMo,
+          drawMo,
           p50: b ? b.p50 / defl : undefined,
           band: b ? [b.p10 / defl, b.p90 / defl] : undefined,
           bandInner: b ? [b.p25 / defl, b.p75 / defl] : undefined,
