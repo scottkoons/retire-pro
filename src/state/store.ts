@@ -147,21 +147,50 @@ function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
   return doc;
 }
 
+// Accounts are HOUSEHOLD facts (current balances), not per-scenario assumptions:
+// the same money exists no matter which future is modeled. The ACTIVE scenario's
+// list is authoritative; mirror it to every scenario and keep each scenario's
+// legacy startingBalance in sync so every projection starts from the same total.
+function mirrorAccountsFromActive(doc: PersistedDocument): PersistedDocument {
+  const active = doc.scenarios.find((x) => x.id === doc.activeScenarioId) ?? doc.scenarios[0];
+  if (!active) return doc;
+  for (const scn of doc.scenarios) {
+    if (scn !== active) scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+    scn.assumptions.startingBalance = scn.accounts
+      .filter((a) => a.enabled)
+      .reduce((sum, a) => sum + a.balance, 0);
+  }
+  return doc;
+}
+
 const init = loadDocument();
 deriveCurrentAges(init.doc);
+mirrorAccountsFromActive(init.doc);
 const nowISO = () => new Date().toISOString();
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useStore = create<StoreState>()(
   immer((set, get) => {
-    // The Dashboard "Starting Amount" is the total of enabled accounts. Keep the
-    // legacy startingBalance mirror in lockstep on every account edit so the
-    // summary, PDF export, and legacy projection agree with the accounts total.
-    const syncStartingBalance = (scn: Scenario) => {
-      scn.assumptions.startingBalance = scn.accounts
-        .filter((a) => a.enabled)
-        .reduce((sum, a) => sum + a.balance, 0);
+    // Account edits apply to the ACTIVE scenario, then mirror to every scenario:
+    // accounts are household facts (the same money exists in every modeled future),
+    // so the Starting Amount is identical regardless of which scenario is open.
+    // Each scenario's legacy startingBalance mirror is kept in lockstep so the
+    // summary, PDF export, and projections all agree with the accounts total.
+    const mutateAccounts = (fn: (scn: Scenario) => void) => {
+      set((s) => {
+        const active = s.scenarios.find((x) => x.id === s.activeScenarioId);
+        if (!active) return;
+        fn(active);
+        active.updatedAt = nowISO();
+        for (const scn of s.scenarios) {
+          if (scn !== active) scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+          scn.assumptions.startingBalance = scn.accounts
+            .filter((a) => a.enabled)
+            .reduce((sum, a) => sum + a.balance, 0);
+        }
+      });
+      schedulePersist();
     };
 
     const mutateActive = (fn: (scn: Scenario) => void) => {
@@ -239,7 +268,7 @@ export const useStore = create<StoreState>()(
             name: 'New Scenario',
             presetKey: undefined,
             kind: undefined,
-            assumptions: { ...a, startingBalance: 0 },
+            assumptions: { ...a, startingBalance: base.assumptions.startingBalance },
             contributions: [],
             lumpSums: [],
             incomeStreams: [],
@@ -248,9 +277,8 @@ export const useStore = create<StoreState>()(
             ],
             investmentReturnPhases: [],
             withdrawal: { type: 'percent-of-balance', rate: 0.04, taxStatus: 'taxable' },
-            accounts: [
-              { id: newId(), name: 'Taxable brokerage', kind: 'taxable', balance: 0, costBasisRatio: s.settings.defaultCostBasisRatio, enabled: true, contributionTarget: true },
-            ],
+            // Accounts are household facts shared by every scenario.
+            accounts: JSON.parse(JSON.stringify(base.accounts)),
             expenses: [],
             home: emptyHomePlan(),
             socialSecurity: defaultSocialSecurity(a.retirementAge, a.retirementAge, false),
@@ -327,11 +355,17 @@ export const useStore = create<StoreState>()(
       }),
 
       addContribution: () => mutateActive((scn) => {
+        const a = scn.assumptions;
+        // New periods start where the latest existing one ends, so contribution
+        // windows stay sequential by default (overlapping months would count
+        // both amounts). Gaps are fine: uncovered months simply contribute 0.
+        const latestEnd = Math.max(a.currentAge, ...scn.contributions.filter((c) => c.enabled).map((c) => c.endAge));
+        const startAge = Math.min(latestEnd, a.modelEndAge - 1 / 12);
         scn.contributions.push({
           id: newId(),
           name: 'New contribution',
-          startAge: scn.assumptions.currentAge,
-          endAge: scn.assumptions.retirementAge,
+          startAge,
+          endAge: Math.max(a.retirementAge, startAge + 1),
           monthlyAmount: 0,
           dollarBasis: 'today',
           enabled: true,
@@ -443,8 +477,8 @@ export const useStore = create<StoreState>()(
         scn.investmentReturnPhases = scn.investmentReturnPhases.filter((x) => x.id !== id);
       }),
 
-      // ---- v2 accounts ----
-      addAccount: (kind = 'taxable', name) => mutateActive((scn) => {
+      // ---- v2 accounts (household-mirrored; see mutateAccounts) ----
+      addAccount: (kind = 'taxable', name) => mutateAccounts((scn) => {
         scn.accounts.push({
           id: newId(),
           name: name ?? (kind === 'roth' ? 'Roth IRA' : kind === 'pretax' ? 'Pre-tax account' : 'Taxable account'),
@@ -455,14 +489,12 @@ export const useStore = create<StoreState>()(
           enabled: true,
           contributionTarget: false,
         });
-        syncStartingBalance(scn);
       }),
-      updateAccount: (id, patch) => mutateActive((scn) => {
+      updateAccount: (id, patch) => mutateAccounts((scn) => {
         const a = scn.accounts.find((x) => x.id === id);
         if (a) Object.assign(a, patch);
-        syncStartingBalance(scn);
       }),
-      removeAccount: (id) => mutateActive((scn) => {
+      removeAccount: (id) => mutateAccounts((scn) => {
         if (scn.accounts.length <= 1) return; // schema enforces .min(1)
         const wasTarget = scn.accounts.find((x) => x.id === id)?.contributionTarget;
         scn.accounts = scn.accounts.filter((x) => x.id !== id);
@@ -473,9 +505,8 @@ export const useStore = create<StoreState>()(
             scn.accounts[0];
           if (fallback) fallback.contributionTarget = true;
         }
-        syncStartingBalance(scn);
       }),
-      setContributionTarget: (id) => mutateActive((scn) => {
+      setContributionTarget: (id) => mutateAccounts((scn) => {
         for (const a of scn.accounts) a.contributionTarget = a.id === id;
       }),
       reorderWithdrawalSequence: (seq) => mutateActive((scn) => {
@@ -648,6 +679,7 @@ export const useStore = create<StoreState>()(
 
       replaceDocument: (doc) => {
         deriveCurrentAges(doc);
+        mirrorAccountsFromActive(doc);
         set((s) => {
           s.schemaVersion = doc.schemaVersion;
           s.appVersion = doc.appVersion;

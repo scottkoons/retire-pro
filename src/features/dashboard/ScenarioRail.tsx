@@ -4,6 +4,7 @@ import { useActiveScenario, useStore } from '@/state/store';
 import { Card, Button, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown, IconChevronLeft } from '@/components/icons';
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
+import { contributionOverlaps } from '@/lib/contributions';
 import { fmtUSD, fmtAgeYM, fmtMonthsYM } from '@/lib/format';
 import type { DollarBasis, TaxStatus } from '@/domain/types';
 
@@ -157,6 +158,7 @@ export function ScenarioRail() {
   const totalMonthly = scn.contributions
     .filter((c) => c.enabled)
     .reduce((sum, c) => sum + Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount, 0);
+  const overlaps = contributionOverlaps(scn.contributions, a);
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
   return (
@@ -244,6 +246,11 @@ export function ScenarioRail() {
                     <span className="font-mono text-muted">{fmtMonthsYM(months)}</span>
                     <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(months * c.monthlyAmount)} total</span>
                   </div>
+                  {overlaps.has(c.id) && (
+                    <div className="mt-2 rounded-md bg-error-tint px-2.5 py-1.5 text-[11px] font-medium text-error">
+                      Overlaps “{overlaps.get(c.id)}” — those months count both amounts. Start this period in the month the other one ends.
+                    </div>
+                  )}
                 </EventCard>
               );
             })}

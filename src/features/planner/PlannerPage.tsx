@@ -16,6 +16,7 @@ import {
 } from '@/components/grid/Grid';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO } from '@/lib/dates';
+import { contributionOverlaps } from '@/lib/contributions';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
@@ -50,6 +51,9 @@ export default function PlannerPage() {
   const fieldCls = 'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[14px] text-ink focus:border-primary focus:outline-none';
 
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
+
+  // Overlapping contribution periods double-count those months — warn loudly.
+  const overlaps = contributionOverlaps(scn.contributions, a);
 
   // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
   const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
@@ -143,7 +147,13 @@ export default function PlannerPage() {
       </Section>
 
       {/* Monthly Contributions */}
-      <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows`}>
+      <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows · periods should run back-to-back; a gap simply contributes $0`}>
+        {overlaps.size > 0 && (
+          <div className="mb-3 rounded-lg border border-error/40 bg-error-tint px-4 py-2.5 text-[13px] text-error">
+            Contribution periods overlap — every overlapping month counts BOTH amounts. Adjust the dates so each
+            period starts in the month the previous one ends (the end month belongs to the next period).
+          </div>
+        )}
         <Grid minWidth={760}>
           <THead
             sort={contribSort.sort}
@@ -163,7 +173,12 @@ export default function PlannerPage() {
               const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
               return (
                 <TR key={c.id} dim={!c.enabled}>
-                  <TD><TextInput value={c.name} onChange={(v) => s.updateContribution(c.id, { name: v })} /></TD>
+                  <TD>
+                    <TextInput value={c.name} onChange={(v) => s.updateContribution(c.id, { name: v })} />
+                    {overlaps.has(c.id) && (
+                      <span className="block px-1.5 text-[10px] font-medium text-error">overlaps “{overlaps.get(c.id)}”</span>
+                    )}
+                  </TD>
                   <TD>
                     <MonthYearInput
                       value={monthValueFromISO(c.startDateOverride ?? isoFromAge(c.startAge, a))}
