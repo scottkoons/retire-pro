@@ -408,17 +408,36 @@ export function usesV2Full(scn: Scenario): boolean {
  *  month past FRA, capped at age 70. */
 /**
  * Monthly SS benefit in today's $ for claiming at `claimAge` (clamped 62-70).
- * Uses the SSA statement quotes (62 / FRA / 70) with linear interpolation when
- * both are entered; otherwise applies the standard reduction/credit formula to
- * the FRA benefit.
+ * Uses the SSA statement quotes (62 / FRA / 70) when both are entered;
+ * otherwise applies the standard reduction/credit formula to the FRA benefit.
+ *
+ * The early-claiming curve is NOT a straight line: the reduction accrues at
+ * 5/12% per month for months more than 36 before FRA and 5/9% per month for
+ * the final 36 months. We keep that shape (a knot at FRA - 3 years) and scale
+ * it to pass exactly through the entered 62 and FRA quotes; a straight line
+ * would overstate mid-range ages (e.g. +1.5% at 65 with FRA 67).
+ * Delayed credits after FRA are uniform (2/3% per month), so the FRA-to-70
+ * segment is genuinely linear.
  */
 export function ssMonthlyBenefitToday(c: SocialSecurityClaim, claimAge = c.claimAge): number {
   const age = Math.min(70, Math.max(62, claimAge));
   const { benefitAt62: b62, benefitAtFRA: bFra, benefitAt70: b70, fra } = c;
   if (b62 != null && b70 != null && b62 > 0 && b70 > 0) {
     if (age <= fra) {
-      const span = fra - 62;
-      return span <= 0 ? bFra : b62 + ((age - 62) / span) * (bFra - b62);
+      if (fra - 62 <= 0) return bFra;
+      const knot = Math.max(62, fra - 3);
+      // Formula-shaped reduction fractions at the knot (share of the 62..FRA total).
+      const first36 = Math.min((fra - 62) * 12, 36) * (5 / 900);
+      const beyond36 = Math.max(0, (fra - 62) * 12 - 36) * (5 / 1200);
+      const knotShare = first36 / (first36 + beyond36); // e.g. 2/3 for FRA 67
+      const totalRed = bFra - b62;
+      const bKnot = bFra - knotShare * totalRed;
+      if (age <= knot) {
+        const span = knot - 62;
+        return span <= 0 ? bKnot : b62 + ((age - 62) / span) * (bKnot - b62);
+      }
+      const span = fra - knot;
+      return span <= 0 ? bFra : bKnot + ((age - knot) / span) * (bFra - bKnot);
     }
     const span = 70 - fra;
     return span <= 0 ? bFra : bFra + ((age - fra) / span) * (b70 - bFra);
