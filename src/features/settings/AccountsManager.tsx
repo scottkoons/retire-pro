@@ -66,15 +66,14 @@ export function AccountsManager() {
                 </div>
                 <span className="font-mono tabnum text-[14px] font-semibold text-ink">{fmtUSD(subtotal)}</span>
               </div>
-              <Grid minWidth={700}>
+              <Grid minWidth={640}>
                 <THead
                   sort={sort}
                   onSort={onSort}
                   cols={[
-                    { label: 'Account', w: '30%', sortKey: 'name' },
+                    { label: 'Account', w: '34%', sortKey: 'name' },
                     { label: 'Amount', align: 'right', sortKey: 'balance' },
                     { label: 'Owner', sortKey: 'owner' },
-                    { label: 'Contrib.', align: 'center' },
                     { label: 'Updated', align: 'right' },
                   ]}
                 />
@@ -92,17 +91,6 @@ export function AccountsManager() {
                           <SelectInput value={acc.owner ?? 'self'} options={ownerOpts} onChange={(v) => s.updateAccount(acc.id, { owner: v })} />
                         )}
                       </TD>
-                      <TD align="center">
-                        <input
-                          type="radio"
-                          name="contribution-target"
-                          checked={!!acc.contributionTarget}
-                          onChange={() => s.setContributionTarget(acc.id)}
-                          title="Monthly contributions land in this account. Pick a Roth account to make them Roth contributions under tax modeling."
-                          aria-label={`Route monthly contributions to ${acc.name}`}
-                          className="h-3.5 w-3.5 cursor-pointer accent-primary"
-                        />
-                      </TD>
                       <TD align="right"><span className="font-mono text-[11px] text-muted">{acc.lastUpdated ? fmtDate(acc.lastUpdated) : '—'}</span></TD>
                       <DeleteCell onClick={() => s.removeAccount(acc.id)} />
                     </TR>
@@ -110,20 +98,20 @@ export function AccountsManager() {
                   {list.length === 0 && (
                     <tr>
                       <TD className="text-faint"><span className="text-[12px]">None yet</span></TD>
-                      <TD /><TD /><TD /><TD />
+                      <TD /><TD /><TD />
                       <td />
                     </tr>
                   )}
                 </tbody>
                 {g.kind === 'roth' ? (
                   <AddRow
-                    colSpan={5}
+                    colSpan={4}
                     onClick={() => s.addAccount('roth', 'Roth IRA')}
                     label="Add Roth IRA"
                     extra={{ label: 'Add Roth 401(k)', onClick: () => s.addAccount('roth', 'Roth 401(k)') }}
                   />
                 ) : (
-                  <AddRow colSpan={5} onClick={() => s.addAccount(g.kind)} label={`Add ${g.kind === 'pretax' ? 'pre-tax' : g.kind} account`} />
+                  <AddRow colSpan={4} onClick={() => s.addAccount(g.kind)} label={`Add ${g.kind === 'pretax' ? 'pre-tax' : g.kind} account`} />
                 )}
               </Grid>
             </div>
@@ -136,8 +124,8 @@ export function AccountsManager() {
         </div>
         <p className="-mt-3 text-[11px] text-faint">
           Editing an amount stamps today as its “Updated” date. Total shown: {fmtUSDAbbrev(total)}.
-          The “Contrib.” dot marks where monthly contributions land; choosing a Roth IRA or Roth 401(k)
-          makes them Roth contributions (after-tax in, never taxed on withdrawal) under tax modeling.
+          These balances are your starting point; monthly savings are entered on the Planner as
+          Monthly Contributions and grow the pooled portfolio going forward.
         </p>
       </div>
     </Section>
