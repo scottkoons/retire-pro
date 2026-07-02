@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import clsx from 'clsx';
+import { useGroupedNumber } from './useGroupedNumber';
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'danger';
 
@@ -50,27 +51,7 @@ export function MoneyInput({
   className?: string;
   ariaLabel?: string;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const display = Number.isFinite(value) ? Math.round(value).toLocaleString('en-US') : '0';
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const el = e.target;
-    const caret = el.selectionStart ?? el.value.length;
-    const digitsLeft = el.value.slice(0, caret).replace(/[^0-9]/g, '').length;
-    const digits = el.value.replace(/[^0-9]/g, '');
-    const num = digits === '' ? 0 : Number(digits);
-    onChange(num);
-
-    // Re-place the caret after the same number of digits in the regrouped string.
-    const formatted = num.toLocaleString('en-US');
-    let pos = 0;
-    let seen = 0;
-    while (pos < formatted.length && seen < digitsLeft) {
-      if (formatted[pos] >= '0' && formatted[pos] <= '9') seen++;
-      pos++;
-    }
-    requestAnimationFrame(() => ref.current?.setSelectionRange(pos, pos));
-  };
+  const { ref, display, handleChange } = useGroupedNumber(value, onChange);
 
   const text = size === 'lg' ? 'text-[19px] font-semibold' : size === 'sm' ? 'text-[13px]' : 'text-[14px]';
   const pad = size === 'lg' ? 'h-11 px-3.5' : size === 'sm' ? 'h-8 px-2.5' : 'h-9 px-3';
@@ -119,26 +100,7 @@ export function GroupedNumberField({
   ariaLabel?: string;
   title?: string;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const display = Number.isFinite(value) ? Math.round(value).toLocaleString('en-US') : '0';
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const el = e.target;
-    const caret = el.selectionStart ?? el.value.length;
-    const digitsLeft = el.value.slice(0, caret).replace(/[^0-9]/g, '').length;
-    const digits = el.value.replace(/[^0-9]/g, '');
-    const num = digits === '' ? 0 : Number(digits);
-    onChange(num);
-
-    const formatted = num.toLocaleString('en-US');
-    let pos = 0;
-    let seen = 0;
-    while (pos < formatted.length && seen < digitsLeft) {
-      if (formatted[pos] >= '0' && formatted[pos] <= '9') seen++;
-      pos++;
-    }
-    requestAnimationFrame(() => ref.current?.setSelectionRange(pos, pos));
-  };
+  const { ref, display, handleChange } = useGroupedNumber(value, onChange);
 
   return (
     <input
@@ -187,8 +149,13 @@ export function NumField({
       return;
     }
     if (draft === null) return;
-    const n = Number(draft);
-    if (draft.trim() !== '' && Number.isFinite(n)) onCommit(n);
+    let n = Number(draft);
+    if (draft.trim() !== '' && Number.isFinite(n)) {
+      // Typed values must respect min/max too (the HTML attributes only guard the spinner).
+      if (min != null) n = Math.max(min, n);
+      if (max != null) n = Math.min(max, n);
+      onCommit(n);
+    }
     setDraft(null);
   };
   return (
@@ -214,7 +181,6 @@ export function NumField({
 }
 
 interface SectionProps {
-  eyebrow?: ReactNode;
   title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
@@ -223,13 +189,12 @@ interface SectionProps {
   bodyClassName?: string;
 }
 
-export function Section({ eyebrow, title, subtitle, actions, children, className, bodyClassName }: SectionProps) {
+export function Section({ title, subtitle, actions, children, className, bodyClassName }: SectionProps) {
   return (
     <Card className={clsx('animate-fade-in', className)}>
-      {(title || eyebrow || actions) && (
+      {(title || actions) && (
         <div className="flex items-start justify-between gap-4 px-6 pt-5">
           <div>
-            {eyebrow && <div className="label-mono mb-1 flex items-center gap-2">{eyebrow}</div>}
             {title && <h2 className="font-head text-[20px] font-semibold leading-7 tracking-[-0.01em] text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
           </div>

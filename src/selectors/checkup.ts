@@ -6,7 +6,10 @@
 // ============================================================================
 
 import type { YearRow, ProjectionResult, Scenario, Settings } from '@/domain/types';
-import { resolveTaxConfig } from '@/engine/tax';
+// LIVE dependency: the PDF export calls planCheckup, which reads the IRMAA tables.
+// Import the leaf module (not the barrel) so only config/tables ride into the
+// lazy PDF chunk while the rest of the tax engine stays dormant.
+import { resolveTaxConfig } from '@/engine/tax/config';
 import { fmtAgeYM } from '@/lib/format';
 
 export interface Insight {
@@ -26,9 +29,6 @@ const SEVERITY_RANK: Record<Insight['severity'], number> = {
 // ----- small formatting helpers (kept local; this module stays JSX-free) -----
 function money(n: number): string {
   return `$${Math.round(n).toLocaleString('en-US')}`;
-}
-function pct(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
 }
 
 /** Rule 1 — portfolio depletes before the end of the plan. */

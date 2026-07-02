@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, MoneyInput, GroupedNumberField, Segmented, Button } from '@/components/ui/primitives';
+import { Section, MoneyInput, GroupedNumberField, Segmented } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
 import { Grid, THead, TR, TD, NumberInput, DeleteCell, AddRow, useSort } from '@/components/grid/Grid';
 import { amortize, byYear } from '@/engine/mortgage';

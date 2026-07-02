@@ -49,6 +49,9 @@ export function SocialSecurityPanel() {
   const ss = scn.socialSecurity;
   const retirementAge = scn.assumptions.retirementAge;
   const anyEarlyClaim = ss.claims.some((c) => c.enabled && c.claimAge < retirementAge);
+  // Enabling the planner disables SS-named income rows, but a renamed or
+  // re-enabled row would double-count — surface it instead of staying silent.
+  const dupStreams = ss.enabled ? scn.incomeStreams.filter((st) => st.enabled && /social security/i.test(st.name)) : [];
 
   // Lifetime benefit collected through the plan end if both claim at 62 / FRA / 70.
   const compare = useMemo(() => {
@@ -92,6 +95,11 @@ export function SocialSecurityPanel() {
         </label>
         {anyEarlyClaim && !ss.investUntilRetirement && (
           <span className="text-[11px] text-caution">pre-retirement checks treated as spent</span>
+        )}
+        {dupStreams.length > 0 && (
+          <span className="text-[11px] text-error">
+            "{dupStreams[0].name}" income row is still on — Social Security may be counted twice
+          </span>
         )}
         <div className="ml-auto flex items-center gap-1">
           <button type="button" onClick={() => navigate('/settings')} className="rounded-md px-2 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-primary-tint">

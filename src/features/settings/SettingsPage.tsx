@@ -71,8 +71,11 @@ export default function SettingsPage() {
   };
 
   const onReset = () => {
-    if (!confirm('Replace everything with the demo plan? Export a backup first if you want to keep your current plan.')) return;
-    replaceDocument(seedDocument().doc);
+    if (!confirm('Replace all scenarios and settings with the demo plan? Your Net Worth statement is kept. Export a backup first if you want to keep your current plan.')) return;
+    // Household net worth (and its snapshot history) is not "plan" data — keep it.
+    const seed = seedDocument().doc;
+    seed.netWorth = docFor.getState().netWorth;
+    replaceDocument(seed);
     setMsg('Demo data restored.');
   };
 

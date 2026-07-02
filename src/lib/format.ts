@@ -4,21 +4,10 @@ const usd0 = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 });
 
-const usd2 = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 2,
-});
-
 /** $1,234,567 */
 export function fmtUSD(n: number): string {
   if (!Number.isFinite(n)) return '$0';
   return usd0.format(Math.round(n));
-}
-
-export function fmtUSD2(n: number): string {
-  if (!Number.isFinite(n)) return '$0.00';
-  return usd2.format(n);
 }
 
 /** $412k, $1.9M, $4.0M — compact axis/tile form. */
@@ -40,10 +29,6 @@ export function fmtPct(rate: number, digits = 1): string {
 /** 0.074 -> "7.4" (no % sign, for inline editing display) */
 export function pctValue(rate: number, digits = 1): string {
   return (rate * 100).toFixed(digits);
-}
-
-export function fmtAge(a: number): string {
-  return `${Math.round(a)}`;
 }
 
 /**

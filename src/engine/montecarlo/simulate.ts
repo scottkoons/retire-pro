@@ -1,4 +1,3 @@
-import type { Scenario } from '@/domain/types';
 import { runProjection, type ReturnProvider } from '../project';
 import { mulberry32, sampleAnnualReturn } from './prng';
 import type {

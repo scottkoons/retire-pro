@@ -641,7 +641,6 @@ export function runProjectionV2(
 
     // ---- home: purchase transition, amortization, costs (every year) ----
     let homeCost = 0;
-    let mortInterest = 0;
     if (homeEnabled) {
       if (home.plannedPurchase && homePhase === 'current' && age >= home.purchaseAge) {
         if (home.sellCurrent) {
@@ -668,7 +667,6 @@ export function runProjectionV2(
         .reduce((s, p) => s + p.amount, 0);
       const am = amortizeYear(homeMort, loanRate, paymentAnnual, extraMonthly, extraLumpThisYear);
       homeMort = am.closing;
-      mortInterest = am.interest;
       homeValue *= 1 + home.growthRate;
       const exemptValue = home.disabledVetExemption ? Math.min(homeValue, 200_000) * 0.5 : 0;
       const propTax = Math.max(0, homeValue - exemptValue) * home.propertyTaxRate;

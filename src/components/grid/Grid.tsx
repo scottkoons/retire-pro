@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { IconPlus, IconTrash } from '@/components/icons';
+import { useGroupedNumber } from '@/components/ui/useGroupedNumber';
 
 export interface SortState {
   key: string;
@@ -265,27 +266,7 @@ function GroupedNumberInput({
   suffix?: string;
   align?: 'left' | 'right';
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const display = Number.isFinite(value) ? Math.round(value).toLocaleString('en-US') : '0';
-
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const el = e.target;
-    const caret = el.selectionStart ?? el.value.length;
-    const digitsLeft = el.value.slice(0, caret).replace(/[^0-9]/g, '').length;
-    const digits = el.value.replace(/[^0-9]/g, '');
-    const num = digits === '' ? 0 : Number(digits);
-    onChange(num);
-
-    // Restore the caret after the same digit count in the regrouped string.
-    const formatted = num.toLocaleString('en-US');
-    let pos = 0;
-    let seen = 0;
-    while (pos < formatted.length && seen < digitsLeft) {
-      if (formatted[pos] >= '0' && formatted[pos] <= '9') seen++;
-      pos++;
-    }
-    requestAnimationFrame(() => ref.current?.setSelectionRange(pos, pos));
-  };
+  const { ref, display, handleChange } = useGroupedNumber(value, onChange);
 
   return (
     <span className={clsx('inline-flex items-center gap-0.5', align === 'right' && 'justify-end')}>

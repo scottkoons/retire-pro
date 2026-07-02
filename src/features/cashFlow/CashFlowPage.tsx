@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useActiveScenario, useEffectiveDisplayMode } from '@/state/store';
+import { useActiveScenario } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { Section, Segmented } from '@/components/ui/primitives';
 import { StatTile, Slider } from '@/components/ui/tiles';
@@ -14,7 +14,6 @@ type Tab = 'flow' | 'taxes' | 'ss';
 export default function CashFlowPage() {
   const scn = useActiveScenario();
   const { result } = useProjection();
-  const displayMode = useEffectiveDisplayMode();
   const a = scn.assumptions;
   const rows = result.rows;
 

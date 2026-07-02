@@ -80,7 +80,7 @@ function loadCached(): MonteCarloResult | null {
 
 const cached = loadCached();
 
-export const useMcStore = create<McState>((set, get) => ({
+export const useMcStore = create<McState>((set) => ({
   result: cached,
   running: false,
   progress: 0,

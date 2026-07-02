@@ -19,7 +19,6 @@ const CATEGORIES: { value: NetWorthCategory; label: string; color: string }[] = 
   { value: 'other', label: 'Other', color: chart.cat[6] },
 ];
 const catLabel = (c: NetWorthCategory) => CATEGORIES.find((x) => x.value === c)?.label ?? c;
-const catColor = (c: NetWorthCategory) => CATEGORIES.find((x) => x.value === c)?.color ?? chart.axis;
 
 /**
  * Household balance sheet: everything owned minus everything owed, valued

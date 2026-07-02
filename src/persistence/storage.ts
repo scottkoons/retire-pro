@@ -1,3 +1,4 @@
+import { saveAs } from 'file-saver';
 import type { PersistedDocument, UiState } from '@/domain/types';
 import { seedDocument, defaultUi } from '@/domain/seed';
 import { APP_VERSION, SCHEMA_VERSION, STORAGE_KEY, UI_KEY } from './constants';
@@ -73,12 +74,7 @@ export function exportBackup(doc: PersistedDocument): void {
     document: doc,
   };
   const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `retirepro-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  saveAs(blob, `retirepro-backup-${new Date().toISOString().slice(0, 10)}.json`);
 }
 
 export function parseBackup(text: string): { ok: true; doc: PersistedDocument } | { ok: false; error: string } {

@@ -155,11 +155,6 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useStore = create<StoreState>()(
   immer((set, get) => {
-    const touchActive = (s: StoreState) => {
-      const scn = s.scenarios.find((x) => x.id === s.activeScenarioId);
-      if (scn) scn.updatedAt = nowISO();
-    };
-
     // The Dashboard "Starting Amount" is the total of enabled accounts. Keep the
     // legacy startingBalance mirror in lockstep on every account edit so the
     // summary, PDF export, and legacy projection agree with the accounts total.

@@ -1,5 +1,6 @@
 import type { DisplayMode, ProjectionResult, Scenario } from '@/domain/types';
 import type { MonteCarloResult } from '@/engine/montecarlo/types';
+import { ssMonthlyBenefitToday } from '@/engine/project';
 
 export interface PlanSummaryModel {
   scenarioName: string;
@@ -90,17 +91,42 @@ export function buildPlanSummaryModel(
         return { name: c.name, start: c.startAge, end: c.endAge, monthly: c.monthlyAmount, months, total: months * c.monthlyAmount };
       }),
     lumpSums: scn.lumpSums.filter((l) => l.enabled).map((l) => ({ name: l.name, age: l.age, amount: l.amount })),
-    incomeStreams: scn.incomeStreams
-      .filter((st) => st.enabled)
-      .map((st) => ({
-        name: st.name,
-        today: st.monthlyAmountToday,
-        start: st.startAge,
-        end: st.endAge,
-        cola: st.cola ?? a.inflation,
-        tax: st.taxStatus,
-        atRetire: streamNominal(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, a.retirementAge - a.currentAge),
-      })),
+    incomeStreams: [
+      ...scn.incomeStreams
+        .filter((st) => st.enabled)
+        .map((st) => ({
+          name: st.name,
+          today: st.monthlyAmountToday,
+          start: st.startAge,
+          end: st.endAge,
+          cola: st.cola ?? a.inflation,
+          tax: st.taxStatus,
+          atRetire: streamNominal(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, a.retirementAge - a.currentAge),
+        })),
+      // SS planner rows: with the planner on, the legacy "Social Security" income
+      // rows are disabled, so the Summary/PDF tables list the planner claims
+      // instead (otherwise SS silently disappears while the totals include it).
+      ...(scn.socialSecurity?.enabled
+        ? scn.socialSecurity.claims
+            .filter((c) => c.enabled)
+            .map((c) => {
+              const claimAge = Math.min(70, Math.max(62, c.claimAge));
+              const monthly = ssMonthlyBenefitToday(c);
+              // Report ages on the primary timeline like every other row (the
+              // engine gates spouse claims on primary age + spouseAgeOffset).
+              const startSelfAge = claimAge - (c.owner === 'spouse' ? a.spouseAgeOffset ?? 0 : 0);
+              return {
+                name: c.owner === 'spouse' ? 'Social Security (Spouse)' : 'Social Security',
+                today: monthly,
+                start: startSelfAge,
+                end: a.modelEndAge,
+                cola: c.cola,
+                tax: 'taxable',
+                atRetire: a.retirementAge >= startSelfAge ? streamNominal(monthly, c.cola, true, a.retirementAge - a.currentAge) : 0,
+              };
+            })
+        : []),
+    ],
     spendingPhases: scn.retirementPhases.filter((p) => p.enabled).map((p) => ({ name: p.name, start: p.startAge, end: p.endAge, target: p.targetMonthlyIncome })),
     returnPhases: scn.investmentReturnPhases.filter((p) => p.enabled).map((p) => ({ name: p.name, start: p.startAge, end: p.endAge, ret: p.expectedReturn, vol: p.volatility })),
     monteCarlo: mc
