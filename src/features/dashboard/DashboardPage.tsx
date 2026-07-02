@@ -11,6 +11,7 @@ import { WealthChart } from '@/components/charts/WealthChart';
 import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
 import { ScenarioRail } from './ScenarioRail';
 import { ReturnPhasesPanel } from './ReturnPhasesPanel';
+import { SocialSecurityPanel } from './SocialSecurityPanel';
 import { IconCalendar, IconBank, IconDice, IconDiamond, IconChevronLeft } from '@/components/icons';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM, pctValue } from '@/lib/format';
@@ -133,11 +134,11 @@ export default function DashboardPage() {
               <Slider min={50} max={75} value={Math.round(a.retirementAge)} onChange={(v) => setAssumption('retirementAge', v)} aria-label="Retirement age" />
             </ControlTile>
             <ControlTile label="Starting Amount" icon={<IconBank className="h-5 w-5" />} value={fmtUSDAbbrev(currentAssets)}>
-              {/* Read-only: the starting amount is the total of your accounts. Edit balances in the Planner. */}
+              {/* Read-only: the starting amount is the total of your accounts. Edit balances in Settings. */}
               <button
                 type="button"
-                onClick={() => navigate('/planner')}
-                title="Total of your accounts — edit balances in the Planner"
+                onClick={() => navigate('/settings')}
+                title="Total of your accounts — edit balances in Settings, Accounts & Assets"
                 className="flex w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-input px-3 py-2 text-left transition-colors hover:border-primary"
               >
                 <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-faint">Accounts</span>
@@ -153,6 +154,7 @@ export default function DashboardPage() {
           </div>
 
           <ReturnPhasesPanel />
+          <SocialSecurityPanel />
         </div>
 
         {/* Wealth chart */}

@@ -7,7 +7,7 @@ import type {
   Scenario,
   YearRow,
 } from '@/domain/types';
-import type { Account, AccountKind, ExpenseCategory, Owner, Settings } from '@/domain/types';
+import type { Account, AccountKind, ExpenseCategory, Owner, Settings, SocialSecurityClaim } from '@/domain/types';
 import { ageToMonthIndex, dateToMonthIndex, monthIndexToAge, monthlyRate } from './timeline';
 import { fmtAgeYM } from '@/lib/format';
 import {
@@ -139,6 +139,21 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     // Guaranteed income (nominal) this month
     let G = 0;
     for (const s of scn.incomeStreams) G += streamNominalAt(scn, s, t, age);
+
+    // Social Security planner (when enabled). In retirement the benefit is cash
+    // income; before retirement it is either deposited into the portfolio
+    // (investUntilRetirement) or treated as spent like other working-years income.
+    if (scn.socialSecurity?.enabled) {
+      const spouseOffset = a.spouseAgeOffset ?? 0;
+      for (const c of scn.socialSecurity.claims) {
+        if (!c.enabled) continue;
+        const ownerAge = c.owner === 'spouse' ? age + spouseOffset : age;
+        if (ownerAge < Math.min(70, Math.max(62, c.claimAge))) continue;
+        const nominal = ssMonthlyBenefitToday(c) * Math.pow(1 + monthlyRate(c.cola), t);
+        if (age >= a.retirementAge) G += nominal;
+        else if (scn.socialSecurity.investUntilRetirement) C += nominal;
+      }
+    }
 
     // Spending target (nominal) this month
     let S = 0;
@@ -323,6 +338,28 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
     });
   }
 
+  // Social Security planner components: cash income in retirement, an invested
+  // deposit before it (investUntilRetirement), or an upcoming hint pre-claim.
+  if (scn.socialSecurity?.enabled) {
+    const spouseOffset = a.spouseAgeOffset ?? 0;
+    for (const c of scn.socialSecurity.claims) {
+      if (!c.enabled) continue;
+      const label = c.owner === 'spouse' ? 'Social Security (Spouse)' : 'Social Security';
+      const cat: 3 | 4 = c.owner === 'spouse' ? 4 : 3;
+      const claimSelfAge = Math.min(70, Math.max(62, c.claimAge)) - (c.owner === 'spouse' ? spouseOffset : 0);
+      const invest = !!scn.socialSecurity.investUntilRetirement;
+      const effectiveStart = invest ? claimSelfAge : Math.max(claimSelfAge, a.retirementAge);
+      const nominal = ssMonthlyBenefitToday(c) * Math.pow(1 + monthlyRate(c.cola), t);
+      if (age >= claimSelfAge && age >= a.retirementAge) {
+        components.push({ label, monthlyNominal: nominal, taxStatus: 'taxable', cat });
+      } else if (age >= claimSelfAge && invest) {
+        components.push({ label, monthlyNominal: nominal, taxStatus: 'taxable', cat, fromAgeNote: 'invested until retirement' });
+      } else if (effectiveStart <= a.modelEndAge) {
+        components.push({ label, monthlyNominal: 0, taxStatus: 'taxable', cat, fromAgeNote: `from ${fmtAgeYM(effectiveStart)}`, upcoming: true });
+      }
+    }
+  }
+
   components.sort((x, y) => y.monthlyNominal - x.monthlyNominal);
   const taxablePerMo = components.filter((c) => c.taxStatus === 'taxable').reduce((s, c) => s + c.monthlyNominal, 0);
   const taxFreePerMo = components.filter((c) => c.taxStatus === 'tax-free').reduce((s, c) => s + c.monthlyNominal, 0);
@@ -369,6 +406,26 @@ export function usesV2Full(scn: Scenario): boolean {
 /** Social Security benefit as a multiple of the FRA benefit, given the claim age.
  *  Early: -5/9% per month for the first 36, -5/12% beyond. Delayed: +2/3% per
  *  month past FRA, capped at age 70. */
+/**
+ * Monthly SS benefit in today's $ for claiming at `claimAge` (clamped 62-70).
+ * Uses the SSA statement quotes (62 / FRA / 70) with linear interpolation when
+ * both are entered; otherwise applies the standard reduction/credit formula to
+ * the FRA benefit.
+ */
+export function ssMonthlyBenefitToday(c: SocialSecurityClaim, claimAge = c.claimAge): number {
+  const age = Math.min(70, Math.max(62, claimAge));
+  const { benefitAt62: b62, benefitAtFRA: bFra, benefitAt70: b70, fra } = c;
+  if (b62 != null && b70 != null && b62 > 0 && b70 > 0) {
+    if (age <= fra) {
+      const span = fra - 62;
+      return span <= 0 ? bFra : b62 + ((age - 62) / span) * (bFra - b62);
+    }
+    const span = 70 - fra;
+    return span <= 0 ? bFra : bFra + ((age - fra) / span) * (b70 - bFra);
+  }
+  return bFra * ssAdjustmentFactor(age, fra);
+}
+
 export function ssAdjustmentFactor(claimAge: number, fra: number): number {
   const months = Math.round((claimAge - fra) * 12);
   if (months === 0) return 1;

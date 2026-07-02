@@ -214,11 +214,19 @@ export interface SocialSecurityClaim {
   fra: Age;
   claimAge: ClaimAge;
   cola: Rate;
+  // SSA statement quotes (monthly, today's $). When both are present the benefit
+  // at any claim age is interpolated between 62 / FRA / 70; otherwise the
+  // standard reduction/credit formula applies to benefitAtFRA.
+  benefitAt62?: Dollars;
+  benefitAt70?: Dollars;
 }
 
 export interface SocialSecurityConfig {
   enabled: boolean; // false => legacy SS income streams drive income
   claims: SocialSecurityClaim[];
+  // Benefits claimed before retirement age are deposited into the portfolio
+  // each month instead of being treated as spent (Scott's "invest it" option).
+  investUntilRetirement?: boolean;
 }
 
 export interface HealthcareConfig {

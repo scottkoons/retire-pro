@@ -95,11 +95,18 @@ export const SocialSecurityClaimSchema = z.object({
   fra: Age,
   claimAge: Age,
   cola: Rate,
+  // SSA statement quotes (monthly, today's $); when present the benefit at any
+  // claim age is interpolated between them instead of using the standard formula.
+  benefitAt62: Dollars.optional(),
+  benefitAt70: Dollars.optional(),
 });
 
 export const SocialSecurityConfigSchema = z.object({
   enabled: z.boolean(),
   claims: z.array(SocialSecurityClaimSchema),
+  // Benefits claimed before retirement are deposited into the portfolio
+  // (instead of being treated as spent like other working-years income).
+  investUntilRetirement: z.boolean().optional(),
 });
 
 export const HealthcareConfigSchema = z.object({

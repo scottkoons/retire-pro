@@ -47,8 +47,8 @@ export function fmtAge(a: number): string {
 }
 
 /**
- * Fractional age in plain English: 64.5 -> "64 years and 6 months",
- * 64 -> "64 years", 64.08 -> "64 years and 1 month".
+ * Fractional age, abbreviated per Scott's preference: 64.5 -> "64 yrs 6 mos",
+ * 64 -> "64 yrs", 64.08 -> "64 yrs 1 mo". No "and", no comma.
  * Used everywhere a person's age is displayed (never for numeric inputs).
  */
 export function fmtAgeYM(age: number): string {
@@ -56,20 +56,20 @@ export function fmtAgeYM(age: number): string {
   const totalMonths = Math.round(age * 12);
   const years = Math.floor(totalMonths / 12);
   const months = totalMonths % 12;
-  const y = `${years} ${years === 1 ? 'year' : 'years'}`;
+  const y = `${years} ${years === 1 ? 'yr' : 'yrs'}`;
   if (months === 0) return y;
-  return `${y} and ${months} ${months === 1 ? 'month' : 'months'}`;
+  return `${y} ${months} ${months === 1 ? 'mo' : 'mos'}`;
 }
 
-/** Duration from whole months: 147 -> "12 years and 3 months", 8 -> "8 months". */
+/** Duration from whole months: 147 -> "12 yrs 3 mos", 8 -> "8 mos". */
 export function fmtMonthsYM(totalMonths: number): string {
-  if (!Number.isFinite(totalMonths) || totalMonths <= 0) return '0 months';
+  if (!Number.isFinite(totalMonths) || totalMonths <= 0) return '0 mos';
   const m = Math.round(totalMonths);
   const years = Math.floor(m / 12);
   const months = m % 12;
-  const yPart = years > 0 ? `${years} ${years === 1 ? 'year' : 'years'}` : '';
-  const mPart = months > 0 ? `${months} ${months === 1 ? 'month' : 'months'}` : '';
-  return yPart && mPart ? `${yPart} and ${mPart}` : yPart || mPart;
+  const yPart = years > 0 ? `${years} ${years === 1 ? 'yr' : 'yrs'}` : '';
+  const mPart = months > 0 ? `${months} ${months === 1 ? 'mo' : 'mos'}` : '';
+  return yPart && mPart ? `${yPart} ${mPart}` : yPart || mPart;
 }
 
 export function fmtDate(iso?: string): string {

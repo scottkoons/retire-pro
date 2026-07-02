@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, Button, Segmented, NumField } from '@/components/ui/primitives';
+import { Section, Button, Segmented, NumField, MoneyInput } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
 import { birthDateISO } from '@/lib/dates';
@@ -34,6 +34,8 @@ export default function SettingsPage() {
   const createBlank = useStore((s) => s.createBlank);
   const setAssumption = useStore((s) => s.setAssumption);
   const setBirthDate = useStore((s) => s.setBirthDate);
+  const updateSsClaim = useStore((s) => s.updateSsClaim);
+  const setSsPlannerEnabled = useStore((s) => s.setSsPlannerEnabled);
   const docFor = useStore;
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -146,6 +148,51 @@ export default function SettingsPage() {
           <Field label="Inflation %">
             <NumField step={0.1} className={fieldCls} value={+(scn.assumptions.inflation * 100).toFixed(2)} onCommit={(n) => setAssumption('inflation', n / 100)} />
           </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="Social Security"
+        subtitle="Monthly benefit quotes from your SSA statement, in today's dollars"
+        actions={
+          <Segmented
+            size="sm"
+            options={[
+              { value: 'on', label: 'Planner on' },
+              { value: 'off', label: 'Off' },
+            ]}
+            value={scn.socialSecurity.enabled ? 'on' : 'off'}
+            onChange={(v) => setSsPlannerEnabled(v === 'on')}
+          />
+        }
+      >
+        <div className="flex flex-col gap-5">
+          {scn.socialSecurity.claims.map((c) => (
+            <div key={c.owner}>
+              <div className="mb-2 text-[13px] font-semibold text-ink">{c.owner === 'self' ? 'Self (Scott)' : 'Spouse (Crissy)'}</div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                <Field label="At 62 $/mo">
+                  <MoneyInput value={c.benefitAt62 ?? 0} onChange={(n) => updateSsClaim(c.owner, { benefitAt62: n })} ariaLabel={`${c.owner} benefit at 62`} />
+                </Field>
+                <Field label={`At FRA $/mo`}>
+                  <MoneyInput value={c.benefitAtFRA} onChange={(n) => updateSsClaim(c.owner, { benefitAtFRA: n })} ariaLabel={`${c.owner} benefit at FRA`} />
+                </Field>
+                <Field label="At 70 $/mo">
+                  <MoneyInput value={c.benefitAt70 ?? 0} onChange={(n) => updateSsClaim(c.owner, { benefitAt70: n })} ariaLabel={`${c.owner} benefit at 70`} />
+                </Field>
+                <Field label="FRA">
+                  <NumField step={1} min={65} max={68} className={fieldCls} value={c.fra} onCommit={(n) => updateSsClaim(c.owner, { fra: n })} />
+                </Field>
+                <Field label="COLA %">
+                  <NumField step={0.1} className={fieldCls} value={+(c.cola * 100).toFixed(1)} onCommit={(n) => updateSsClaim(c.owner, { cola: n / 100 })} />
+                </Field>
+              </div>
+            </div>
+          ))}
+          <p className="text-[12px] text-faint">
+            With the planner on, the fixed "Social Security" income rows are turned off and the Dashboard's claim-age controls drive the projection.
+            Leave the 62 and 70 quotes at 0 to use the standard SSA reduction/credit formula from the FRA amount.
+          </p>
         </div>
       </Section>
 

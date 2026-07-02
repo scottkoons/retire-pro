@@ -108,6 +108,7 @@ interface StoreState extends PersistedDocument {
   removeLoan: (id: string) => void;
   updateSocialSecurity: (patch: Partial<SocialSecurityConfig>) => void;
   updateSsClaim: (owner: Owner, patch: Partial<SocialSecurityClaim>) => void;
+  setSsPlannerEnabled: (on: boolean) => void;
   updateHealthcare: (patch: Partial<HealthcareConfig>) => void;
   updateLongTermCare: (patch: Partial<LongTermCareConfig>) => void;
   updateInheritance: (patch: Partial<InheritanceConfig>) => void;
@@ -529,6 +530,14 @@ export const useStore = create<StoreState>()(
       updateSsClaim: (owner, patch) => mutateActive((scn) => {
         const c = scn.socialSecurity.claims.find((x) => x.owner === owner);
         if (c) Object.assign(c, patch);
+      }),
+      // The SS planner replaces the legacy "Social Security ..." income rows;
+      // toggle them in lockstep (matched by name) so income is never counted twice.
+      setSsPlannerEnabled: (on) => mutateActive((scn) => {
+        scn.socialSecurity.enabled = on;
+        for (const st of scn.incomeStreams) {
+          if (/social security/i.test(st.name)) st.enabled = !on;
+        }
       }),
       updateHealthcare: (patch) => mutateActive((scn) => {
         scn.healthcare = { ...scn.healthcare, ...patch };
