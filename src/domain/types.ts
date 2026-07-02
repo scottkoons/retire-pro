@@ -375,6 +375,7 @@ export interface IncomeComponent {
   taxStatus: TaxStatus;
   cat: 1 | 2 | 3 | 4 | 5 | 6;
   fromAgeNote?: string;
+  upcoming?: boolean; // stream has not started yet at the breakdown age (shown dimmed)
 }
 
 export interface IncomeBreakdown {

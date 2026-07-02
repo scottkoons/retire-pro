@@ -43,6 +43,7 @@ import {
 } from '@/domain/defaults';
 import { loadDocument, saveDocument } from '@/persistence/storage';
 import { AUTOSAVE_DEBOUNCE_MS } from '@/persistence/constants';
+import { ageFromBirthDate } from '@/lib/dates';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -62,6 +63,7 @@ interface StoreState extends PersistedDocument {
 
   // active scenario edits
   setAssumption: <K extends keyof ScenarioAssumptions>(key: K, value: ScenarioAssumptions[K]) => void;
+  setBirthDate: (isoDate: string) => void;
   setWithdrawal: (patch: Partial<WithdrawalStrategy>) => void;
 
   addContribution: () => void;
@@ -125,7 +127,18 @@ interface StoreState extends PersistedDocument {
   replaceDocument: (doc: PersistedDocument) => void;
 }
 
+// Current age is DERIVED from each scenario's birth date so the plan's anchor
+// never drifts as months pass (the stored currentAge is refreshed on load).
+function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
+  for (const scn of doc.scenarios) {
+    const a = scn.assumptions;
+    a.currentAge = ageFromBirthDate(a.birthYear, a.birthMonth, a.birthDay);
+  }
+  return doc;
+}
+
 const init = loadDocument();
+deriveCurrentAges(init.doc);
 const nowISO = () => new Date().toISOString();
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -289,6 +302,18 @@ export const useStore = create<StoreState>()(
       setAssumption: (key, value) => mutateActive((scn) => {
         (scn.assumptions[key] as ScenarioAssumptions[typeof key]) = value;
       }),
+
+      // Birth date drives currentAge (derived, whole-month precision).
+      setBirthDate: (isoDate) => {
+        const d = new Date(isoDate + 'T00:00:00');
+        if (Number.isNaN(d.getTime())) return;
+        mutateActive((scn) => {
+          scn.assumptions.birthYear = d.getFullYear();
+          scn.assumptions.birthMonth = d.getMonth();
+          scn.assumptions.birthDay = d.getDate();
+          scn.assumptions.currentAge = ageFromBirthDate(d.getFullYear(), d.getMonth(), d.getDate());
+        });
+      },
 
       setWithdrawal: (patch) => mutateActive((scn) => {
         scn.withdrawal = { ...scn.withdrawal, ...patch };
@@ -566,6 +591,7 @@ export const useStore = create<StoreState>()(
       },
 
       replaceDocument: (doc) => {
+        deriveCurrentAges(doc);
         set((s) => {
           s.schemaVersion = doc.schemaVersion;
           s.appVersion = doc.appVersion;

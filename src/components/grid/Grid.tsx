@@ -193,19 +193,55 @@ export function NumberInput({
   if (grouping ?? (prefix === '$')) {
     return <GroupedNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} align={align} />;
   }
+  return <DraftNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} align={align} />;
+}
+
+/** Age/percent grid input: edits are local while typing and commit on blur or
+ *  Enter (Escape reverts), so the projection recalculates once per edit and a
+ *  cleared field never commits 0 (Number('') === 0). */
+function DraftNumberInput({
+  value,
+  onChange,
+  prefix,
+  suffix,
+  step,
+  align = 'right',
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  prefix?: string;
+  suffix?: string;
+  step?: number;
+  align?: 'left' | 'right';
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelled = useRef(false);
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(null);
+      return;
+    }
+    if (draft === null) return;
+    const n = Number(draft);
+    if (draft.trim() !== '' && Number.isFinite(n)) onChange(n);
+    setDraft(null);
+  };
   return (
     <span className={clsx('inline-flex items-center gap-0.5', align === 'right' && 'justify-end')}>
       {prefix && <span className="text-faint">{prefix}</span>}
       <input
         type="number"
         step={step}
-        value={Number.isFinite(value) ? value : 0}
-        // Ignore empty/invalid edits so clearing the field never commits 0 (Number('') === 0).
-        onChange={(e) => {
-          const v = e.target.value.trim();
-          if (v === '') return;
-          const n = Number(v);
-          if (Number.isFinite(n)) onChange(n);
+        value={draft ?? (Number.isFinite(value) ? value : 0)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Escape') {
+            cancelled.current = true;
+            (e.target as HTMLInputElement).blur();
+          }
         }}
         className={clsx(inputCls, align === 'right' ? 'text-right' : 'text-left', 'tabnum')}
       />

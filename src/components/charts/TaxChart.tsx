@@ -109,7 +109,7 @@ export function TaxChart({ rows, height = 300 }: { rows: YearRow[]; height?: num
             stroke={chart.axis}
             tickLine={false}
             axisLine={{ stroke: chart.grid }}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(a) => `Age ${a}`}
           />
           {/* Left axis: stacked dollar amounts */}
@@ -118,7 +118,7 @@ export function TaxChart({ rows, height = 300 }: { rows: YearRow[]; height?: num
             tickLine={false}
             axisLine={false}
             width={56}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(n) => fmtUSDAbbrev(n)}
           />
           {/* Right axis: effective-rate line */}
@@ -130,7 +130,7 @@ export function TaxChart({ rows, height = 300 }: { rows: YearRow[]; height?: num
             axisLine={false}
             width={48}
             domain={[0, 'auto']}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(v) => fmtPct(v, 0)}
           />
           <Tooltip content={<TaxTooltip />} cursor={{ stroke: chart.grid }} />

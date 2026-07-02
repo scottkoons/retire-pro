@@ -31,6 +31,23 @@ export function effectiveISO(dateOverride: string | undefined, age: number, a: S
   return dateOverride ?? isoFromAge(age, a);
 }
 
+/**
+ * Fractional age (whole-month precision) from a birth date, as of `now`.
+ * Keeps the model anchored to today instead of a hand-typed static age.
+ */
+export function ageFromBirthDate(birthYear: number, birthMonth: number, birthDay: number, now = new Date()): number {
+  let months = (now.getFullYear() - birthYear) * 12 + (now.getMonth() - birthMonth);
+  if (now.getDate() < birthDay) months -= 1;
+  return Math.max(0, Math.min(130, months / 12));
+}
+
+/** "yyyy-mm-dd" for <input type="date"> from the stored birth fields. */
+export function birthDateISO(a: { birthYear: number; birthMonth: number; birthDay: number }): string {
+  const m = String(a.birthMonth + 1).padStart(2, '0');
+  const d = String(a.birthDay).padStart(2, '0');
+  return `${a.birthYear}-${m}-${d}`;
+}
+
 export function fmtMonthYear(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');

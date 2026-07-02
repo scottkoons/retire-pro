@@ -46,7 +46,7 @@ export function IncomeChart({ data, height = 280 }: { data: IncomePoint[]; heigh
             stroke={chart.axis}
             tickLine={false}
             axisLine={{ stroke: chart.grid }}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(a) => `Age ${a}`}
           />
           <YAxis
@@ -54,7 +54,7 @@ export function IncomeChart({ data, height = 280 }: { data: IncomePoint[]; heigh
             tickLine={false}
             axisLine={false}
             width={56}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(n) => fmtUSDAbbrev(n)}
           />
           <Tooltip
@@ -64,7 +64,7 @@ export function IncomeChart({ data, height = 280 }: { data: IncomePoint[]; heigh
               borderRadius: 8,
               fontFamily: 'Inter',
             }}
-            labelStyle={{ color: '#94a3b8', fontFamily: 'JetBrains Mono', fontSize: 11 }}
+            labelStyle={{ color: '#94a3b8', fontFamily: 'Inter Variable', fontSize: 11 }}
             formatter={(v: number) => fmtUSD(v)}
             labelFormatter={(a) => `Age ${a}`}
           />

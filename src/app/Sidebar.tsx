@@ -8,6 +8,7 @@ import {
   IconPhases,
   IconTable,
   IconDice,
+  IconCompare,
   IconDoc,
   IconSettings,
   IconChevronLeft,
@@ -27,6 +28,7 @@ const NAV_GROUPS = [
   {
     heading: 'Analysis',
     items: [
+      { to: '/compare', label: 'Compare Scenarios', Icon: IconCompare },
       { to: '/monte-carlo', label: 'Monte Carlo', Icon: IconDice },
       { to: '/summary', label: 'Plan Summary', Icon: IconDoc },
       { to: '/settings', label: 'Settings', Icon: IconSettings },

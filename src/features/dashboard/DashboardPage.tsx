@@ -5,7 +5,7 @@ import { useProjection } from '@/selectors/projection';
 import { useMcStore, mcConfigHash } from '@/state/mcStore';
 import { incomeBreakdownAtAge } from '@/engine/project';
 import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
-import { Section, Button, Segmented, TaxChip } from '@/components/ui/primitives';
+import { Section, Button, Segmented, TaxChip, StatusPill } from '@/components/ui/primitives';
 import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components/ui/tiles';
 import { WealthChart } from '@/components/charts/WealthChart';
 import { IncomeChart, type IncomePoint } from '@/components/charts/IncomeChart';
@@ -106,6 +106,10 @@ export default function DashboardPage() {
                 <IconChevronLeft className="h-4 w-4" />
                 <IconDiamond className="h-3 w-3 text-primary" /> Scenario inputs
               </button>
+            )}
+            <StatusPill status={result.status} />
+            {result.status !== 'onTrack' && result.depletionAge != null && (
+              <span className="text-[12px] text-error">portfolio depletes at {fmtAgeYM(result.depletionAge)}</span>
             )}
             <span className="label-mono ml-auto">Show amounts in</span>
             <Segmented
@@ -226,11 +230,12 @@ export default function DashboardPage() {
                 <BarRow
                   key={i}
                   label={c.label}
-                  value={fmtUSD(deflate(c.monthlyNominal, breakdownAge))}
-                  fraction={c.monthlyNominal / maxComponent}
+                  value={c.upcoming ? '—' : fmtUSD(deflate(c.monthlyNominal, breakdownAge))}
+                  fraction={c.upcoming ? 0 : c.monthlyNominal / maxComponent}
                   color={chart.cat[c.cat]}
                   chip={<TaxChip status={c.taxStatus} />}
                   sublabel={c.fromAgeNote}
+                  dim={c.upcoming}
                 />
               ))}
               {breakdown.components.length === 0 && <p className="py-6 text-center text-muted">No active income at this age.</p>}

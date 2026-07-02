@@ -101,7 +101,7 @@ export function SsClaimCompare({ claim, currentAge, endAge = 95, height = 300 }:
             stroke={chart.axis}
             tickLine={false}
             axisLine={{ stroke: chart.grid }}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(a) => `Age ${a}`}
           />
           <YAxis
@@ -109,7 +109,7 @@ export function SsClaimCompare({ claim, currentAge, endAge = 95, height = 300 }:
             tickLine={false}
             axisLine={false}
             width={56}
-            tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+            tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(n) => fmtUSDAbbrev(n)}
           />
           <Tooltip content={<ClaimTooltip fra={fraAge} />} />

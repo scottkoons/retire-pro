@@ -79,8 +79,8 @@ export default function MonteCarloPage() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={r.endingHistogram} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                 <CartesianGrid stroke={chart.grid} vertical={false} />
-                <XAxis dataKey="label" stroke={chart.axis} tickLine={false} tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: chart.axis }} interval={3} />
-                <YAxis stroke={chart.axis} tickLine={false} axisLine={false} width={40} tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: chart.axis }} />
+                <XAxis dataKey="label" stroke={chart.axis} tickLine={false} tick={{ fontFamily: 'Inter Variable', fontSize: 10, fill: chart.axis }} interval={3} />
+                <YAxis stroke={chart.axis} tickLine={false} axisLine={false} width={40} tick={{ fontFamily: 'Inter Variable', fontSize: 10, fill: chart.axis }} />
                 <Tooltip
                   contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
                   formatter={(v: number) => [`${v} runs`, 'Count']}
@@ -99,8 +99,8 @@ export default function MonteCarloPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={r.failureAgeHistogram} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
-                  <XAxis dataKey="age" stroke={chart.axis} tickLine={false} tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: chart.axis }} tickFormatter={(a) => `Age ${a}`} />
-                  <YAxis stroke={chart.axis} tickLine={false} axisLine={false} width={40} tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: chart.axis }} />
+                  <XAxis dataKey="age" stroke={chart.axis} tickLine={false} tick={{ fontFamily: 'Inter Variable', fontSize: 10, fill: chart.axis }} tickFormatter={(a) => `Age ${a}`} />
+                  <YAxis stroke={chart.axis} tickLine={false} axisLine={false} width={40} tick={{ fontFamily: 'Inter Variable', fontSize: 10, fill: chart.axis }} />
                   <Tooltip
                     contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: 8 }}
                     formatter={(v: number) => [`${v} runs`, 'Failures']}

@@ -91,7 +91,7 @@ function SankeyNode({
         x={labelX}
         y={midY - 5}
         textAnchor={anchor}
-        fontFamily="JetBrains Mono"
+        fontFamily="Inter Variable"
         fontSize={11}
         fill={chart.axis}
       >
@@ -101,7 +101,7 @@ function SankeyNode({
         x={labelX}
         y={midY + 9}
         textAnchor={anchor}
-        fontFamily="JetBrains Mono"
+        fontFamily="Inter Variable"
         fontSize={11}
         fill="#e2e8f0"
       >

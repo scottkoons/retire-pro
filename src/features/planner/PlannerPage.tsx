@@ -1,5 +1,5 @@
 import { useActiveScenario, useStore, useEffectiveDisplayMode } from '@/state/store';
-import { Section, GroupedNumberField } from '@/components/ui/primitives';
+import { Section, GroupedNumberField, NumField } from '@/components/ui/primitives';
 import {
   Grid,
   THead,
@@ -15,8 +15,7 @@ import {
   useSort,
 } from '@/components/grid/Grid';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
-import { onNum } from '@/lib/inputs';
-import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
+import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO } from '@/lib/dates';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
@@ -113,14 +112,16 @@ export default function PlannerPage() {
       {/* Basics */}
       <Section title="Basics">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          <Field label="Current Age">
-            <input type="number" className={fieldCls} value={a.currentAge} onChange={onNum((n) => s.setAssumption('currentAge', n))} />
+          <Field label="Birth Date">
+            {/* Current age is derived from this, so the plan stays anchored to today. */}
+            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(a)} onChange={(e) => e.target.value && s.setBirthDate(e.target.value)} />
+            <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(a.currentAge)} old today</span>
           </Field>
           <Field label="Retirement Age">
-            <input type="number" className={fieldCls} value={a.retirementAge} onChange={onNum((n) => s.setAssumption('retirementAge', n))} />
+            <NumField className={fieldCls} value={a.retirementAge} onCommit={(n) => s.setAssumption('retirementAge', n)} />
           </Field>
           <Field label="Model End Age">
-            <input type="number" className={fieldCls} value={a.modelEndAge} onChange={onNum((n) => s.setAssumption('modelEndAge', n))} />
+            <NumField className={fieldCls} value={a.modelEndAge} onCommit={(n) => s.setAssumption('modelEndAge', n)} />
           </Field>
           <Field label="Starting Balance">
             {/* Read-only: total of your accounts. Edit balances in Settings -> Accounts & Assets. */}
@@ -133,10 +134,10 @@ export default function PlannerPage() {
             </div>
           </Field>
           <Field label="Annual Return %">
-            <input type="number" step={0.1} className={fieldCls} value={+(a.annualReturn * 100).toFixed(2)} onChange={onNum((n) => s.setAssumption('annualReturn', n), 100)} />
+            <NumField step={0.1} className={fieldCls} value={+(a.annualReturn * 100).toFixed(2)} onCommit={(n) => s.setAssumption('annualReturn', n / 100)} />
           </Field>
           <Field label="Inflation %">
-            <input type="number" step={0.1} className={fieldCls} value={+(a.inflation * 100).toFixed(2)} onChange={onNum((n) => s.setAssumption('inflation', n), 100)} />
+            <NumField step={0.1} className={fieldCls} value={+(a.inflation * 100).toFixed(2)} onCommit={(n) => s.setAssumption('inflation', n / 100)} />
           </Field>
         </div>
       </Section>
@@ -300,7 +301,7 @@ export default function PlannerPage() {
           </Field>
           {scn.withdrawal.type === 'percent-of-balance' ? (
             <Field label="Rate % / yr">
-              <input type="number" step={0.25} className={fieldCls} value={+(((scn.withdrawal.rate ?? 0.04) * 100).toFixed(2))} onChange={onNum((n) => s.setWithdrawal({ rate: n }), 100)} />
+              <NumField step={0.25} className={fieldCls} value={+(((scn.withdrawal.rate ?? 0.04) * 100).toFixed(2))} onCommit={(n) => s.setWithdrawal({ rate: n / 100 })} />
             </Field>
           ) : scn.withdrawal.type === 'fixed-amount' ? (
             <Field label="Amount / yr (today's $)">

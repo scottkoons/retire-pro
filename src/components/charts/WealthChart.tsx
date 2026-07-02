@@ -164,7 +164,7 @@ export function WealthChart({ rows, markers, retireAge, displayMode, band, range
           stroke={chart.axis}
           tickLine={false}
           axisLine={{ stroke: chart.grid }}
-          tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+          tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
           tickFormatter={(a) => `Age ${a}`}
         />
         <YAxis
@@ -172,7 +172,7 @@ export function WealthChart({ rows, markers, retireAge, displayMode, band, range
           tickLine={false}
           axisLine={false}
           width={56}
-          tick={{ fontFamily: 'JetBrains Mono', fontSize: 11, fill: chart.axis }}
+          tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
           tickFormatter={(n) => fmtUSDAbbrev(n)}
         />
         <Tooltip content={<WealthTooltip />} />
@@ -202,7 +202,7 @@ export function WealthChart({ rows, markers, retireAge, displayMode, band, range
           x={retireAge}
           stroke={chart.primary}
           strokeDasharray="4 4"
-          label={{ value: 'Retirement', fill: chart.primary, fontFamily: 'JetBrains Mono', fontSize: 11, position: 'top' }}
+          label={{ value: 'Retirement', fill: chart.primary, fontFamily: 'Inter Variable', fontSize: 11, position: 'top' }}
         />
         {markerData.map((m, i) => (
           <ReferenceDot

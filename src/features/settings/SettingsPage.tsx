@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
-import { Section, Button, Segmented } from '@/components/ui/primitives';
+import { Section, Button, Segmented, NumField } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
-import { onNum } from '@/lib/inputs';
+import { birthDateISO } from '@/lib/dates';
+import { fmtAgeYM } from '@/lib/format';
 import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
 import type { PersistedDocument } from '@/domain/types';
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   const createFromPreset = useStore((s) => s.createFromPreset);
   const createBlank = useStore((s) => s.createBlank);
   const setAssumption = useStore((s) => s.setAssumption);
+  const setBirthDate = useStore((s) => s.setBirthDate);
   const docFor = useStore;
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -134,14 +136,15 @@ export default function SettingsPage() {
 
       <Section title="Active Scenario" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="Current Age">
-            <input type="number" className={fieldCls} value={scn.assumptions.currentAge} onChange={onNum((n) => setAssumption('currentAge', n))} />
+          <Field label="Birth Date">
+            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setBirthDate(e.target.value)} />
+            <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(scn.assumptions.currentAge)} old today</span>
           </Field>
           <Field label="Model End Age">
-            <input type="number" className={fieldCls} value={scn.assumptions.modelEndAge} onChange={onNum((n) => setAssumption('modelEndAge', n))} />
+            <NumField className={fieldCls} value={scn.assumptions.modelEndAge} onCommit={(n) => setAssumption('modelEndAge', n)} />
           </Field>
           <Field label="Inflation %">
-            <input type="number" step={0.1} className={fieldCls} value={+(scn.assumptions.inflation * 100).toFixed(2)} onChange={onNum((n) => setAssumption('inflation', n), 100)} />
+            <NumField step={0.1} className={fieldCls} value={+(scn.assumptions.inflation * 100).toFixed(2)} onCommit={(n) => setAssumption('inflation', n / 100)} />
           </Field>
         </div>
       </Section>
@@ -149,23 +152,21 @@ export default function SettingsPage() {
       <Section title="Monte Carlo">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Simulation Count">
-            <input
-              type="number"
+            <NumField
               step={100}
               min={200}
               max={10000}
               className={fieldCls}
               value={settings.monteCarlo.simulations}
-              onChange={onNum((n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, simulations: n } }))}
+              onCommit={(n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, simulations: n } })}
             />
           </Field>
           <Field label="Return Volatility %">
-            <input
-              type="number"
+            <NumField
               step={0.5}
               className={fieldCls}
               value={+(settings.monteCarlo.returnVolatility * 100).toFixed(1)}
-              onChange={onNum((n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, returnVolatility: n } }), 100)}
+              onCommit={(n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, returnVolatility: n / 100 } })}
             />
           </Field>
         </div>
@@ -174,7 +175,7 @@ export default function SettingsPage() {
       <Section title="Defaults & Appearance">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Default Model End Age">
-            <input type="number" className={fieldCls} value={settings.defaultModelEndAge} onChange={onNum((n) => updateSettings({ defaultModelEndAge: n }))} />
+            <NumField className={fieldCls} value={settings.defaultModelEndAge} onCommit={(n) => updateSettings({ defaultModelEndAge: n })} />
           </Field>
           <Field label="Household Label">
             <input type="text" className={fieldCls} value={settings.household} onChange={(e) => updateSettings({ household: e.target.value })} />

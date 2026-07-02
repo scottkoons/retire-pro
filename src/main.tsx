@@ -4,9 +4,6 @@ import { RouterProvider } from 'react-router-dom';
 
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/jetbrains-mono/600.css';
 import './styles/theme.css';
 
 import { router } from './app/routes';

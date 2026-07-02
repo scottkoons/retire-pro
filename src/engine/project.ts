@@ -9,6 +9,7 @@ import type {
 } from '@/domain/types';
 import type { Account, AccountKind, ExpenseCategory, Owner, Settings } from '@/domain/types';
 import { ageToMonthIndex, dateToMonthIndex, monthIndexToAge, monthlyRate } from './timeline';
+import { fmtAgeYM } from '@/lib/format';
 import {
   resolveTaxConfig,
   estimateAnnualTaxes,
@@ -305,6 +306,20 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
       monthlyNominal: v,
       taxStatus: s.taxStatus,
       cat: catForStream(s),
+    });
+  }
+
+  // Streams that have not started yet: dimmed rows with a "from ..." note so the
+  // panel explains upcoming income (e.g. Social Security before the claim age).
+  for (const s of scn.incomeStreams) {
+    if (!s.enabled || s.startAge <= age || s.endAge <= s.startAge) continue;
+    components.push({
+      label: s.name,
+      monthlyNominal: 0,
+      taxStatus: s.taxStatus,
+      cat: catForStream(s),
+      fromAgeNote: `from ${fmtAgeYM(s.startAge)}`,
+      upcoming: true,
     });
   }
 

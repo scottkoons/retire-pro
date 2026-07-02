@@ -19,23 +19,23 @@ const C = {
 
 const s = StyleSheet.create({
   page: { backgroundColor: '#ffffff', color: C.text, fontFamily: 'Helvetica', fontSize: 9, paddingTop: 32, paddingBottom: 34, paddingHorizontal: 40 },
-  eyebrow: { fontFamily: 'Courier', fontSize: 7, letterSpacing: 1, color: C.muted, textTransform: 'uppercase' },
+  eyebrow: { fontFamily: 'Helvetica', fontSize: 7, letterSpacing: 1, color: C.muted, textTransform: 'uppercase' },
   h1: { fontFamily: 'Helvetica-Bold', fontSize: 20, color: C.text },
   sub: { fontSize: 9, color: C.muted, marginTop: 2 },
   rule: { height: 2, width: 60, backgroundColor: C.orange, marginVertical: 6 },
   sectionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 12, marginTop: 10, marginBottom: 4 },
   tileRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: { width: '31.5%', border: `1pt solid ${C.rule}`, borderRadius: 4, padding: 8 },
-  tileLabel: { fontFamily: 'Courier', fontSize: 6.5, letterSpacing: 0.6, color: C.muted, textTransform: 'uppercase', marginBottom: 3 },
+  tileLabel: { fontFamily: 'Helvetica', fontSize: 6.5, letterSpacing: 0.6, color: C.muted, textTransform: 'uppercase', marginBottom: 3 },
   tileVal: { fontFamily: 'Helvetica-Bold', fontSize: 13 },
   table: { borderTop: `1pt solid ${C.rule}`, marginTop: 4 },
   tr: { flexDirection: 'row', borderBottom: `1pt solid ${C.rule}`, paddingVertical: 3 },
   thead: { backgroundColor: C.theadBg },
-  th: { fontFamily: 'Courier', fontSize: 7, color: C.muted, textTransform: 'uppercase', paddingHorizontal: 4 },
+  th: { fontFamily: 'Helvetica', fontSize: 7, color: C.muted, textTransform: 'uppercase', paddingHorizontal: 4 },
   td: { fontSize: 9, paddingHorizontal: 4 },
-  tdNum: { fontFamily: 'Courier', fontSize: 8.5, paddingHorizontal: 4, textAlign: 'right' },
+  tdNum: { fontFamily: 'Helvetica', fontSize: 8.5, paddingHorizontal: 4, textAlign: 'right' },
   footer: { position: 'absolute', bottom: 24, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between' },
-  footText: { fontFamily: 'Courier', fontSize: 7, color: C.muted },
+  footText: { fontFamily: 'Helvetica', fontSize: 7, color: C.muted },
 });
 
 function statusColor(st: ProjectionResult['status']): string {
@@ -132,7 +132,7 @@ function WealthSvg({
       {yticks.map((v, idx) => (
         <G key={idx}>
           <Line x1={padL} y1={y(v)} x2={padL + plotW} y2={y(v)} strokeWidth={0.5} stroke={C.rule} />
-          <Text x={padL - 4} y={y(v) + 2} fill={C.muted} textAnchor="end" style={{ fontFamily: 'Courier', fontSize: 6 }}>
+          <Text x={padL - 4} y={y(v) + 2} fill={C.muted} textAnchor="end" style={{ fontFamily: 'Helvetica', fontSize: 6 }}>
             {fmtUSDAbbrev(v)}
           </Text>
         </G>
@@ -164,7 +164,7 @@ function WealthSvg({
 
       {/* age labels */}
       {xticks.map((t, idx) => (
-        <Text key={idx} x={x(t.i)} y={H - 4} fill={C.muted} textAnchor={t.anchor} style={{ fontFamily: 'Courier', fontSize: 6 }}>
+        <Text key={idx} x={x(t.i)} y={H - 4} fill={C.muted} textAnchor={t.anchor} style={{ fontFamily: 'Helvetica', fontSize: 6 }}>
           {t.t}
         </Text>
       ))}

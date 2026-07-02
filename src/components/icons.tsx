@@ -158,3 +158,9 @@ export const IconFilePlus = (p: P) => (
     <path d="M14 3v5h5M12 12v6M9 15h6" />
   </svg>
 );
+export const IconCompare = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 17l5-6 4 3 6-8" />
+    <path d="M3 21l5-4 4 2 6-6" opacity="0.45" />
+  </svg>
+);

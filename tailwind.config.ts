@@ -48,7 +48,9 @@ export default {
       fontFamily: {
         head: ['"Hanken Grotesk Variable"', 'system-ui', 'sans-serif'],
         body: ['"Inter Variable"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        // Intentionally NOT monospace: Scott dislikes the typewriter look, so every
+        // `font-mono` site renders Inter; numeric columns stay aligned via `tabnum`.
+        mono: ['"Inter Variable"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'head-xl': ['48px', { lineHeight: '56px', letterSpacing: '-0.02em', fontWeight: '700' }],

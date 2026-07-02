@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import clsx from 'clsx';
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'danger';
@@ -151,6 +151,64 @@ export function GroupedNumberField({
       onChange={handleChange}
       onFocus={(e) => e.target.select()}
       className={className}
+    />
+  );
+}
+
+/**
+ * Numeric config field that commits on blur or Enter (Escape reverts).
+ * The projection recalculates once when you finish typing instead of on every
+ * keystroke, and a cleared field never commits 0. `value` is the display value
+ * (already scaled, e.g. percent); `onCommit` receives the typed number.
+ */
+export function NumField({
+  value,
+  onCommit,
+  step,
+  className,
+  ariaLabel,
+  min,
+  max,
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  step?: number;
+  className?: string;
+  ariaLabel?: string;
+  min?: number;
+  max?: number;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelled = useRef(false); // Escape: blur must revert, not commit the stale draft
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(null);
+      return;
+    }
+    if (draft === null) return;
+    const n = Number(draft);
+    if (draft.trim() !== '' && Number.isFinite(n)) onCommit(n);
+    setDraft(null);
+  };
+  return (
+    <input
+      type="number"
+      step={step}
+      min={min}
+      max={max}
+      aria-label={ariaLabel}
+      className={className}
+      value={draft ?? (Number.isFinite(value) ? value : 0)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') {
+          cancelled.current = true;
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
     />
   );
 }
