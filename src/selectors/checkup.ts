@@ -7,6 +7,7 @@
 
 import type { YearRow, ProjectionResult, Scenario, Settings } from '@/domain/types';
 import { resolveTaxConfig } from '@/engine/tax';
+import { fmtAgeYM } from '@/lib/format';
 
 export interface Insight {
   id: string;
@@ -37,9 +38,9 @@ function ruleDepletion(result: ProjectionResult): Insight | null {
   return {
     id: 'depletion',
     severity: 'warning',
-    title: `Portfolio depletes at age ${age}`,
+    title: `Portfolio depletes at ${fmtAgeYM(age)}`,
     detail:
-      `Invested assets run dry at age ${age}. After that point the plan can no longer ` +
+      `Invested assets run dry at ${fmtAgeYM(age)}. After that point the plan can no longer ` +
       `fully fund the requested spending from the portfolio, leaving a gap covered only ` +
       `by guaranteed income.`,
   };
@@ -166,8 +167,8 @@ function ruleLtcExposure(scn: Scenario): Insight | null {
     title: 'Long-term care is unmodeled',
     detail:
       `The plan does not currently fund long-term care. A potential ${money(exposure)} in today's ` +
-      `dollars (${money(ltc.monthly ?? 0)}/mo for ${ltc.years ?? 0} years, beginning at age ` +
-      `${ltc.startAge ?? 0}) sits outside the projection as an unaddressed stress. Enabling the LTC ` +
+      `dollars (${money(ltc.monthly ?? 0)}/mo for ${ltc.years ?? 0} years, beginning at ` +
+      `${fmtAgeYM(ltc.startAge ?? 0)}) sits outside the projection as an unaddressed stress. Enabling the LTC ` +
       `stress test will show how this cost affects portfolio longevity.`,
   };
 }

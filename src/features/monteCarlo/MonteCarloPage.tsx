@@ -7,7 +7,7 @@ import { Section, Button, StatusPill } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
 import { IconDice } from '@/components/icons';
 import { chart } from '@/theme/tokens';
-import { fmtUSD, fmtUSDAbbrev, fmtPct } from '@/lib/format';
+import { fmtUSD, fmtUSDAbbrev, fmtPct, fmtAgeYM } from '@/lib/format';
 
 export default function MonteCarloPage() {
   const scn = useActiveScenario();
@@ -60,8 +60,8 @@ export default function MonteCarloPage() {
               accent={statusFromSuccess(r.successProbability) === 'onTrack' ? 'success' : statusFromSuccess(r.successProbability) === 'caution' ? 'caution' : 'error'}
             />
             <StatTile label="Median Ending (P50)" value={fmtUSD(r.endingPercentiles.p50)} sub="today's $" />
-            <StatTile label="Failures" value={`${r.failureCount} / ${r.paths}`} sub={r.medianFailureAge ? `median age ${r.medianFailureAge}` : 'none'} />
-            <StatTile label="Earliest Failure" value={r.earliestFailureAge ? `Age ${r.earliestFailureAge}` : '—'} />
+            <StatTile label="Failures" value={`${r.failureCount} / ${r.paths}`} sub={r.medianFailureAge ? `median at ${fmtAgeYM(r.medianFailureAge)}` : 'none'} />
+            <StatTile label="Earliest Failure" value={r.earliestFailureAge ? fmtAgeYM(r.earliestFailureAge) : '—'} />
           </div>
 
           <Section title="Ending Balance Percentiles" subtitle="Portfolio value at end of plan, today's dollars">

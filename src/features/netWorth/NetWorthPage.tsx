@@ -5,7 +5,8 @@ import { Section, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
 import { Grid, THead, TR, TD, useSort } from '@/components/grid/Grid';
 import { NetWorthChart } from '@/components/charts/NetWorthChart';
-import { fmtUSD } from '@/lib/format';
+import { fmtUSD, fmtAgeYM } from '@/lib/format';
+import { onNum } from '@/lib/inputs';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -125,13 +126,13 @@ export default function NetWorthPage() {
               step={0.5}
               className={fieldCls}
               value={+(home.growthRate * 100).toFixed(2)}
-              onChange={(e) => updateHome({ growthRate: Number(e.target.value) / 100 })}
+              onChange={onNum((n) => updateHome({ growthRate: n }), 100)}
             />
           </Field>
         </div>
         {home.enabled && home.plannedPurchase && (
           <p className="mt-3 text-[12px] text-faint">
-            Note: this scenario also has a planned home purchase at age {Math.round(home.purchaseAge)} (set on the Planner), so the value below changes at that age.
+            Note: this scenario also has a planned home purchase at {fmtAgeYM(home.purchaseAge)} (set on the Planner), so the value below changes at that age.
           </p>
         )}
       </Section>

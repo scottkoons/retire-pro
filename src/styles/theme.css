@@ -38,6 +38,28 @@
   --cat-4: #fbbf24;
   --cat-5: #60a5fa;
   --cat-6: #f97316;
+
+  /* Stat-tile tints: bar / value text / fill / border per hue (light theme overrides below). */
+  --tint-blue-bar: #60a5fa;
+  --tint-blue-text: #bfdbfe;
+  --tint-blue-bg: rgba(96, 165, 250, 0.1);
+  --tint-blue-border: rgba(96, 165, 250, 0.32);
+  --tint-green-bar: #34d399;
+  --tint-green-text: #a7f3d0;
+  --tint-green-bg: rgba(52, 211, 153, 0.1);
+  --tint-green-border: rgba(52, 211, 153, 0.32);
+  --tint-violet-bar: #a78bfa;
+  --tint-violet-text: #ddd6fe;
+  --tint-violet-bg: rgba(167, 139, 250, 0.1);
+  --tint-violet-border: rgba(167, 139, 250, 0.32);
+  --tint-teal-bar: #2dd4bf;
+  --tint-teal-text: #99f6e4;
+  --tint-teal-bg: rgba(45, 212, 191, 0.1);
+  --tint-teal-border: rgba(45, 212, 191, 0.32);
+  --tint-amber-bar: #fbbf24;
+  --tint-amber-text: #fde68a;
+  --tint-amber-bg: rgba(251, 191, 36, 0.1);
+  --tint-amber-border: rgba(251, 191, 36, 0.32);
   color-scheme: dark;
 }
 
@@ -57,6 +79,28 @@
   --primary-press: #c2570b;
   --primary-tint: rgba(249, 115, 22, 0.1);
   --on-primary: #ffffff;
+
+  /* Darker tile-tint text so values stay readable on white. */
+  --tint-blue-bar: #3b82f6;
+  --tint-blue-text: #1d4ed8;
+  --tint-blue-bg: rgba(59, 130, 246, 0.08);
+  --tint-blue-border: rgba(59, 130, 246, 0.35);
+  --tint-green-bar: #10b981;
+  --tint-green-text: #047857;
+  --tint-green-bg: rgba(16, 185, 129, 0.08);
+  --tint-green-border: rgba(16, 185, 129, 0.35);
+  --tint-violet-bar: #8b5cf6;
+  --tint-violet-text: #6d28d9;
+  --tint-violet-bg: rgba(139, 92, 246, 0.08);
+  --tint-violet-border: rgba(139, 92, 246, 0.35);
+  --tint-teal-bar: #14b8a6;
+  --tint-teal-text: #0f766e;
+  --tint-teal-bg: rgba(20, 184, 166, 0.08);
+  --tint-teal-border: rgba(20, 184, 166, 0.35);
+  --tint-amber-bar: #f59e0b;
+  --tint-amber-text: #b45309;
+  --tint-amber-bg: rgba(245, 158, 11, 0.08);
+  --tint-amber-border: rgba(245, 158, 11, 0.35);
   color-scheme: light;
 }
 
@@ -73,7 +117,7 @@
     margin: 0;
     background: var(--bg-base);
     color: var(--text-on-surface);
-    font-family: '"Inter Variable"', system-ui, sans-serif;
+    font-family: 'Inter Variable', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }

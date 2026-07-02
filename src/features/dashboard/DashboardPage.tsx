@@ -13,7 +13,7 @@ import { ScenarioRail } from './ScenarioRail';
 import { ReturnPhasesPanel } from './ReturnPhasesPanel';
 import { IconCalendar, IconBank, IconDice, IconDiamond, IconChevronLeft } from '@/components/icons';
 import { chart } from '@/theme/tokens';
-import { fmtUSD, fmtUSDAbbrev, pctValue } from '@/lib/format';
+import { fmtUSD, fmtUSDAbbrev, fmtAgeYM, pctValue } from '@/lib/format';
 
 // Enable the Monte Carlo overlay once per session on the first dashboard view.
 let bandAutoEnabled = false;
@@ -120,9 +120,9 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="amber" />
-            <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at age ${Math.round(a.retirementAge)}`} tint="green" />
+            <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at ${fmtAgeYM(a.retirementAge)}`} tint="green" />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
-            <StatTile label={`End of Horizon (${Math.round(a.modelEndAge)})`} value={fmtUSD(endHorizon)} sub="Remaining principal" tint="blue" />
+            <StatTile label="End of Horizon" value={fmtUSD(endHorizon)} sub={`remaining principal at ${fmtAgeYM(a.modelEndAge)}`} tint="blue" />
           </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <ControlTile label="Target Retirement Age" icon={<IconCalendar className="h-5 w-5" />} value={Math.round(a.retirementAge)} unit="years">
@@ -153,7 +153,6 @@ export default function DashboardPage() {
 
         {/* Wealth chart */}
         <Section
-          eyebrow={<><IconDiamond className="h-3 w-3 text-primary" /> Projected Wealth Growth</>}
           title="Projected Wealth Growth"
           subtitle="Long-term portfolio estimation based on current parameters"
           actions={
@@ -187,9 +186,9 @@ export default function DashboardPage() {
             height={420}
           />
           <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-faint">
-            <span>Current Age ({Math.round(a.currentAge)})</span>
-            <span>Retirement ({Math.round(a.retirementAge)})</span>
-            <span>End of Plan ({Math.round(a.modelEndAge)})</span>
+            <span>Current Age ({fmtAgeYM(a.currentAge)})</span>
+            <span>Retirement ({fmtAgeYM(a.retirementAge)})</span>
+            <span>End of Plan ({fmtAgeYM(a.modelEndAge)})</span>
           </div>
           {bandActive && mc.result && (
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border-subtle pt-3 font-mono text-[11px] text-muted">
@@ -212,8 +211,7 @@ export default function DashboardPage() {
 
         {/* Income breakdown — moved below the wealth graph */}
         <Section
-          eyebrow={<><IconDiamond className="h-3 w-3 text-primary" /> Income Breakdown</>}
-          title={<span className="text-[20px]">Income Breakdown</span>}
+          title="Income Breakdown"
           subtitle={`at age ${breakdownAge} · ${scn.name}`}
           actions={
             <div className="flex w-56 items-center gap-2">
@@ -245,7 +243,7 @@ export default function DashboardPage() {
         </Section>
 
         {/* Income over time */}
-        <Section title={<span className="text-[20px]">Income Sources Over Time</span>} subtitle="Projected annual income sources through retirement">
+        <Section title="Income Sources Over Time" subtitle="Projected annual income sources through retirement">
           <IncomeChart data={incomeSeries} height={300} />
         </Section>
 

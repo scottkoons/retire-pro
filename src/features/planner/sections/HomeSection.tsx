@@ -1,5 +1,6 @@
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Segmented, GroupedNumberField } from '@/components/ui/primitives';
+import { onNum } from '@/lib/inputs';
 
 // Local label+input layout helper (matches the planner config-form convention).
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -69,7 +70,7 @@ export function HomeSection() {
             step={0.1}
             className={fieldCls}
             value={+(home.growthRate * 100).toFixed(2)}
-            onChange={(e) => s.updateHome({ growthRate: Number(e.target.value) / 100 })}
+            onChange={onNum((n) => s.updateHome({ growthRate: n }), 100)}
           />
         </Field>
 
@@ -87,7 +88,7 @@ export function HomeSection() {
             step={0.1}
             className={fieldCls}
             value={+(home.sellingCostPct * 100).toFixed(2)}
-            onChange={(e) => s.updateHome({ sellingCostPct: Number(e.target.value) / 100 })}
+            onChange={onNum((n) => s.updateHome({ sellingCostPct: n }), 100)}
           />
         </Field>
 
@@ -105,7 +106,7 @@ export function HomeSection() {
             type="number"
             className={fieldCls}
             value={home.purchaseAge}
-            onChange={(e) => s.updateHome({ purchaseAge: Number(e.target.value) })}
+            onChange={onNum((n) => s.updateHome({ purchaseAge: n }))}
           />
         </Field>
 
@@ -139,7 +140,7 @@ export function HomeSection() {
             step={0.1}
             className={fieldCls}
             value={+(home.loanRate * 100).toFixed(2)}
-            onChange={(e) => s.updateHome({ loanRate: Number(e.target.value) / 100 })}
+            onChange={onNum((n) => s.updateHome({ loanRate: n }), 100)}
           />
         </Field>
 
@@ -148,7 +149,7 @@ export function HomeSection() {
             type="number"
             className={fieldCls}
             value={home.termYears}
-            onChange={(e) => s.updateHome({ termYears: Number(e.target.value) })}
+            onChange={onNum((n) => s.updateHome({ termYears: n }))}
           />
         </Field>
 
@@ -166,7 +167,7 @@ export function HomeSection() {
             step={0.01}
             className={fieldCls}
             value={+(home.propertyTaxRate * 100).toFixed(2)}
-            onChange={(e) => s.updateHome({ propertyTaxRate: Number(e.target.value) / 100 })}
+            onChange={onNum((n) => s.updateHome({ propertyTaxRate: n }), 100)}
           />
         </Field>
 

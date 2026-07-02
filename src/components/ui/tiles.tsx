@@ -64,15 +64,20 @@ export function ControlTile({
 
 export type TileTint = 'blue' | 'green' | 'violet' | 'teal' | 'amber';
 
-// Subtle tints that lift a tile off the dark background: faint fill, soft border,
-// a solid left bar, and a light value colour that stays readable on navy.
-const TINTS: Record<TileTint, { bar: string; text: string; bg: string; border: string }> = {
-  blue: { bar: '#60a5fa', text: '#bfdbfe', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.32)' },
-  green: { bar: '#34d399', text: '#a7f3d0', bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.32)' },
-  violet: { bar: '#a78bfa', text: '#ddd6fe', bg: 'rgba(167,139,250,0.10)', border: 'rgba(167,139,250,0.32)' },
-  teal: { bar: '#2dd4bf', text: '#99f6e4', bg: 'rgba(45,212,191,0.10)', border: 'rgba(45,212,191,0.32)' },
-  amber: { bar: '#fbbf24', text: '#fde68a', bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.32)' },
-};
+// Subtle tints that lift a tile off the background: faint fill, soft border,
+// a solid left bar, and a value colour that stays readable in either theme.
+// Values live in theme.css as --tint-* variables so light mode can darken them.
+const TINTS: Record<TileTint, { bar: string; text: string; bg: string; border: string }> = Object.fromEntries(
+  (['blue', 'green', 'violet', 'teal', 'amber'] as TileTint[]).map((hue) => [
+    hue,
+    {
+      bar: `var(--tint-${hue}-bar)`,
+      text: `var(--tint-${hue}-text)`,
+      bg: `var(--tint-${hue}-bg)`,
+      border: `var(--tint-${hue}-border)`,
+    },
+  ]),
+) as Record<TileTint, { bar: string; text: string; bg: string; border: string }>;
 
 export function StatTile({
   label,

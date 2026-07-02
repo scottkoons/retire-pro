@@ -4,7 +4,8 @@ import { Section, MoneyInput, GroupedNumberField, Segmented, Button } from '@/co
 import { StatTile } from '@/components/ui/tiles';
 import { Grid, THead, TR, TD, NumberInput, DeleteCell, AddRow, useSort } from '@/components/grid/Grid';
 import { amortize, byYear } from '@/engine/mortgage';
-import { fmtUSD, fmtPct } from '@/lib/format';
+import { fmtUSD, fmtPct, fmtAgeYM, fmtMonthsYM } from '@/lib/format';
+import { onNum } from '@/lib/inputs';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -61,8 +62,6 @@ export default function HomeMortgagePage() {
   const interestSaved = baseline.totalInterest - withExtra.totalInterest;
   const monthsSaved = baseline.payoffMonths - withExtra.payoffMonths;
   const payoffMonths = withExtra.payoffMonths;
-  const payoffYears = Math.floor(payoffMonths / 12);
-  const payoffRemMonths = payoffMonths % 12;
   const ageAtPayoff = currentAge + payoffMonths / 12;
   const currentEquity = Math.max(0, home.currentValue - balance);
 
@@ -128,7 +127,7 @@ export default function HomeMortgagePage() {
             <MoneyInput value={home.currentValue} onChange={(n) => s.updateHome({ currentValue: n })} ariaLabel="Current home value" />
           </Field>
           <Field label="Appreciation % / yr">
-            <input type="number" step={0.5} className={fieldCls} value={+(home.growthRate * 100).toFixed(2)} onChange={(e) => s.updateHome({ growthRate: Number(e.target.value) / 100 })} />
+            <input type="number" step={0.5} className={fieldCls} value={+(home.growthRate * 100).toFixed(2)} onChange={onNum((n) => s.updateHome({ growthRate: n }), 100)} />
           </Field>
         </div>
       </Section>
@@ -140,10 +139,10 @@ export default function HomeMortgagePage() {
             <MoneyInput value={home.mortgageBalance} onChange={(n) => s.updateHome({ mortgageBalance: n })} ariaLabel="Mortgage balance" />
           </Field>
           <Field label="Interest rate %">
-            <input type="number" step={0.125} className={fieldCls} value={+(rate * 100).toFixed(3)} onChange={(e) => s.updateHome({ mortgageRate: Number(e.target.value) / 100 })} />
+            <input type="number" step={0.125} className={fieldCls} value={+(rate * 100).toFixed(3)} onChange={onNum((n) => s.updateHome({ mortgageRate: n }), 100)} />
           </Field>
           <Field label="Remaining term (years)">
-            <input type="number" step={1} className={fieldCls} value={term} onChange={(e) => s.updateHome({ mortgageTermYears: Math.max(1, Math.round(Number(e.target.value))) })} />
+            <input type="number" step={1} className={fieldCls} value={term} onChange={onNum((n) => s.updateHome({ mortgageTermYears: Math.max(1, Math.round(n)) }))} />
           </Field>
         </div>
 
@@ -151,8 +150,8 @@ export default function HomeMortgagePage() {
           <StatTile label="Monthly Payment" value={fmtUSD(withExtra.monthlyPayment)} sub="principal & interest" tint="blue" />
           <StatTile
             label="Payoff"
-            value={balance > 0 ? `${payoffYears}y ${payoffRemMonths}m` : '—'}
-            sub={balance > 0 ? `at age ${ageAtPayoff.toFixed(1)}` : 'no balance'}
+            value={balance > 0 ? fmtMonthsYM(payoffMonths) : '—'}
+            sub={balance > 0 ? `at ${fmtAgeYM(ageAtPayoff)}` : 'no balance'}
             tint="green"
           />
           <StatTile label="Total Interest" value={fmtUSD(withExtra.totalInterest)} tint="amber" />
@@ -171,7 +170,7 @@ export default function HomeMortgagePage() {
               <div className="rounded-lg bg-success-tint px-4 py-2.5">
                 <span className="font-mono text-[12px] uppercase tracking-wide text-success">You save</span>
                 <span className="ml-2 font-head text-[18px] font-bold text-ink tabnum">{fmtUSD(Math.max(0, interestSaved))}</span>
-                <span className="ml-2 text-[12px] text-muted">in interest, {Math.max(0, Math.round(monthsSaved / 12 * 10) / 10)} yrs sooner</span>
+                <span className="ml-2 text-[12px] text-muted">in interest, paid off {fmtMonthsYM(Math.max(0, monthsSaved))} sooner</span>
               </div>
             </div>
           )}
@@ -314,7 +313,7 @@ export default function HomeMortgagePage() {
             <GroupedNumberField className={fieldCls} value={home.hoaMonthly} onChange={(n) => s.updateHome({ hoaMonthly: n })} />
           </Field>
           <Field label="Property tax rate %">
-            <input type="number" step={0.01} className={fieldCls} value={+(home.propertyTaxRate * 100).toFixed(3)} onChange={(e) => s.updateHome({ propertyTaxRate: Number(e.target.value) / 100 })} />
+            <input type="number" step={0.01} className={fieldCls} value={+(home.propertyTaxRate * 100).toFixed(3)} onChange={onNum((n) => s.updateHome({ propertyTaxRate: n }), 100)} />
           </Field>
           <Field label="Disabled-vet exemption">
             <YesNo value={home.disabledVetExemption} onChange={(v) => s.updateHome({ disabledVetExemption: v })} />

@@ -172,7 +172,7 @@ export function Section({ eyebrow, title, subtitle, actions, children, className
         <div className="flex items-start justify-between gap-4 px-6 pt-5">
           <div>
             {eyebrow && <div className="label-mono mb-1 flex items-center gap-2">{eyebrow}</div>}
-            {title && <h2 className="font-head text-head-md text-ink">{title}</h2>}
+            {title && <h2 className="font-head text-[20px] font-semibold leading-7 tracking-[-0.01em] text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

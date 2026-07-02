@@ -3,6 +3,7 @@ import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button, Segmented } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
+import { onNum } from '@/lib/inputs';
 import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
 import type { PersistedDocument } from '@/domain/types';
@@ -134,13 +135,13 @@ export default function SettingsPage() {
       <Section title="Active Scenario" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Current Age">
-            <input type="number" className={fieldCls} value={scn.assumptions.currentAge} onChange={(e) => setAssumption('currentAge', Number(e.target.value))} />
+            <input type="number" className={fieldCls} value={scn.assumptions.currentAge} onChange={onNum((n) => setAssumption('currentAge', n))} />
           </Field>
           <Field label="Model End Age">
-            <input type="number" className={fieldCls} value={scn.assumptions.modelEndAge} onChange={(e) => setAssumption('modelEndAge', Number(e.target.value))} />
+            <input type="number" className={fieldCls} value={scn.assumptions.modelEndAge} onChange={onNum((n) => setAssumption('modelEndAge', n))} />
           </Field>
           <Field label="Inflation %">
-            <input type="number" step={0.1} className={fieldCls} value={+(scn.assumptions.inflation * 100).toFixed(2)} onChange={(e) => setAssumption('inflation', Number(e.target.value) / 100)} />
+            <input type="number" step={0.1} className={fieldCls} value={+(scn.assumptions.inflation * 100).toFixed(2)} onChange={onNum((n) => setAssumption('inflation', n), 100)} />
           </Field>
         </div>
       </Section>
@@ -155,7 +156,7 @@ export default function SettingsPage() {
               max={10000}
               className={fieldCls}
               value={settings.monteCarlo.simulations}
-              onChange={(e) => updateSettings({ monteCarlo: { ...settings.monteCarlo, simulations: Number(e.target.value) } })}
+              onChange={onNum((n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, simulations: n } }))}
             />
           </Field>
           <Field label="Return Volatility %">
@@ -164,7 +165,7 @@ export default function SettingsPage() {
               step={0.5}
               className={fieldCls}
               value={+(settings.monteCarlo.returnVolatility * 100).toFixed(1)}
-              onChange={(e) => updateSettings({ monteCarlo: { ...settings.monteCarlo, returnVolatility: Number(e.target.value) / 100 } })}
+              onChange={onNum((n) => updateSettings({ monteCarlo: { ...settings.monteCarlo, returnVolatility: n } }), 100)}
             />
           </Field>
         </div>
@@ -173,7 +174,7 @@ export default function SettingsPage() {
       <Section title="Defaults & Appearance">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Default Model End Age">
-            <input type="number" className={fieldCls} value={settings.defaultModelEndAge} onChange={(e) => updateSettings({ defaultModelEndAge: Number(e.target.value) })} />
+            <input type="number" className={fieldCls} value={settings.defaultModelEndAge} onChange={onNum((n) => updateSettings({ defaultModelEndAge: n }))} />
           </Field>
           <Field label="Household Label">
             <input type="text" className={fieldCls} value={settings.household} onChange={(e) => updateSettings({ household: e.target.value })} />

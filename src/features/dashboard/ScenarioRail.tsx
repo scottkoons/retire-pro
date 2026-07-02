@@ -4,7 +4,7 @@ import { useActiveScenario, useStore } from '@/state/store';
 import { Card, Button, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown, IconChevronLeft } from '@/components/icons';
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
-import { fmtUSD } from '@/lib/format';
+import { fmtUSD, fmtAgeYM, fmtMonthsYM } from '@/lib/format';
 import type { DollarBasis, TaxStatus } from '@/domain/types';
 
 // Shared control chrome. Inputs are sized for comfortable reading (13px), not the
@@ -154,7 +154,9 @@ export function ScenarioRail() {
     { value: 'tax-free', label: 'Tax-free' },
   ];
 
-  const totalMonthly = scn.contributions.reduce((sum, c) => sum + Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount, 0);
+  const totalMonthly = scn.contributions
+    .filter((c) => c.enabled)
+    .reduce((sum, c) => sum + Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount, 0);
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
   return (
@@ -239,7 +241,7 @@ export function ScenarioRail() {
 
                   {/* Footer: duration → total contributed over the window. */}
                   <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-2.5 text-[12px]">
-                    <span className="font-mono text-muted">{months.toLocaleString('en-US')} months</span>
+                    <span className="font-mono text-muted">{fmtMonthsYM(months)}</span>
                     <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(months * c.monthlyAmount)} total</span>
                   </div>
                 </EventCard>
@@ -307,8 +309,8 @@ export function ScenarioRail() {
                   </div>
 
                   <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-2.5 text-[12px]">
-                    <span className="font-mono text-muted">Occurs at age</span>
-                    <span className="font-mono tabnum text-[13px] font-semibold text-ink">{age.toFixed(1)}</span>
+                    <span className="font-mono text-muted">Occurs at</span>
+                    <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtAgeYM(age)}</span>
                   </div>
                 </EventCard>
               );

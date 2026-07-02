@@ -4,7 +4,7 @@ import type { DisplayMode, ProjectionResult, Scenario, Settings } from '@/domain
 import type { MonteCarloResult, PercentilePoint } from '@/engine/montecarlo/types';
 import { buildPlanSummaryModel, type PlanSummaryModel } from '@/selectors/planSummary';
 import { planCheckup } from '@/selectors/checkup';
-import { fmtUSD, fmtUSDAbbrev, fmtPct } from '@/lib/format';
+import { fmtUSD, fmtUSDAbbrev, fmtPct, fmtAgeYM } from '@/lib/format';
 
 const C = {
   text: '#0f172a',
@@ -148,7 +148,8 @@ function WealthSvg({
       {/* retirement marker + value callout */}
       {retIdx > 0 && (
         <G>
-          <Line x1={x(retIdx)} y1={padT} x2={x(retIdx)} y2={padT + plotH} stroke={C.orange} strokeWidth={0.6} strokeDasharray="2 2" />
+          {/* react-pdf parses dash arrays comma-separated; "2 2" becomes NaN and throws. */}
+          <Line x1={x(retIdx)} y1={padT} x2={x(retIdx)} y2={padT + plotH} stroke={C.orange} strokeWidth={0.6} strokeDasharray="2,2" />
           <Circle cx={x(retIdx)} cy={y(vals[retIdx])} r={2.4} fill={C.orange} />
           <Text x={x(retIdx)} y={y(vals[retIdx]) - 4} fill={C.text} textAnchor="middle" style={{ fontFamily: 'Helvetica-Bold', fontSize: 6.5 }}>
             {fmtUSDAbbrev(vals[retIdx])}
@@ -304,9 +305,9 @@ function PlanSummaryPdf({
 
         <Text style={s.sectionTitle}>Assumptions</Text>
         <View style={s.tileRow}>
-          <Tile label="Current Age" value={String(a.currentAge)} />
-          <Tile label="Retirement Age" value={String(a.retireAge)} />
-          <Tile label="Model End Age" value={String(a.modelEndAge)} />
+          <Tile label="Current Age" value={fmtAgeYM(a.currentAge)} />
+          <Tile label="Retirement Age" value={fmtAgeYM(a.retireAge)} />
+          <Tile label="Model End Age" value={fmtAgeYM(a.modelEndAge)} />
           <Tile label="Annual Return" value={fmtPct(a.annualReturn)} />
           <Tile label="Inflation" value={fmtPct(a.inflation)} />
           <Tile label="Starting Balance" value={fmtUSD(a.startingBalance)} />
@@ -320,7 +321,7 @@ function PlanSummaryPdf({
         <View style={s.table}>
           <Row header widths={[34, 18, 12, 12, 12, 12]} cells={['Source', 'Today $/mo', 'Start', 'End', 'COLA', `@${Math.round(a.retireAge)}`]} />
           {model.incomeStreams.map((st, i) => (
-            <Row key={i} widths={[34, 18, 12, 12, 12, 12]} cells={[st.name, fmtUSD(st.today), String(st.start), String(st.end), fmtPct(st.cola), fmtUSD(st.atRetire)]} />
+            <Row key={i} widths={[34, 18, 12, 12, 12, 12]} cells={[st.name, fmtUSD(st.today), fmtAgeYM(st.start), fmtAgeYM(st.end), fmtPct(st.cola), fmtUSD(st.atRetire)]} />
           ))}
         </View>
 
@@ -328,7 +329,7 @@ function PlanSummaryPdf({
         <View style={s.table}>
           <Row header widths={[60, 20, 20]} cells={['Event', 'Age', 'Amount']} />
           {model.lumpSums.map((l, i) => (
-            <Row key={i} widths={[60, 20, 20]} cells={[l.name, String(l.age), fmtUSD(l.amount)]} />
+            <Row key={i} widths={[60, 20, 20]} cells={[l.name, fmtAgeYM(l.age), fmtUSD(l.amount)]} />
           ))}
         </View>
 
@@ -336,7 +337,7 @@ function PlanSummaryPdf({
         <View style={s.table}>
           <Row header widths={[34, 16, 16, 16, 18]} cells={['Name', 'Monthly', 'Months', 'Start', 'Total']} />
           {model.contributions.map((c, i) => (
-            <Row key={i} widths={[34, 16, 16, 16, 18]} cells={[c.name, fmtUSD(c.monthly), String(c.months), String(c.start), fmtUSD(c.total)]} />
+            <Row key={i} widths={[34, 16, 16, 16, 18]} cells={[c.name, fmtUSD(c.monthly), String(c.months), fmtAgeYM(c.start), fmtUSD(c.total)]} />
           ))}
         </View>
 
@@ -345,7 +346,7 @@ function PlanSummaryPdf({
           <View style={s.table}>
             <Row header widths={[40, 20, 20, 20]} cells={['Phase', 'Start', 'End', 'Target $/mo']} />
             {model.spendingPhases.map((p, i) => (
-              <Row key={i} widths={[40, 20, 20, 20]} cells={[p.name, String(p.start), String(p.end), fmtUSD(p.target)]} />
+              <Row key={i} widths={[40, 20, 20, 20]} cells={[p.name, fmtAgeYM(p.start), fmtAgeYM(p.end), fmtUSD(p.target)]} />
             ))}
           </View>
 
@@ -359,7 +360,7 @@ function PlanSummaryPdf({
                 <Row widths={[60, 40]} cells={['Ending P10 (today $)', fmtUSD(model.monteCarlo.p10)]} />
                 <Row widths={[60, 40]} cells={['Ending P50 (today $)', fmtUSD(model.monteCarlo.p50)]} />
                 <Row widths={[60, 40]} cells={['Ending P90 (today $)', fmtUSD(model.monteCarlo.p90)]} />
-                <Row widths={[60, 40]} cells={['Median failure age', String(model.monteCarlo.medianFailureAge ?? 'none')]} />
+                <Row widths={[60, 40]} cells={['Median failure age', model.monteCarlo.medianFailureAge != null ? fmtAgeYM(model.monteCarlo.medianFailureAge) : 'none']} />
               </View>
             </View>
           )}

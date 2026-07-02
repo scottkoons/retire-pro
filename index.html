@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Defense-in-depth: no third-party origins. style 'unsafe-inline' is required by
+         Recharts/react-pdf; 'wasm-unsafe-eval' + connect-src data: let react-pdf load its
+         bundled WebAssembly; blob: covers the PDF/backup downloads and the MC worker. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#0d1420" />
     <title>RetirePro</title>

@@ -14,7 +14,8 @@ import {
   MonthYearInput,
   useSort,
 } from '@/components/grid/Grid';
-import { fmtUSD, fmtUSDAbbrev } from '@/lib/format';
+import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
+import { onNum } from '@/lib/inputs';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
@@ -113,13 +114,13 @@ export default function PlannerPage() {
       <Section title="Basics">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <Field label="Current Age">
-            <input type="number" className={fieldCls} value={a.currentAge} onChange={(e) => s.setAssumption('currentAge', Number(e.target.value))} />
+            <input type="number" className={fieldCls} value={a.currentAge} onChange={onNum((n) => s.setAssumption('currentAge', n))} />
           </Field>
           <Field label="Retirement Age">
-            <input type="number" className={fieldCls} value={a.retirementAge} onChange={(e) => s.setAssumption('retirementAge', Number(e.target.value))} />
+            <input type="number" className={fieldCls} value={a.retirementAge} onChange={onNum((n) => s.setAssumption('retirementAge', n))} />
           </Field>
           <Field label="Model End Age">
-            <input type="number" className={fieldCls} value={a.modelEndAge} onChange={(e) => s.setAssumption('modelEndAge', Number(e.target.value))} />
+            <input type="number" className={fieldCls} value={a.modelEndAge} onChange={onNum((n) => s.setAssumption('modelEndAge', n))} />
           </Field>
           <Field label="Starting Balance">
             {/* Read-only: total of your accounts. Edit balances in Settings -> Accounts & Assets. */}
@@ -132,10 +133,10 @@ export default function PlannerPage() {
             </div>
           </Field>
           <Field label="Annual Return %">
-            <input type="number" step={0.1} className={fieldCls} value={+(a.annualReturn * 100).toFixed(2)} onChange={(e) => s.setAssumption('annualReturn', Number(e.target.value) / 100)} />
+            <input type="number" step={0.1} className={fieldCls} value={+(a.annualReturn * 100).toFixed(2)} onChange={onNum((n) => s.setAssumption('annualReturn', n), 100)} />
           </Field>
           <Field label="Inflation %">
-            <input type="number" step={0.1} className={fieldCls} value={+(a.inflation * 100).toFixed(2)} onChange={(e) => s.setAssumption('inflation', Number(e.target.value) / 100)} />
+            <input type="number" step={0.1} className={fieldCls} value={+(a.inflation * 100).toFixed(2)} onChange={onNum((n) => s.setAssumption('inflation', n), 100)} />
           </Field>
         </div>
       </Section>
@@ -221,7 +222,7 @@ export default function PlannerPage() {
                     }}
                   />
                 </TD>
-                <TD align="right"><span className="font-mono text-muted tabnum">{(l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age).toFixed(1)}</span></TD>
+                <TD align="right"><span className="whitespace-nowrap font-mono text-muted tabnum">{fmtAgeYM(l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age)}</span></TD>
                 <TD align="right"><NumberInput value={l.amount} prefix="$" onChange={(v) => s.updateLumpSum(l.id, { amount: v })} /></TD>
                 <TD><SelectInput value={l.dollarBasis} options={basisOpts} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} /></TD>
                 <TD><SelectInput value={l.taxStatus ?? 'taxable'} options={taxOpts} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} /></TD>
@@ -299,7 +300,7 @@ export default function PlannerPage() {
           </Field>
           {scn.withdrawal.type === 'percent-of-balance' ? (
             <Field label="Rate % / yr">
-              <input type="number" step={0.25} className={fieldCls} value={+(((scn.withdrawal.rate ?? 0.04) * 100).toFixed(2))} onChange={(e) => s.setWithdrawal({ rate: Number(e.target.value) / 100 })} />
+              <input type="number" step={0.25} className={fieldCls} value={+(((scn.withdrawal.rate ?? 0.04) * 100).toFixed(2))} onChange={onNum((n) => s.setWithdrawal({ rate: n }), 100)} />
             </Field>
           ) : scn.withdrawal.type === 'fixed-amount' ? (
             <Field label="Amount / yr (today's $)">

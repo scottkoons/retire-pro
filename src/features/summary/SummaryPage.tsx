@@ -8,7 +8,7 @@ import { StatTile } from '@/components/ui/tiles';
 import { WealthChart } from '@/components/charts/WealthChart';
 import { ExportPdfButton } from '@/components/ExportPdfButton';
 import { useSort, type SortState } from '@/components/grid/Grid';
-import { fmtUSD, fmtPct } from '@/lib/format';
+import { fmtUSD, fmtPct, fmtAgeYM } from '@/lib/format';
 
 function MiniTable({
   head,
@@ -134,7 +134,7 @@ export default function SummaryPage() {
       <Section title="Key Projected Results">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <StatTile label="Balance at Retirement" value={fmtUSD(k.balanceAtRetirement)} />
-          <StatTile label="Monthly Income" value={fmtUSD(k.monthlyIncome)} sub={`at age ${Math.round(model.assumptions.retireAge)}`} />
+          <StatTile label="Monthly Income" value={fmtUSD(k.monthlyIncome)} sub={`at ${fmtAgeYM(model.assumptions.retireAge)}`} />
           <StatTile label="Annual Income" value={fmtUSD(k.annualIncome)} />
           <StatTile label="Guaranteed / mo" value={fmtUSD(k.guaranteedMonthly)} />
           <StatTile label="Portfolio Draw / mo" value={fmtUSD(k.requiredWithdrawal)} />
@@ -146,9 +146,9 @@ export default function SummaryPage() {
         <MiniTable
           head={['Parameter', 'Value']}
           rows={[
-            ['Current age', model.assumptions.currentAge],
-            ['Retirement age', model.assumptions.retireAge],
-            ['Model end age', model.assumptions.modelEndAge],
+            ['Current age', fmtAgeYM(model.assumptions.currentAge)],
+            ['Retirement age', fmtAgeYM(model.assumptions.retireAge)],
+            ['Model end age', fmtAgeYM(model.assumptions.modelEndAge)],
             ['Annual return', fmtPct(model.assumptions.annualReturn)],
             ['Inflation', fmtPct(model.assumptions.inflation)],
             ['Starting balance', fmtUSD(model.assumptions.startingBalance)],
@@ -167,7 +167,7 @@ export default function SummaryPage() {
           sortKeys={['name', 'today', 'start', 'end', 'cola', 'atRetire']}
           sort={incomeSort.sort}
           onSort={incomeSort.onSort}
-          rows={incomeSort.sorted.map((s) => [s.name, fmtUSD(s.today), s.start, s.end, fmtPct(s.cola), fmtUSD(s.atRetire)])}
+          rows={incomeSort.sorted.map((s) => [s.name, fmtUSD(s.today), fmtAgeYM(s.start), fmtAgeYM(s.end), fmtPct(s.cola), fmtUSD(s.atRetire)])}
         />
       </Section>
 
@@ -177,7 +177,7 @@ export default function SummaryPage() {
           sortKeys={['name', 'age', 'amount']}
           sort={lumpSort.sort}
           onSort={lumpSort.onSort}
-          rows={lumpSort.sorted.map((l) => [l.name, l.age, fmtUSD(l.amount)])}
+          rows={lumpSort.sorted.map((l) => [l.name, fmtAgeYM(l.age), fmtUSD(l.amount)])}
         />
       </Section>
 
@@ -187,7 +187,7 @@ export default function SummaryPage() {
           sortKeys={['name', 'start', 'end', 'target']}
           sort={phaseSort.sort}
           onSort={phaseSort.onSort}
-          rows={phaseSort.sorted.map((p) => [p.name, p.start, p.end, fmtUSD(p.target)])}
+          rows={phaseSort.sorted.map((p) => [p.name, fmtAgeYM(p.start), fmtAgeYM(p.end), fmtUSD(p.target)])}
         />
       </Section>
 
@@ -201,7 +201,7 @@ export default function SummaryPage() {
               ['Ending P10 (today $)', fmtUSD(model.monteCarlo.p10)],
               ['Ending P50 (today $)', fmtUSD(model.monteCarlo.p50)],
               ['Ending P90 (today $)', fmtUSD(model.monteCarlo.p90)],
-              ['Median failure age', model.monteCarlo.medianFailureAge ?? 'none'],
+              ['Median failure age', model.monteCarlo.medianFailureAge != null ? fmtAgeYM(model.monteCarlo.medianFailureAge) : 'none'],
             ]}
           />
         ) : (

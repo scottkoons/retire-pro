@@ -18,7 +18,7 @@ interface McState {
 let worker: Worker | null = null;
 
 // Bump when the projection/withdrawal math changes so cached MC results invalidate.
-const ENGINE_VERSION = 5;
+const ENGINE_VERSION = 6;
 
 function mcConfigHash(scn: Scenario, settings: Settings, criterion: SuccessCriterion): string {
   return String(

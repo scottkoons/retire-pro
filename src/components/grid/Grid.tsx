@@ -35,9 +35,10 @@ export function useSort<T>(
   return { sorted, sort, onSort };
 }
 
-export function Grid({ children, minWidth }: { children: ReactNode; minWidth?: number }) {
+export function Grid({ children, minWidth, maxHeight }: { children: ReactNode; minWidth?: number; maxHeight?: string }) {
+  // With maxHeight the wrapper also scrolls vertically and the header row sticks.
   return (
-    <div className="overflow-x-auto rounded-xl border border-border-subtle">
+    <div className={clsx('overflow-x-auto rounded-xl border border-border-subtle', maxHeight && 'overflow-y-auto')} style={{ maxHeight }}>
       <table className="w-full border-collapse text-[13px]" style={{ minWidth }}>
         {children}
       </table>
@@ -65,7 +66,7 @@ export function THead({
             <th
               key={i}
               style={{ width: c.w }}
-              className={clsx('border-b border-border-strong px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em]', active ? 'text-ink' : 'text-muted', alignCls)}
+              className={clsx('sticky top-0 z-10 border-b border-border-strong bg-card-high px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em]', active ? 'text-ink' : 'text-muted', alignCls)}
             >
               {sortable ? (
                 <button
@@ -85,7 +86,7 @@ export function THead({
             </th>
           );
         })}
-        <th className="w-10 border-b border-border-strong" />
+        <th className="sticky top-0 z-10 w-10 border-b border-border-strong bg-card-high" />
       </tr>
     </thead>
   );
@@ -199,7 +200,13 @@ export function NumberInput({
         type="number"
         step={step}
         value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => onChange(Number(e.target.value))}
+        // Ignore empty/invalid edits so clearing the field never commits 0 (Number('') === 0).
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          if (v === '') return;
+          const n = Number(v);
+          if (Number.isFinite(n)) onChange(n);
+        }}
         className={clsx(inputCls, align === 'right' ? 'text-right' : 'text-left', 'tabnum')}
       />
       {suffix && <span className="text-faint">{suffix}</span>}
@@ -286,7 +293,7 @@ export function MonthYearInput({ value, onChange }: { value: string; onChange: (
 
 export function SelectInput<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={clsx(inputCls, 'cursor-pointer [color-scheme:dark]')}>
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={clsx(inputCls, 'cursor-pointer pr-5 [color-scheme:dark]')}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

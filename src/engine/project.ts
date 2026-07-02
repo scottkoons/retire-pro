@@ -161,7 +161,13 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
       } else {
         W = Math.max(0, S - G);
       }
+      const desiredW = W;
       W = Math.min(W, Math.max(0, balEff));
+      // Depletion = the portfolio can no longer fund the requested draw. The clamp
+      // above keeps the balance from going negative, so without this check the
+      // depletion age (and every Monte Carlo failure) would never trigger.
+      // Percent-of-balance draws scale with the balance and correctly never trip it.
+      if (depletionAge === null && desiredW > balEff + 1) depletionAge = age;
     }
 
     const growth = (balance + C + L - W) * rM;
@@ -293,14 +299,12 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
 
   for (const s of scn.incomeStreams) {
     const v = streamNominalAt(scn, s, t, age);
-    if (v <= 0) continue;
-    const startsLater = s.startAge > a.currentAge && Math.abs(s.startAge - age) < 0.001;
+    if (v <= 0) continue; // only streams active at this age appear in the breakdown
     components.push({
       label: s.name,
       monthlyNominal: v,
       taxStatus: s.taxStatus,
       cat: catForStream(s),
-      fromAgeNote: s.startAge > age + 0.001 ? `FROM AGE ${Math.round(s.startAge)}` : startsLater ? undefined : undefined,
     });
   }
 

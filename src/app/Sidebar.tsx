@@ -1,3 +1,5 @@
+import { useState, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import {
@@ -37,6 +39,16 @@ export function Sidebar() {
   const toggle = useStore((s) => s.toggleSidebar);
   const saveStatus = useStore((s) => s.saveStatus);
 
+  // Floating label shown beside an icon while collapsed. Portal-rendered with
+  // fixed positioning so it escapes the sidebar's overflow clipping.
+  const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  const showTip = (label: string) => (e: MouseEvent<HTMLElement>) => {
+    if (!collapsed) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ label, top: r.top + r.height / 2, left: r.right + 10 });
+  };
+  const hideTip = () => setTip(null);
+
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden border-r border-border-subtle bg-card">
       {/* Brand */}
@@ -56,7 +68,8 @@ export function Sidebar() {
         <button
           onClick={() => toggle()}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={collapsed ? 'Expand' : 'Collapse'}
+          onMouseEnter={showTip('Expand')}
+          onMouseLeave={hideTip}
           className={clsx(
             'flex w-full items-center rounded-md py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:bg-hover hover:text-ink',
             collapsed ? 'justify-center px-0' : 'gap-2 px-3',
@@ -76,7 +89,9 @@ export function Sidebar() {
                 key={to}
                 to={to}
                 end={end}
-                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
+                onMouseEnter={showTip(label)}
+                onMouseLeave={hideTip}
                 className={({ isActive }) =>
                   clsx(
                     'relative mb-1 flex items-center rounded-md py-2 text-[14px] transition-colors',
@@ -109,6 +124,18 @@ export function Sidebar() {
           {!collapsed && (saveStatus === 'error' ? 'Save failed' : saveStatus === 'saving' ? 'Saving…' : 'Auto-saved')}
         </div>
       </div>
+
+      {collapsed && tip &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ position: 'fixed', top: tip.top, left: tip.left, transform: 'translateY(-50%)' }}
+            className="pointer-events-none z-[100] whitespace-nowrap rounded-md border border-border-strong bg-card-high px-2.5 py-1 text-[12px] font-medium text-ink shadow-lg"
+          >
+            {tip.label}
+          </div>,
+          document.body,
+        )}
     </aside>
   );
 }

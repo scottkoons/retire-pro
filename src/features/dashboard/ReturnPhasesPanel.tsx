@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Slider } from '@/components/ui/tiles';
 import { IconPlus, IconTrash, IconTrendingUp } from '@/components/icons';
+import { onNum } from '@/lib/inputs';
 
 const ageInputCls =
   'w-10 rounded-sm border border-border-strong bg-input px-1 py-0.5 text-center font-mono text-[12px] text-ink tabnum transition-colors hover:border-primary/60 focus:border-primary focus:outline-none';
@@ -81,9 +82,9 @@ export function ReturnPhasesPanel() {
               </div>
               <div className="mt-4 flex items-center gap-1.5 text-[11px]">
                 <span className="font-mono uppercase tracking-[0.06em] text-faint">Ages</span>
-                <input type="number" value={Math.round(p.startAge)} onChange={(e) => updateReturnPhase(p.id, { startAge: Number(e.target.value) })} className={ageInputCls} aria-label="Start age" />
+                <input type="number" value={Math.round(p.startAge)} onChange={onNum((n) => updateReturnPhase(p.id, { startAge: n }))} className={ageInputCls} aria-label="Start age" />
                 <span className="text-faint">–</span>
-                <input type="number" value={Math.round(p.endAge)} onChange={(e) => updateReturnPhase(p.id, { endAge: Number(e.target.value) })} className={ageInputCls} aria-label="End age" />
+                <input type="number" value={Math.round(p.endAge)} onChange={onNum((n) => updateReturnPhase(p.id, { endAge: n }))} className={ageInputCls} aria-label="End age" />
               </div>
             </div>
           ))
