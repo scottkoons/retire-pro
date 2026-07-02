@@ -164,3 +164,12 @@ export const IconCompare = (p: P) => (
     <path d="M3 21l5-4 4 2 6-6" opacity="0.45" />
   </svg>
 );
+export const IconCoins = (p: P) => (
+  <svg {...base(p)}>
+    <ellipse cx="9" cy="7" rx="6" ry="3" />
+    <path d="M3 7v5c0 1.66 2.69 3 6 3s6-1.34 6-3V7" />
+    <path d="M3 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />
+    <path d="M17 9.5c2.33.35 4 1.3 4 2.5 0 .88-.9 1.65-2.3 2.1" />
+    <path d="M21 12v5c0 .88-.9 1.65-2.3 2.1" />
+  </svg>
+);

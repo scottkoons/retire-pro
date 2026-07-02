@@ -51,6 +51,7 @@ export default function SettingsPage() {
       scenarios: st.scenarios,
       activeScenarioId: st.activeScenarioId,
       settings: st.settings,
+      netWorth: st.netWorth,
     };
     exportBackup(doc);
   };

@@ -273,6 +273,29 @@ export const SettingsSchema = z.object({
   rmdStartAge: Age,
 });
 
+// Household net worth statement (balance sheet; not part of any scenario).
+export const NetWorthItemSchema = z.object({
+  id: Id,
+  name: z.string(),
+  category: z.enum(['realEstate', 'vehicles', 'cash', 'education', 'business', 'other']),
+  value: Dollars,
+  liability: z.boolean().optional(),
+  lastUpdated: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const NetWorthSnapshotSchema = z.object({
+  date: z.string(),
+  assets: Dollars,
+  liabilities: Dollars,
+  netWorth: z.number(), // can be negative
+});
+
+export const NetWorthStatementSchema = z.object({
+  items: z.array(NetWorthItemSchema),
+  snapshots: z.array(NetWorthSnapshotSchema),
+});
+
 export const PersistedDocumentSchema = z
   .object({
     schemaVersion: z.number().int(),
@@ -281,6 +304,7 @@ export const PersistedDocumentSchema = z
     scenarios: z.array(ScenarioSchema).min(1),
     activeScenarioId: Id,
     settings: SettingsSchema,
+    netWorth: NetWorthStatementSchema.optional(), // absent in older documents
   })
   .refine((d) => d.scenarios.some((s) => s.id === d.activeScenarioId), {
     message: 'activeScenarioId must reference an existing scenario',

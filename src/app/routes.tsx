@@ -8,6 +8,7 @@ const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const PlannerPage = lazy(() => import('@/features/planner/PlannerPage'));
 const PhasesPage = lazy(() => import('@/features/phases/PhasesPage'));
 const YearByYearPage = lazy(() => import('@/features/yearByYear/YearByYearPage'));
+const NetWorthStatementPage = lazy(() => import('@/features/netWorth/NetWorthStatementPage'));
 const MonteCarloPage = lazy(() => import('@/features/monteCarlo/MonteCarloPage'));
 const ComparePage = lazy(() => import('@/features/compare/ComparePage'));
 const SummaryPage = lazy(() => import('@/features/summary/SummaryPage'));
@@ -32,6 +33,7 @@ export const router = createHashRouter([
       { path: 'planner', element: page(<PlannerPage />) },
       { path: 'phases', element: page(<PhasesPage />) },
       { path: 'year-by-year', element: page(<YearByYearPage />) },
+      { path: 'net-worth', element: page(<NetWorthStatementPage />) },
       { path: 'monte-carlo', element: page(<MonteCarloPage />) },
       { path: 'compare', element: page(<ComparePage />) },
       { path: 'summary', element: page(<SummaryPage />) },

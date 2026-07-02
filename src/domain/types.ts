@@ -314,6 +314,35 @@ export interface Settings {
   rmdStartAge: Age;
 }
 
+// ----------------------- household net worth statement ---------------------
+// A pure balance sheet (today's values), deliberately OUTSIDE the scenario
+// system: the house and cars do not change between retirement scenarios, and
+// none of this feeds the projection engine.
+
+export type NetWorthCategory = 'realEstate' | 'vehicles' | 'cash' | 'education' | 'business' | 'other';
+
+export interface NetWorthItem {
+  id: string;
+  name: string;
+  category: NetWorthCategory;
+  value: Dollars;
+  liability?: boolean; // owed instead of owned (mortgage, car loan, ...)
+  lastUpdated?: string; // ISO date the value was last edited
+  notes?: string;
+}
+
+export interface NetWorthSnapshot {
+  date: string; // ISO yyyy-mm-dd
+  assets: Dollars; // includes the auto Investments line
+  liabilities: Dollars;
+  netWorth: Dollars;
+}
+
+export interface NetWorthStatement {
+  items: NetWorthItem[];
+  snapshots: NetWorthSnapshot[];
+}
+
 export interface PersistedDocument {
   schemaVersion: number;
   appVersion: string;
@@ -321,6 +350,7 @@ export interface PersistedDocument {
   scenarios: Scenario[];
   activeScenarioId: string;
   settings: Settings;
+  netWorth?: NetWorthStatement; // optional: absent in older documents
 }
 
 export interface UiState {

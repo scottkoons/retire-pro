@@ -18,6 +18,9 @@ import type {
   LongTermCareConfig,
   LumpSumEvent,
   MonthlyContribution,
+  NetWorthCategory,
+  NetWorthItem,
+  NetWorthSnapshot,
   Owner,
   PersistedDocument,
   PresetKey,
@@ -115,6 +118,12 @@ interface StoreState extends PersistedDocument {
   updateBusinessVenture: (patch: Partial<BusinessVentureConfig>) => void;
   setSpendingMode: (mode: SpendingMode) => void;
 
+  // household net worth statement (document-level, not per-scenario)
+  addNetWorthItem: (category: NetWorthCategory, liability?: boolean) => void;
+  updateNetWorthItem: (id: string, patch: Partial<NetWorthItem>) => void;
+  removeNetWorthItem: (id: string) => void;
+  saveNetWorthSnapshot: (snap: NetWorthSnapshot) => void;
+
   // settings / ui
   updateSettings: (patch: Partial<Settings>) => void;
   setTheme: (theme: 'dark' | 'light') => void;
@@ -184,6 +193,7 @@ export const useStore = create<StoreState>()(
           scenarios: st.scenarios,
           activeScenarioId: st.activeScenarioId,
           settings: st.settings,
+          netWorth: st.netWorth,
         };
         const res = saveDocument(doc, st.ui);
         set((s) => {
@@ -195,6 +205,7 @@ export const useStore = create<StoreState>()(
 
     return {
       ...init.doc,
+      netWorth: init.doc.netWorth ?? { items: [], snapshots: [] },
       ui: init.ui,
       saveStatus: 'idle',
       recovered: init.recovered,
@@ -555,6 +566,47 @@ export const useStore = create<StoreState>()(
         scn.spendingMode = mode;
       }),
 
+      // ---- household net worth statement ----
+      addNetWorthItem: (category, liability) => {
+        set((s) => {
+          if (!s.netWorth) s.netWorth = { items: [], snapshots: [] };
+          s.netWorth.items.push({
+            id: newId(),
+            name: liability ? 'New debt' : 'New asset',
+            category,
+            value: 0,
+            liability: liability || undefined,
+            lastUpdated: new Date().toISOString().slice(0, 10),
+          });
+        });
+        schedulePersist();
+      },
+      updateNetWorthItem: (id, patch) => {
+        set((s) => {
+          const it = s.netWorth?.items.find((x) => x.id === id);
+          if (!it) return;
+          Object.assign(it, patch);
+          if ('value' in patch) it.lastUpdated = new Date().toISOString().slice(0, 10);
+        });
+        schedulePersist();
+      },
+      removeNetWorthItem: (id) => {
+        set((s) => {
+          if (s.netWorth) s.netWorth.items = s.netWorth.items.filter((x) => x.id !== id);
+        });
+        schedulePersist();
+      },
+      saveNetWorthSnapshot: (snap) => {
+        set((s) => {
+          if (!s.netWorth) s.netWorth = { items: [], snapshots: [] };
+          // One snapshot per day: re-saving today replaces today's entry.
+          s.netWorth.snapshots = [...s.netWorth.snapshots.filter((x) => x.date !== snap.date), snap].sort((x, y) =>
+            x.date.localeCompare(y.date),
+          );
+        });
+        schedulePersist();
+      },
+
       updateSettings: (patch) => {
         set((s) => {
           s.settings = { ...s.settings, ...patch };
@@ -608,6 +660,7 @@ export const useStore = create<StoreState>()(
           s.scenarios = doc.scenarios;
           s.activeScenarioId = doc.activeScenarioId;
           s.settings = doc.settings;
+          s.netWorth = doc.netWorth ?? { items: [], snapshots: [] };
           s.recovered = undefined;
         });
         document.documentElement.dataset.theme = doc.settings.theme;

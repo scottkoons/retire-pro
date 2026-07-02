@@ -9,6 +9,7 @@ import {
   IconTable,
   IconDice,
   IconCompare,
+  IconCoins,
   IconDoc,
   IconSettings,
   IconChevronLeft,
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
       { to: '/planner', label: 'Planner Sheet', Icon: IconSheet },
       { to: '/phases', label: 'Retirement Phases', Icon: IconPhases },
       { to: '/year-by-year', label: 'Year-by-Year', Icon: IconTable },
+      { to: '/net-worth', label: 'Net Worth', Icon: IconCoins },
     ],
   },
   {
