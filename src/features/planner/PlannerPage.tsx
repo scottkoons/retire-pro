@@ -55,6 +55,11 @@ export default function PlannerPage() {
   // Overlapping contribution periods double-count those months — warn loudly.
   const overlaps = contributionOverlaps(scn.contributions, a);
 
+  // Totals row (enabled rows): months of contributing and actual cash put in.
+  const contribMonths = (c: (typeof scn.contributions)[number]) => Math.max(0, Math.round((c.endAge - c.startAge) * 12));
+  const totalContribMonths = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contribMonths(c), 0);
+  const totalContributed = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contribMonths(c) * c.monthlyAmount, 0);
+
   // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
   const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
 
@@ -207,6 +212,15 @@ export default function PlannerPage() {
             })}
           </tbody>
           <AddRow colSpan={7} onClick={s.addContribution} />
+          <tbody>
+            <TotalRow>
+              <TD>Total contributed</TD>
+              <TD /><TD /><TD /><TD />
+              <TD align="right"><span className="font-mono text-ink tabnum">{totalContribMonths.toLocaleString('en-US')}</span></TD>
+              <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(totalContributed)}</span></TD>
+              <td />
+            </TotalRow>
+          </tbody>
         </Grid>
       </Section>
 
