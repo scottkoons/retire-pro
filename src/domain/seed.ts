@@ -17,8 +17,8 @@ const now = () => new Date().toISOString();
 function commonIncomeStreams(): IncomeStream[] {
   return [
     { id: newId(), name: 'VA Benefits', monthlyAmountToday: 3_500, startAge: 56, endAge: 95, taxStatus: 'tax-free', cola: 0.025, inflationAdjusted: true, owner: 'self', enabled: true },
-    { id: newId(), name: 'Social Security (Scott)', monthlyAmountToday: 2_800, startAge: 67, endAge: 95, taxStatus: 'taxable', cola: 0.025, inflationAdjusted: true, owner: 'self', enabled: true },
-    { id: newId(), name: 'Social Security (Crissy)', monthlyAmountToday: 2_200, startAge: 67, endAge: 95, taxStatus: 'taxable', cola: 0.025, inflationAdjusted: true, owner: 'spouse', enabled: true },
+    { id: newId(), name: 'Social Security (Scott)', monthlyAmountToday: 2_800, startAge: 67, endAge: 95, taxStatus: 'taxable', cola: 0.025, inflationAdjusted: true, owner: 'self', enabled: true, isSocialSecurity: true },
+    { id: newId(), name: 'Social Security (Crissy)', monthlyAmountToday: 2_200, startAge: 67, endAge: 95, taxStatus: 'taxable', cola: 0.025, inflationAdjusted: true, owner: 'spouse', enabled: true, isSocialSecurity: true },
   ];
 }
 

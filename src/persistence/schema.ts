@@ -186,6 +186,7 @@ export const IncomeStreamSchema = z.object({
   owner: Owner,
   enabled: z.boolean(),
   notes: z.string().optional(),
+  isSocialSecurity: z.boolean().optional(),
 });
 
 export const RetirementPhaseSchema = z.object({

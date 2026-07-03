@@ -47,6 +47,7 @@ import {
 import { loadDocument, saveDocument } from '@/persistence/storage';
 import { AUTOSAVE_DEBOUNCE_MS } from '@/persistence/constants';
 import { ageFromBirthDate } from '@/lib/dates';
+import { isLegacySsStream } from '@/engine/project';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -147,6 +148,24 @@ function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
   return doc;
 }
 
+// Self-heal any scenario where the SS claim-age planner is on but its linked
+// legacy income row is still marked enabled (a stale toggle, a hand-edited
+// backup). The engine already refuses to double-count regardless (see
+// streamNominalAt in engine/project.ts) — this just keeps the Planner Sheet's
+// own display in sync with what is actually being projected.
+function reconcileSsPlanner(doc: PersistedDocument): PersistedDocument {
+  for (const scn of doc.scenarios) {
+    if (!scn.socialSecurity?.enabled) continue;
+    for (const st of scn.incomeStreams) {
+      if (isLegacySsStream(st) && st.enabled) {
+        st.enabled = false;
+        st.isSocialSecurity = true;
+      }
+    }
+  }
+  return doc;
+}
+
 // Accounts are HOUSEHOLD facts (current balances), not per-scenario assumptions:
 // the same money exists no matter which future is modeled. The ACTIVE scenario's
 // list is authoritative; mirror it to every scenario and keep each scenario's
@@ -166,6 +185,7 @@ function mirrorAccountsFromActive(doc: PersistedDocument): PersistedDocument {
 const init = loadDocument();
 deriveCurrentAges(init.doc);
 mirrorAccountsFromActive(init.doc);
+reconcileSsPlanner(init.doc);
 const nowISO = () => new Date().toISOString();
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -569,11 +589,17 @@ export const useStore = create<StoreState>()(
         if (c) Object.assign(c, patch);
       }),
       // The SS planner replaces the legacy "Social Security ..." income rows;
-      // toggle them in lockstep (matched by name) so income is never counted twice.
+      // toggle them in lockstep so the Planner Sheet reflects what is active.
+      // The engine itself (streamNominalAt) independently refuses to double-count
+      // a legacy SS row while the planner is on, regardless of this flag's state
+      // — this toggle is UI clarity, not the only safeguard.
       setSsPlannerEnabled: (on) => mutateActive((scn) => {
         scn.socialSecurity.enabled = on;
         for (const st of scn.incomeStreams) {
-          if (/social security/i.test(st.name)) st.enabled = !on;
+          if (isLegacySsStream(st)) {
+            st.enabled = !on;
+            st.isSocialSecurity = true; // tag explicitly so a later rename can't break the link
+          }
         }
       }),
       updateHealthcare: (patch) => mutateActive((scn) => {
@@ -680,6 +706,7 @@ export const useStore = create<StoreState>()(
       replaceDocument: (doc) => {
         deriveCurrentAges(doc);
         mirrorAccountsFromActive(doc);
+        reconcileSsPlanner(doc);
         set((s) => {
           s.schemaVersion = doc.schemaVersion;
           s.appVersion = doc.appVersion;

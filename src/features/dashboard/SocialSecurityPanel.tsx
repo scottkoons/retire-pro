@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useActiveScenario, useStore } from '@/state/store';
-import { ssMonthlyBenefitToday } from '@/engine/project';
+import { ssMonthlyBenefitToday, isLegacySsStream } from '@/engine/project';
 import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
 import { Slider } from '@/components/ui/tiles';
 import { IconBank } from '@/components/icons';
@@ -49,9 +49,10 @@ export function SocialSecurityPanel() {
   const ss = scn.socialSecurity;
   const retirementAge = scn.assumptions.retirementAge;
   const anyEarlyClaim = ss.claims.some((c) => c.enabled && c.claimAge < retirementAge);
-  // Enabling the planner disables SS-named income rows, but a renamed or
-  // re-enabled row would double-count — surface it instead of staying silent.
-  const dupStreams = ss.enabled ? scn.incomeStreams.filter((st) => st.enabled && /social security/i.test(st.name)) : [];
+  // Enabling the planner disables the linked legacy row; the engine itself
+  // refuses to double-count it regardless (see streamNominalAt), but flag a
+  // stray enabled row anyway so the Planner Sheet doesn't look inconsistent.
+  const dupStreams = ss.enabled ? scn.incomeStreams.filter((st) => st.enabled && isLegacySsStream(st)) : [];
 
   // Lifetime benefit collected through the plan end if both claim at 62 / FRA / 70.
   const compare = useMemo(() => {
@@ -98,7 +99,8 @@ export function SocialSecurityPanel() {
         )}
         {dupStreams.length > 0 && (
           <span className="text-[11px] text-error">
-            "{dupStreams[0].name}" income row is still on — Social Security may be counted twice
+            "{dupStreams[0].name}" income row is still on — turn it off on the Planner Sheet to keep things tidy
+            (the projection itself already ignores it while the planner is on)
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">

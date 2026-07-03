@@ -69,6 +69,8 @@ export default function DashboardPage() {
   const endHorizon = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
   const monthlyIncome = deflate(result.monthlyIncomeAtRetirement, a.retirementAge);
+  const guaranteedAtRet = deflate(result.guaranteedMonthlyIncome, a.retirementAge);
+  const portfolioDrawAtRet = deflate(result.requiredPortfolioWithdrawal, a.retirementAge);
   const maxComponent = Math.max(1, ...breakdown.components.map((c) => c.monthlyNominal));
 
   // On first dashboard view this session: make sure Monte Carlo has a fresh result and show the overlay.
@@ -125,7 +127,12 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatTile label="Balance at Retirement" value={fmtUSD(balRetire)} sub={displayMode === 'today' ? "today's $" : 'actual $'} tint="amber" />
-            <StatTile label="Monthly Income" value={fmtUSD(monthlyIncome)} sub={`at ${fmtAgeYM(a.retirementAge)}`} tint="green" />
+            <StatTile
+              label="Monthly Income"
+              value={fmtUSD(monthlyIncome)}
+              sub={`guaranteed ${fmtUSDAbbrev(guaranteedAtRet)} + draw ${fmtUSDAbbrev(portfolioDrawAtRet)}`}
+              tint="green"
+            />
             <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
             <StatTile label="End of Horizon" value={fmtUSD(endHorizon)} sub={`remaining principal at ${fmtAgeYM(a.modelEndAge)}`} tint="blue" />
           </div>

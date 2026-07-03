@@ -1,6 +1,6 @@
 import type { DisplayMode, ProjectionResult, Scenario } from '@/domain/types';
 import type { MonteCarloResult } from '@/engine/montecarlo/types';
-import { ssMonthlyBenefitToday } from '@/engine/project';
+import { ssMonthlyBenefitToday, isLegacySsStream } from '@/engine/project';
 
 export interface PlanSummaryModel {
   scenarioName: string;
@@ -93,7 +93,9 @@ export function buildPlanSummaryModel(
     lumpSums: scn.lumpSums.filter((l) => l.enabled).map((l) => ({ name: l.name, age: l.age, amount: l.amount })),
     incomeStreams: [
       ...scn.incomeStreams
-        .filter((st) => st.enabled)
+        // Same guard as the engine (streamNominalAt): a legacy SS row never
+        // lists here while the planner is on, even if its own flag is stale.
+        .filter((st) => st.enabled && !(scn.socialSecurity?.enabled && isLegacySsStream(st)))
         .map((st) => ({
           name: st.name,
           today: st.monthlyAmountToday,

@@ -74,6 +74,11 @@ export interface IncomeStream {
   owner: Owner;
   enabled: boolean;
   notes?: string;
+  // Durable link to the Social Security claim-age planner (set on the seed's SS
+  // rows, backfilled by name for older documents). The engine uses this — not
+  // just the `enabled` flag — to guarantee SS is never counted twice when the
+  // planner is on, even if this row's `enabled` toggle is ever out of sync.
+  isSocialSecurity?: boolean;
 }
 
 export interface RetirementPhase {

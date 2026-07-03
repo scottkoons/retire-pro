@@ -84,8 +84,23 @@ function colaMonthly(scn: Scenario, s: Scenario['incomeStreams'][number]): numbe
   return monthlyRate(annual);
 }
 
+/**
+ * A legacy fixed-income row that represents Social Security (flagged at seed
+ * time, or matched by name for documents saved before the flag existed).
+ * Exported so the UI can point out a stray row instead of silently
+ * double-counting it alongside the claim-age planner.
+ */
+export function isLegacySsStream(s: { name: string; isSocialSecurity?: boolean }): boolean {
+  return s.isSocialSecurity === true || /social security/i.test(s.name);
+}
+
 function streamNominalAt(scn: Scenario, s: Scenario['incomeStreams'][number], t: number, age: number): number {
   if (!s.enabled || age < s.startAge || age > s.endAge) return 0;
+  // The SS claim-age planner supersedes the legacy row once enabled — checked
+  // here, at the single choke point every caller goes through, so Social
+  // Security can never be counted twice regardless of whether the row's own
+  // `enabled` flag happens to be stale (a renamed row, a hand-edited backup).
+  if (scn.socialSecurity?.enabled && isLegacySsStream(s)) return 0;
   const cm = colaMonthly(scn, s);
   return s.monthlyAmountToday * Math.pow(1 + cm, t); // COLA anchored from today (t=0)
 }
@@ -326,8 +341,10 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
 
   // Streams that have not started yet: dimmed rows with a "from ..." note so the
   // panel explains upcoming income (e.g. Social Security before the claim age).
+  // Superseded legacy SS rows are excluded here too — see streamNominalAt.
   for (const s of scn.incomeStreams) {
     if (!s.enabled || s.startAge <= age || s.endAge <= s.startAge) continue;
+    if (scn.socialSecurity?.enabled && isLegacySsStream(s)) continue;
     components.push({
       label: s.name,
       monthlyNominal: 0,
