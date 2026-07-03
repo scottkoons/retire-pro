@@ -42,9 +42,11 @@ function lifetimeBenefitToday(scn: Scenario, key: '62' | 'FRA' | '70'): number {
 export function SocialSecurityPanel() {
   const navigate = useNavigate();
   const scn = useActiveScenario();
+  const settings = useStore((s) => s.settings);
   const updateSsClaim = useStore((s) => s.updateSsClaim);
   const updateSocialSecurity = useStore((s) => s.updateSocialSecurity);
   const setSsPlannerEnabled = useStore((s) => s.setSsPlannerEnabled);
+  const nameFor = (owner: 'self' | 'spouse') => (owner === 'self' ? settings.selfName ?? 'Self' : settings.spouseName ?? 'Spouse');
 
   const ss = scn.socialSecurity;
   const retirementAge = scn.assumptions.retirementAge;
@@ -117,7 +119,7 @@ export function SocialSecurityPanel() {
         {ss.claims.filter((c) => c.enabled).map((c) => (
           <div key={c.owner} className="rounded-lg border border-border-subtle bg-card-high px-3 pb-3 pt-2">
             <div className="mb-1 flex items-baseline justify-between gap-2">
-              <span className="text-[12px] font-semibold text-ink">{c.owner === 'self' ? 'Scott' : 'Crissy'}</span>
+              <span className="text-[12px] font-semibold text-ink">{nameFor(c.owner)}</span>
               <span className="text-[12px] text-muted">
                 claims at <span className="font-semibold text-ink">{fmtAgeYM(c.claimAge)}</span>
               </span>

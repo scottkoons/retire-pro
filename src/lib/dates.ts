@@ -48,6 +48,17 @@ export function birthDateISO(a: { birthYear: number; birthMonth: number; birthDa
   return `${a.birthYear}-${m}-${d}`;
 }
 
+/** "yyyy-mm-dd" for the spouse's birth date, or "" if not yet entered. */
+export function spouseBirthDateISO(a: { spouseBirthYear?: number; spouseBirthMonth?: number; spouseBirthDay?: number }): string {
+  if (a.spouseBirthYear == null || a.spouseBirthMonth == null || a.spouseBirthDay == null) return '';
+  return birthDateISO({ birthYear: a.spouseBirthYear, birthMonth: a.spouseBirthMonth, birthDay: a.spouseBirthDay });
+}
+
+/** Spouse's current fractional age: her own birth date if entered, else the legacy offset from self's age. */
+export function spouseCurrentAge(a: { currentAge: number; spouseAgeOffset?: number }): number {
+  return a.currentAge + (a.spouseAgeOffset ?? 0);
+}
+
 export function fmtMonthYear(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');

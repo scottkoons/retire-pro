@@ -3,7 +3,7 @@ import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button, Segmented, NumField, MoneyInput } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
 import { exportBackup, parseBackup } from '@/persistence/storage';
-import { birthDateISO } from '@/lib/dates';
+import { birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
 import { fmtAgeYM } from '@/lib/format';
 import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const createBlank = useStore((s) => s.createBlank);
   const setAssumption = useStore((s) => s.setAssumption);
   const setBirthDate = useStore((s) => s.setBirthDate);
+  const setSpouseBirthDate = useStore((s) => s.setSpouseBirthDate);
   const updateSsClaim = useStore((s) => s.updateSsClaim);
   const setSsPlannerEnabled = useStore((s) => s.setSsPlannerEnabled);
   const docFor = useStore;
@@ -140,12 +141,39 @@ export default function SettingsPage() {
 
       <AccountsManager />
 
-      <Section title="Active Scenario" subtitle={scn.name}>
+      <Section title="Household" subtitle="Birth dates are shared by every scenario and drive both of your ages, including when each of you can claim Social Security">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-border-subtle bg-card-high p-4">
+            <Field label="Your Name">
+              <input type="text" className={fieldCls} value={settings.selfName ?? 'Scott'} onChange={(e) => updateSettings({ selfName: e.target.value })} />
+            </Field>
+            <div className="mt-3">
+              <Field label="Your Birth Date">
+                <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setBirthDate(e.target.value)} />
+                <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(scn.assumptions.currentAge)} old today</span>
+              </Field>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-card-high p-4">
+            <Field label="Spouse's Name">
+              <input type="text" className={fieldCls} value={settings.spouseName ?? 'Crissy'} onChange={(e) => updateSettings({ spouseName: e.target.value })} />
+            </Field>
+            <div className="mt-3">
+              <Field label="Spouse's Birth Date">
+                <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={spouseBirthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setSpouseBirthDate(e.target.value)} />
+                {spouseBirthDateISO(scn.assumptions) ? (
+                  <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(spouseCurrentAge(scn.assumptions))} old today</span>
+                ) : (
+                  <span className="mt-0.5 text-[11px] text-caution">Not set yet — her age assumes the same as yours until you enter it</span>
+                )}
+              </Field>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Plan Basics" subtitle={scn.name}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="Birth Date">
-            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setBirthDate(e.target.value)} />
-            <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(scn.assumptions.currentAge)} old today</span>
-          </Field>
           <Field label="Model End Age">
             <NumField className={fieldCls} value={scn.assumptions.modelEndAge} onCommit={(n) => setAssumption('modelEndAge', n)} />
           </Field>
@@ -173,7 +201,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-5">
           {scn.socialSecurity.claims.map((c) => (
             <div key={c.owner}>
-              <div className="mb-2 text-[13px] font-semibold text-ink">{c.owner === 'self' ? 'Self (Scott)' : 'Spouse (Crissy)'}</div>
+              <div className="mb-2 text-[13px] font-semibold text-ink">{c.owner === 'self' ? (settings.selfName ?? 'Self') : (settings.spouseName ?? 'Spouse')}</div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                 <Field label="At 62 $/mo">
                   <MoneyInput value={c.benefitAt62 ?? 0} onChange={(n) => updateSsClaim(c.owner, { benefitAt62: n })} ariaLabel={`${c.owner} benefit at 62`} />

@@ -68,6 +68,7 @@ interface StoreState extends PersistedDocument {
   // active scenario edits
   setAssumption: <K extends keyof ScenarioAssumptions>(key: K, value: ScenarioAssumptions[K]) => void;
   setBirthDate: (isoDate: string) => void;
+  setSpouseBirthDate: (isoDate: string) => void;
   setWithdrawal: (patch: Partial<WithdrawalStrategy>) => void;
 
   addContribution: () => void;
@@ -140,11 +141,26 @@ interface StoreState extends PersistedDocument {
 
 // Current age is DERIVED from each scenario's birth date so the plan's anchor
 // never drifts as months pass (the stored currentAge is refreshed on load).
+// The spouse's age is derived the same way from her OWN birth date when it has
+// been entered — spouseAgeOffset (self age -> spouse age) is recomputed from
+// it every time, so a real birth date is always authoritative over the offset.
 function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
   for (const scn of doc.scenarios) {
     const a = scn.assumptions;
     a.currentAge = ageFromBirthDate(a.birthYear, a.birthMonth, a.birthDay);
+    if (a.spouseBirthYear != null && a.spouseBirthMonth != null && a.spouseBirthDay != null) {
+      const spouseAge = ageFromBirthDate(a.spouseBirthYear, a.spouseBirthMonth, a.spouseBirthDay);
+      a.spouseAgeOffset = spouseAge - a.currentAge;
+    }
   }
+  return doc;
+}
+
+// Names and birth dates are household facts, not per-scenario data — backfill
+// sensible defaults for documents saved before names existed.
+function reconcileHouseholdNames(doc: PersistedDocument): PersistedDocument {
+  doc.settings.selfName ||= 'Scott';
+  doc.settings.spouseName ||= 'Crissy';
   return doc;
 }
 
@@ -166,15 +182,24 @@ function reconcileSsPlanner(doc: PersistedDocument): PersistedDocument {
   return doc;
 }
 
-// Accounts are HOUSEHOLD facts (current balances), not per-scenario assumptions:
-// the same money exists no matter which future is modeled. The ACTIVE scenario's
-// list is authoritative; mirror it to every scenario and keep each scenario's
-// legacy startingBalance in sync so every projection starts from the same total.
+// Accounts and birth dates are HOUSEHOLD facts, not per-scenario assumptions:
+// the same money and the same two birthdays exist no matter which future is
+// modeled. The ACTIVE scenario's values are authoritative; mirror them to
+// every scenario so editing one (e.g. in Settings) can never leave another
+// scenario silently out of sync (exactly the bug Scott hit with accounts).
 function mirrorAccountsFromActive(doc: PersistedDocument): PersistedDocument {
   const active = doc.scenarios.find((x) => x.id === doc.activeScenarioId) ?? doc.scenarios[0];
   if (!active) return doc;
   for (const scn of doc.scenarios) {
-    if (scn !== active) scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+    if (scn !== active) {
+      scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+      scn.assumptions.birthYear = active.assumptions.birthYear;
+      scn.assumptions.birthMonth = active.assumptions.birthMonth;
+      scn.assumptions.birthDay = active.assumptions.birthDay;
+      scn.assumptions.spouseBirthYear = active.assumptions.spouseBirthYear;
+      scn.assumptions.spouseBirthMonth = active.assumptions.spouseBirthMonth;
+      scn.assumptions.spouseBirthDay = active.assumptions.spouseBirthDay;
+    }
     scn.assumptions.startingBalance = scn.accounts
       .filter((a) => a.enabled)
       .reduce((sum, a) => sum + a.balance, 0);
@@ -183,8 +208,12 @@ function mirrorAccountsFromActive(doc: PersistedDocument): PersistedDocument {
 }
 
 const init = loadDocument();
-deriveCurrentAges(init.doc);
+// Mirror household facts (accounts, both birth dates) BEFORE deriving ages,
+// so every scenario computes from the same, current birth dates rather than
+// deriving first and overwriting the source data out from under it.
 mirrorAccountsFromActive(init.doc);
+deriveCurrentAges(init.doc);
+reconcileHouseholdNames(init.doc);
 reconcileSsPlanner(init.doc);
 const nowISO = () => new Date().toISOString();
 
@@ -197,14 +226,32 @@ export const useStore = create<StoreState>()(
     // so the Starting Amount is identical regardless of which scenario is open.
     // Each scenario's legacy startingBalance mirror is kept in lockstep so the
     // summary, PDF export, and projections all agree with the accounts total.
-    const mutateAccounts = (fn: (scn: Scenario) => void) => {
+    // Also covers both birth dates (household facts, same reasoning as
+    // accounts) and recomputes the derived ages right away, so an edit is
+    // reflected everywhere instantly rather than only after a reload.
+    const mutateHousehold = (fn: (scn: Scenario) => void) => {
       set((s) => {
         const active = s.scenarios.find((x) => x.id === s.activeScenarioId);
         if (!active) return;
         fn(active);
         active.updatedAt = nowISO();
+        const aa = active.assumptions;
+        aa.currentAge = ageFromBirthDate(aa.birthYear, aa.birthMonth, aa.birthDay);
+        if (aa.spouseBirthYear != null && aa.spouseBirthMonth != null && aa.spouseBirthDay != null) {
+          aa.spouseAgeOffset = ageFromBirthDate(aa.spouseBirthYear, aa.spouseBirthMonth, aa.spouseBirthDay) - aa.currentAge;
+        }
         for (const scn of s.scenarios) {
-          if (scn !== active) scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+          if (scn !== active) {
+            scn.accounts = JSON.parse(JSON.stringify(active.accounts));
+            scn.assumptions.birthYear = aa.birthYear;
+            scn.assumptions.birthMonth = aa.birthMonth;
+            scn.assumptions.birthDay = aa.birthDay;
+            scn.assumptions.spouseBirthYear = aa.spouseBirthYear;
+            scn.assumptions.spouseBirthMonth = aa.spouseBirthMonth;
+            scn.assumptions.spouseBirthDay = aa.spouseBirthDay;
+            scn.assumptions.currentAge = aa.currentAge;
+            scn.assumptions.spouseAgeOffset = aa.spouseAgeOffset;
+          }
           scn.assumptions.startingBalance = scn.accounts
             .filter((a) => a.enabled)
             .reduce((sum, a) => sum + a.balance, 0);
@@ -358,15 +405,24 @@ export const useStore = create<StoreState>()(
         (scn.assumptions[key] as ScenarioAssumptions[typeof key]) = value;
       }),
 
-      // Birth date drives currentAge (derived, whole-month precision).
+      // Birth dates drive the derived ages (whole-month precision) and are
+      // household facts, so both mirror to every scenario via mutateHousehold.
       setBirthDate: (isoDate) => {
         const d = new Date(isoDate + 'T00:00:00');
         if (Number.isNaN(d.getTime())) return;
-        mutateActive((scn) => {
+        mutateHousehold((scn) => {
           scn.assumptions.birthYear = d.getFullYear();
           scn.assumptions.birthMonth = d.getMonth();
           scn.assumptions.birthDay = d.getDate();
-          scn.assumptions.currentAge = ageFromBirthDate(d.getFullYear(), d.getMonth(), d.getDate());
+        });
+      },
+      setSpouseBirthDate: (isoDate) => {
+        const d = new Date(isoDate + 'T00:00:00');
+        if (Number.isNaN(d.getTime())) return;
+        mutateHousehold((scn) => {
+          scn.assumptions.spouseBirthYear = d.getFullYear();
+          scn.assumptions.spouseBirthMonth = d.getMonth();
+          scn.assumptions.spouseBirthDay = d.getDate();
         });
       },
 
@@ -497,8 +553,8 @@ export const useStore = create<StoreState>()(
         scn.investmentReturnPhases = scn.investmentReturnPhases.filter((x) => x.id !== id);
       }),
 
-      // ---- v2 accounts (household-mirrored; see mutateAccounts) ----
-      addAccount: (kind = 'taxable', name) => mutateAccounts((scn) => {
+      // ---- v2 accounts (household-mirrored; see mutateHousehold) ----
+      addAccount: (kind = 'taxable', name) => mutateHousehold((scn) => {
         scn.accounts.push({
           id: newId(),
           name: name ?? (kind === 'roth' ? 'Roth IRA' : kind === 'pretax' ? 'Pre-tax account' : 'Taxable account'),
@@ -510,11 +566,11 @@ export const useStore = create<StoreState>()(
           contributionTarget: false,
         });
       }),
-      updateAccount: (id, patch) => mutateAccounts((scn) => {
+      updateAccount: (id, patch) => mutateHousehold((scn) => {
         const a = scn.accounts.find((x) => x.id === id);
         if (a) Object.assign(a, patch);
       }),
-      removeAccount: (id) => mutateAccounts((scn) => {
+      removeAccount: (id) => mutateHousehold((scn) => {
         if (scn.accounts.length <= 1) return; // schema enforces .min(1)
         const wasTarget = scn.accounts.find((x) => x.id === id)?.contributionTarget;
         scn.accounts = scn.accounts.filter((x) => x.id !== id);
@@ -526,7 +582,7 @@ export const useStore = create<StoreState>()(
           if (fallback) fallback.contributionTarget = true;
         }
       }),
-      setContributionTarget: (id) => mutateAccounts((scn) => {
+      setContributionTarget: (id) => mutateHousehold((scn) => {
         for (const a of scn.accounts) a.contributionTarget = a.id === id;
       }),
       reorderWithdrawalSequence: (seq) => mutateActive((scn) => {
@@ -704,8 +760,9 @@ export const useStore = create<StoreState>()(
       },
 
       replaceDocument: (doc) => {
-        deriveCurrentAges(doc);
         mirrorAccountsFromActive(doc);
+        deriveCurrentAges(doc);
+        reconcileHouseholdNames(doc);
         reconcileSsPlanner(doc);
         set((s) => {
           s.schemaVersion = doc.schemaVersion;

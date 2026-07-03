@@ -19,15 +19,24 @@ export interface IncomePoint {
   other: number;
 }
 
-const KEYS: { key: keyof IncomePoint; color: string; label: string }[] = [
-  { key: 'investment', color: SERIES.investment.color, label: SERIES.investment.label },
-  { key: 'va', color: SERIES.va.color, label: SERIES.va.label },
-  { key: 'ssSelf', color: SERIES.ssSelf.color, label: 'Social Security (Scott)' },
-  { key: 'ssSpouse', color: SERIES.ssSpouse.color, label: 'Social Security (Crissy)' },
-  { key: 'other', color: SERIES.other.color, label: SERIES.other.label },
-];
-
-export function IncomeChart({ data, height = 280 }: { data: IncomePoint[]; height?: number }) {
+export function IncomeChart({
+  data,
+  height = 280,
+  selfName = 'Scott',
+  spouseName = 'Spouse',
+}: {
+  data: IncomePoint[];
+  height?: number;
+  selfName?: string;
+  spouseName?: string;
+}) {
+  const KEYS: { key: keyof IncomePoint; color: string; label: string }[] = [
+    { key: 'investment', color: SERIES.investment.color, label: SERIES.investment.label },
+    { key: 'va', color: SERIES.va.color, label: SERIES.va.label },
+    { key: 'ssSelf', color: SERIES.ssSelf.color, label: `Social Security (${selfName})` },
+    { key: 'ssSpouse', color: SERIES.ssSpouse.color, label: `Social Security (${spouseName})` },
+    { key: 'other', color: SERIES.other.color, label: SERIES.other.label },
+  ];
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1">

@@ -133,6 +133,8 @@ export function seedDocument(): { doc: PersistedDocument; ui: UiState } {
         monteCarlo: { simulations: 1000, returnVolatility: 0.12 },
         theme: 'dark',
         household: 'Scott & Crissy',
+        selfName: 'Scott',
+        spouseName: 'Crissy',
         defaultWithdrawalSequence: ['taxable', 'pretax', 'roth'],
         defaultCostBasisRatio: 0.5,
         rmdStartAge: 73,

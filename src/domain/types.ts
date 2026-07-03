@@ -33,6 +33,13 @@ export interface ScenarioAssumptions {
   annualReturn: Rate; // fallback for ages not covered by a return phase
   inflation: Rate;
   spouseInflation?: Rate;
+  // Spouse's own birth date. When present, spouseAgeOffset is DERIVED from it
+  // (spouse age - self age) on every load, so entering a real birth date is
+  // always authoritative over a hand-set offset. Absent for single-person
+  // households or documents saved before this existed.
+  spouseBirthYear?: number;
+  spouseBirthMonth?: number; // 0-11
+  spouseBirthDay?: number; // 1-31
   spouseAgeOffset?: number; // Crissy age = self age + offset (default 0)
   displayMode: DisplayMode;
 }
@@ -313,6 +320,8 @@ export interface Settings {
   };
   theme: 'dark' | 'light';
   household: string;
+  selfName?: string; // defaults to "Self" in the UI when absent (older documents)
+  spouseName?: string; // defaults to "Spouse" in the UI when absent
   // ---- v2 defaults ----
   defaultWithdrawalSequence: AccountKind[];
   defaultCostBasisRatio: Rate;

@@ -258,7 +258,7 @@ export default function DashboardPage() {
 
         {/* Income over time */}
         <Section title="Income Sources Over Time" subtitle="Projected annual income sources through retirement">
-          <IncomeChart data={incomeSeries} height={300} />
+          <IncomeChart data={incomeSeries} height={300} selfName={settings.selfName} spouseName={settings.spouseName} />
         </Section>
 
         <div className="flex gap-2">

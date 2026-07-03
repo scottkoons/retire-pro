@@ -228,6 +228,9 @@ export const ScenarioAssumptionsSchema = z.object({
   annualReturn: Rate,
   inflation: Rate,
   spouseInflation: Rate.optional(),
+  spouseBirthYear: z.number().int().optional(),
+  spouseBirthMonth: z.number().int().min(0).max(11).optional(),
+  spouseBirthDay: z.number().int().min(1).max(31).optional(),
   spouseAgeOffset: z.number().optional(),
   displayMode: DisplayMode,
 });
@@ -269,6 +272,8 @@ export const SettingsSchema = z.object({
   monteCarlo: z.object({ simulations: z.number().int().positive(), returnVolatility: Rate }),
   theme: z.enum(['dark', 'light']),
   household: z.string(),
+  selfName: z.string().optional(),
+  spouseName: z.string().optional(),
   defaultWithdrawalSequence: z.array(AccountKind).min(1),
   defaultCostBasisRatio: Ratio01,
   rmdStartAge: Age,

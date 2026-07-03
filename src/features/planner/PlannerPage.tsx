@@ -15,7 +15,7 @@ import {
   useSort,
 } from '@/components/grid/Grid';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
-import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO } from '@/lib/dates';
+import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
 import { contributionOverlaps } from '@/lib/contributions';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
@@ -125,6 +125,11 @@ export default function PlannerPage() {
             {/* Current age is derived from this, so the plan stays anchored to today. */}
             <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(a)} onChange={(e) => e.target.value && s.setBirthDate(e.target.value)} />
             <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(a.currentAge)} old today</span>
+          </Field>
+          <Field label="Spouse Birth Date">
+            {/* Names live in Settings, Household. */}
+            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={spouseBirthDateISO(a)} onChange={(e) => e.target.value && s.setSpouseBirthDate(e.target.value)} />
+            <span className="mt-0.5 text-[11px] text-muted">{spouseBirthDateISO(a) ? `${fmtAgeYM(spouseCurrentAge(a))} old today` : 'not set'}</span>
           </Field>
           <Field label="Retirement Age">
             <NumField className={fieldCls} value={a.retirementAge} onCommit={(n) => s.setAssumption('retirementAge', n)} />
