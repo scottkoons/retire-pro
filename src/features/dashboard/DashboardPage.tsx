@@ -93,18 +93,19 @@ export default function DashboardPage() {
   const bandActive = ui.showMonteCarloBand && !!mc.result;
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+    <div className={`grid grid-cols-1 gap-6 ${ui.railCollapsed ? 'xl:[grid-template-columns:minmax(0,1fr)_2rem]' : 'xl:grid-cols-12'}`}>
       {/* MAIN COLUMN */}
-      <div className={`flex min-w-0 flex-col gap-6 ${ui.railCollapsed ? 'xl:col-span-12' : 'xl:col-span-8'}`}>
+      <div className={`flex min-w-0 flex-col gap-6 ${ui.railCollapsed ? '' : 'xl:col-span-8'}`}>
         {/* Tiles */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             {ui.railCollapsed && (
+              // Small-screen expander only; on xl the right-edge strip does this job.
               <button
                 type="button"
                 onClick={() => toggleRail(false)}
                 title="Show scenario inputs"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-card px-3 py-1.5 text-[12px] font-medium text-muted transition-colors hover:border-primary hover:text-ink"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-card px-3 py-1.5 text-[12px] font-medium text-muted transition-colors hover:border-primary hover:text-ink xl:hidden"
               >
                 <IconChevronLeft className="h-4 w-4" />
                 <IconDiamond className="h-3 w-3 text-primary" /> Scenario inputs
@@ -268,7 +269,25 @@ export default function DashboardPage() {
       </div>
 
       {/* RIGHT RAIL — scenario inputs (collapsible) */}
-      {!ui.railCollapsed && (
+      {ui.railCollapsed ? (
+        // Collapsed: a slim full-height strip stays at the right edge, exactly
+        // where the panel lives, so re-opening it is obvious.
+        <div className="hidden xl:block">
+          <button
+            type="button"
+            onClick={() => toggleRail(false)}
+            title="Show scenario inputs"
+            aria-label="Show scenario inputs"
+            className="group sticky top-0 flex h-[calc(100vh-8rem)] w-8 flex-col items-center justify-center gap-3 rounded-full border border-border-subtle bg-card transition-colors hover:border-primary hover:bg-primary-tint"
+          >
+            <IconChevronLeft className="h-4 w-4 text-muted transition-colors group-hover:text-primary" />
+            <span className="rotate-180 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted transition-colors [writing-mode:vertical-rl] group-hover:text-primary">
+              Scenario Inputs
+            </span>
+            <IconDiamond className="h-3 w-3 text-primary" />
+          </button>
+        </div>
+      ) : (
         <div className="xl:col-span-4">
           <ScenarioRail />
         </div>

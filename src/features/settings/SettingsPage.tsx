@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button, Segmented, NumField, MoneyInput } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
-import { exportBackup, parseBackup } from '@/persistence/storage';
+import { exportBackup, parseBackup, backupJSON } from '@/persistence/storage';
 import { birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
 import { fmtAgeYM } from '@/lib/format';
 import { seedDocument } from '@/domain/seed';
@@ -43,9 +43,9 @@ export default function SettingsPage() {
 
   const fieldCls = 'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[14px] text-ink focus:border-primary focus:outline-none';
 
-  const doExport = () => {
+  const buildDoc = (): PersistedDocument => {
     const st = docFor.getState();
-    const doc: PersistedDocument = {
+    return {
       schemaVersion: st.schemaVersion,
       appVersion: st.appVersion,
       savedAt: st.savedAt,
@@ -54,21 +54,53 @@ export default function SettingsPage() {
       settings: st.settings,
       netWorth: st.netWorth,
     };
-    exportBackup(doc);
+  };
+
+  const doExport = () => exportBackup(buildDoc());
+
+  // Import shared by the file picker, the clipboard, and the manual textarea.
+  const importText = (text: string): boolean => {
+    const res = parseBackup(text);
+    if (!res.ok) {
+      setMsg(`Import failed: ${res.error}`);
+      return false;
+    }
+    if (!confirm('Replace the plan on THIS device with the imported one? The current plan here is overwritten.')) return false;
+    replaceDocument(res.doc);
+    setMsg('Plan imported successfully.');
+    return true;
   };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const res = parseBackup(text);
-    if (res.ok) {
-      replaceDocument(res.doc);
-      setMsg('Backup imported successfully.');
-    } else {
-      setMsg(`Import failed: ${res.error}`);
-    }
+    importText(await file.text());
     e.target.value = '';
+  };
+
+  // Device-to-device transfer via the clipboard. With Apple's Universal
+  // Clipboard, "Copy plan" on the Mac and "Paste plan" on the iPhone moves the
+  // whole plan with no files involved.
+  const onCopyPlan = async () => {
+    try {
+      await navigator.clipboard.writeText(backupJSON(buildDoc()));
+      setMsg('Plan copied to the clipboard. On your other device, open Settings and press "Paste plan" (Universal Clipboard carries it from Mac to iPhone automatically).');
+    } catch {
+      setMsg('Could not access the clipboard — use "Export JSON backup" instead.');
+    }
+  };
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const onPastePlan = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && importText(text)) return;
+      if (!text) setPasteOpen(true); // empty clipboard — offer the manual box
+    } catch {
+      // Browser refused clipboard read (permissions vary) — manual paste box.
+      setPasteOpen(true);
+    }
   };
 
   const onReset = () => {
@@ -272,14 +304,51 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Data" subtitle="Your plan is stored locally in this browser. Back it up regularly.">
+      <Section title="Data" subtitle="Your plan is stored locally in each browser. Back it up regularly, and use Copy/Paste plan to move it between your Mac and phone.">
         {msg && <div className="mb-4 rounded-lg border border-primary/40 bg-primary-tint px-4 py-2 text-[13px] text-ink">{msg}</div>}
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onCopyPlan}>Copy plan</Button>
+          <Button variant="outline" onClick={onPastePlan}>Paste plan</Button>
           <Button variant="outline" onClick={doExport}>Export JSON backup</Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}>Import JSON backup</Button>
           <Button variant="danger" onClick={onReset}>Reset demo data</Button>
           <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={onImport} />
         </div>
+        {pasteOpen && (
+          <div className="mt-4">
+            <p className="mb-2 text-[12px] text-muted">
+              This browser did not allow reading the clipboard directly — paste the copied plan here instead
+              (long-press and Paste on a phone), then press Import.
+            </p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={5}
+              placeholder='{"kind":"retirepro-backup", ...}'
+              aria-label="Pasted plan JSON"
+              className="w-full rounded-md border border-border-strong bg-input p-3 text-[12px] text-ink focus:border-primary focus:outline-none"
+            />
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (importText(pasteText)) {
+                    setPasteOpen(false);
+                    setPasteText('');
+                  }
+                }}
+              >
+                Import pasted plan
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setPasteOpen(false); setPasteText(''); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+        <p className="mt-3 text-[11px] text-faint">
+          Moving between devices: press "Copy plan" on this device, then "Paste plan" on the other one.
+          On a Mac and iPhone signed into the same Apple ID, the clipboard transfers automatically (Universal Clipboard).
+          The copy includes everything: scenarios, accounts, Social Security quotes, and the Net Worth statement.
+        </p>
       </Section>
     </div>
   );

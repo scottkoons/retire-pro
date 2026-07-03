@@ -65,7 +65,8 @@ export function saveDocument(doc: PersistedDocument, ui: UiState): { ok: boolean
   }
 }
 
-export function exportBackup(doc: PersistedDocument): void {
+/** Serialized backup payload — shared by the file export and the clipboard transfer. */
+export function backupJSON(doc: PersistedDocument): string {
   const file = {
     kind: 'retirepro-backup' as const,
     schemaVersion: doc.schemaVersion,
@@ -73,7 +74,11 @@ export function exportBackup(doc: PersistedDocument): void {
     exportedAt: new Date().toISOString(),
     document: doc,
   };
-  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+  return JSON.stringify(file, null, 2);
+}
+
+export function exportBackup(doc: PersistedDocument): void {
+  const blob = new Blob([backupJSON(doc)], { type: 'application/json' });
   saveAs(blob, `retirepro-backup-${new Date().toISOString().slice(0, 10)}.json`);
 }
 
