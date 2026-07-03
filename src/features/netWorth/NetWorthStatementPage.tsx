@@ -143,9 +143,9 @@ export default function NetWorthStatementPage() {
           <tbody>
             {assetSort.sorted.map((i) => (
               <TR key={i.id}>
-                <TD><TextInput value={i.name} onChange={(v) => updateItem(i.id, { name: v })} /></TD>
-                <TD><SelectInput value={i.category} options={catOpts} onChange={(v) => updateItem(i.id, { category: v })} /></TD>
-                <TD align="right"><NumberInput value={i.value} prefix="$" onChange={(v) => updateItem(i.id, { value: v })} /></TD>
+                <TD><TextInput value={i.name} onChange={(v) => updateItem(i.id, { name: v })} ariaLabel="Asset name" /></TD>
+                <TD><SelectInput value={i.category} options={catOpts} onChange={(v) => updateItem(i.id, { category: v })} ariaLabel={`${i.name} category`} /></TD>
+                <TD align="right"><NumberInput value={i.value} prefix="$" onChange={(v) => updateItem(i.id, { value: v })} ariaLabel={`${i.name} value`} /></TD>
                 <TD align="right"><span className="text-[12px] text-faint tabnum">{i.lastUpdated ? fmtDate(i.lastUpdated) : '—'}</span></TD>
                 <DeleteCell onClick={() => removeItem(i.id)} />
               </TR>
@@ -188,8 +188,8 @@ export default function NetWorthStatementPage() {
           <tbody>
             {debtSort.sorted.map((i) => (
               <TR key={i.id}>
-                <TD><TextInput value={i.name} onChange={(v) => updateItem(i.id, { name: v })} /></TD>
-                <TD align="right"><NumberInput value={i.value} prefix="$" onChange={(v) => updateItem(i.id, { value: v })} /></TD>
+                <TD><TextInput value={i.name} onChange={(v) => updateItem(i.id, { name: v })} ariaLabel="Debt name" /></TD>
+                <TD align="right"><NumberInput value={i.value} prefix="$" onChange={(v) => updateItem(i.id, { value: v })} ariaLabel={`${i.name} balance owed`} /></TD>
                 <TD align="right"><span className="text-[12px] text-faint tabnum">{i.lastUpdated ? fmtDate(i.lastUpdated) : '—'}</span></TD>
                 <DeleteCell onClick={() => removeItem(i.id)} />
               </TR>

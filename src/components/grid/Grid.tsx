@@ -66,6 +66,7 @@ export function THead({
           return (
             <th
               key={i}
+              scope="col"
               style={{ width: c.w }}
               className={clsx('sticky top-0 z-10 border-b border-border-strong bg-card-high px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em]', active ? 'text-ink' : 'text-muted', alignCls)}
             >
@@ -136,7 +137,8 @@ export function DeleteCell({
         )}
         <button
           onClick={onClick}
-          className="rounded p-1 text-faint opacity-0 transition-opacity hover:text-error group-hover:opacity-100"
+          // Always visible on touch devices (no hover); hover-revealed on desktop.
+          className="rounded p-1 text-faint opacity-100 transition-opacity hover:text-error focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
           aria-label="Delete row"
         >
           <IconTrash className="h-4 w-4" />
@@ -186,8 +188,8 @@ export function TotalRow({ children }: { children: ReactNode }) {
 const inputCls =
   'w-full rounded-sm border border-transparent bg-transparent px-1.5 py-1 font-mono text-[13px] text-ink hover:border-border-strong focus:border-primary focus:bg-input focus:outline-none';
 
-export function TextInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
-  return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={clsx(inputCls, 'font-body', className)} />;
+export function TextInput({ value, onChange, className, ariaLabel }: { value: string; onChange: (v: string) => void; className?: string; ariaLabel?: string }) {
+  return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} className={clsx(inputCls, 'font-body', className)} />;
 }
 
 export function NumberInput({
@@ -198,6 +200,7 @@ export function NumberInput({
   step,
   align = 'right',
   grouping,
+  ariaLabel,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -207,12 +210,13 @@ export function NumberInput({
   align?: 'left' | 'right';
   /** Show live thousands separators (e.g. 268,000). Defaults on for dollar ($) inputs. */
   grouping?: boolean;
+  ariaLabel?: string;
 }) {
   // Dollar amounts read far better grouped; percents and ages stay plain numeric inputs.
   if (grouping ?? (prefix === '$')) {
-    return <GroupedNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} align={align} />;
+    return <GroupedNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} align={align} ariaLabel={ariaLabel} />;
   }
-  return <DraftNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} align={align} />;
+  return <DraftNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} align={align} ariaLabel={ariaLabel} />;
 }
 
 /** Age/percent grid input: edits are local while typing and commit on blur or
@@ -225,6 +229,7 @@ function DraftNumberInput({
   suffix,
   step,
   align = 'right',
+  ariaLabel,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -232,6 +237,7 @@ function DraftNumberInput({
   suffix?: string;
   step?: number;
   align?: 'left' | 'right';
+  ariaLabel?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const cancelled = useRef(false);
@@ -252,6 +258,7 @@ function DraftNumberInput({
       <input
         type="number"
         step={step}
+        aria-label={ariaLabel}
         value={draft ?? (Number.isFinite(value) ? value : 0)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -277,12 +284,14 @@ function GroupedNumberInput({
   prefix,
   suffix,
   align = 'right',
+  ariaLabel,
 }: {
   value: number;
   onChange: (v: number) => void;
   prefix?: string;
   suffix?: string;
   align?: 'left' | 'right';
+  ariaLabel?: string;
 }) {
   const { ref, display, handleChange } = useGroupedNumber(value, onChange);
 
@@ -293,6 +302,7 @@ function GroupedNumberInput({
         ref={ref}
         type="text"
         inputMode="numeric"
+        aria-label={ariaLabel}
         value={display}
         onChange={handleChange}
         onFocus={(e) => e.target.select()}
@@ -326,9 +336,9 @@ export function MonthYearInput({ value, onChange }: { value: string; onChange: (
   );
 }
 
-export function SelectInput<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+export function SelectInput<T extends string>({ value, options, onChange, ariaLabel }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; ariaLabel?: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={clsx(inputCls, 'cursor-pointer pr-5 [color-scheme:dark]')}>
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel} className={clsx(inputCls, 'cursor-pointer pr-5 [color-scheme:dark]')}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

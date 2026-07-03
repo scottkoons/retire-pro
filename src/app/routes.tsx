@@ -16,7 +16,13 @@ const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 
 function page(el: ReactNode) {
   return (
-    <Suspense fallback={<div className="py-16 text-center text-[13px] text-faint">Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="grid min-h-[40vh] place-items-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border-strong border-t-primary" role="status" aria-label="Loading page" />
+        </div>
+      }
+    >
       {el}
     </Suspense>
   );

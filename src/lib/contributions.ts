@@ -8,6 +8,16 @@ function window(c: MonthlyContribution, a: ScenarioAssumptions): [number, number
   return [s, e];
 }
 
+/** Whole months a contribution runs (ages are authoritative; kept in sync with dates). */
+export function contributionMonths(c: MonthlyContribution): number {
+  return Math.max(0, Math.round((c.endAge - c.startAge) * 12));
+}
+
+/** Total cash across all ENABLED contribution rows (months x monthly amount). */
+export function totalContributed(contribs: MonthlyContribution[]): number {
+  return contribs.filter((c) => c.enabled).reduce((sum, c) => sum + contributionMonths(c) * c.monthlyAmount, 0);
+}
+
 /**
  * Detect overlapping contribution periods: months covered by two enabled rows
  * would count BOTH amounts, which is almost always accidental double-counting.

@@ -199,6 +199,11 @@ function mirrorAccountsFromActive(doc: PersistedDocument): PersistedDocument {
       scn.assumptions.spouseBirthYear = active.assumptions.spouseBirthYear;
       scn.assumptions.spouseBirthMonth = active.assumptions.spouseBirthMonth;
       scn.assumptions.spouseBirthDay = active.assumptions.spouseBirthDay;
+      // Mirror the derived ages too, so scenarios converge even when a
+      // hand-edited backup carries a divergent offset and no spouse birth date
+      // (deriveCurrentAges only recomputes the offset when the date exists).
+      scn.assumptions.currentAge = active.assumptions.currentAge;
+      scn.assumptions.spouseAgeOffset = active.assumptions.spouseAgeOffset;
     }
     scn.assumptions.startingBalance = scn.accounts
       .filter((a) => a.enabled)

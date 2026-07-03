@@ -38,10 +38,12 @@ const NAV_GROUPS = [
   },
 ];
 
-export function Sidebar() {
-  const collapsed = useStore((s) => s.ui.sidebarCollapsed);
+export function Sidebar({ variant = 'desktop' }: { variant?: 'desktop' | 'drawer' }) {
+  const collapsedStore = useStore((s) => s.ui.sidebarCollapsed);
   const toggle = useStore((s) => s.toggleSidebar);
   const saveStatus = useStore((s) => s.saveStatus);
+  // The mobile drawer is always fully expanded; only the desktop rail collapses.
+  const collapsed = variant === 'drawer' ? false : collapsedStore;
 
   // Floating label shown beside an icon while collapsed. Portal-rendered with
   // fixed positioning so it escapes the sidebar's overflow clipping.
@@ -67,8 +69,9 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Collapse / expand control — labelled, sits directly above the Plan group. */}
-      <div className={clsx(collapsed ? 'px-2' : 'px-3')}>
+      {/* Collapse / expand control — labelled, sits directly above the Plan group.
+          Hidden in the mobile drawer, where collapsing makes no sense. */}
+      <div className={clsx(collapsed ? 'px-2' : 'px-3', variant === 'drawer' && 'hidden')}>
         <button
           onClick={() => toggle()}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

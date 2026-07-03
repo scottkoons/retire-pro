@@ -16,7 +16,7 @@ import {
 } from '@/components/grid/Grid';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
-import { contributionOverlaps } from '@/lib/contributions';
+import { contributionOverlaps, contributionMonths, totalContributed } from '@/lib/contributions';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
@@ -56,9 +56,8 @@ export default function PlannerPage() {
   const overlaps = contributionOverlaps(scn.contributions, a);
 
   // Totals row (enabled rows): months of contributing and actual cash put in.
-  const contribMonths = (c: (typeof scn.contributions)[number]) => Math.max(0, Math.round((c.endAge - c.startAge) * 12));
-  const totalContribMonths = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contribMonths(c), 0);
-  const totalContributed = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contribMonths(c) * c.monthlyAmount, 0);
+  const totalContribMonths = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contributionMonths(c), 0);
+  const totalCashIn = totalContributed(scn.contributions);
 
   // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
   const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
@@ -72,8 +71,8 @@ export default function PlannerPage() {
       endAge: (c) => c.endAge,
       monthlyAmount: (c) => c.monthlyAmount,
       dollarBasis: (c) => c.dollarBasis.toLowerCase(),
-      months: (c) => Math.max(0, Math.round((c.endAge - c.startAge) * 12)),
-      total: (c) => Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount,
+      months: (c) => contributionMonths(c),
+      total: (c) => contributionMonths(c) * c.monthlyAmount,
     },
     { key: 'startAge', dir: 'asc' },
   );
@@ -180,7 +179,7 @@ export default function PlannerPage() {
           />
           <tbody>
             {contribSort.sorted.map((c) => {
-              const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
+              const months = contributionMonths(c);
               return (
                 <TR key={c.id} dim={!c.enabled}>
                   <TD>
@@ -222,7 +221,7 @@ export default function PlannerPage() {
               <TD>Total contributed</TD>
               <TD /><TD /><TD /><TD />
               <TD align="right"><span className="font-mono text-ink tabnum">{totalContribMonths.toLocaleString('en-US')}</span></TD>
-              <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(totalContributed)}</span></TD>
+              <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(totalCashIn)}</span></TD>
               <td />
             </TotalRow>
           </tbody>

@@ -193,8 +193,8 @@ export function Section({ title, subtitle, actions, children, className, bodyCla
   return (
     <Card className={clsx('animate-fade-in', className)}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-4 px-6 pt-5">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-6 pt-5">
+          <div className="min-w-0">
             {title && <h2 className="font-head text-[20px] font-semibold leading-7 tracking-[-0.01em] text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
           </div>
@@ -219,7 +219,7 @@ export function ScenarioChip({
     <button
       onClick={onClick}
       className={clsx(
-        'rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary',
+        'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary',
         active
           ? 'bg-primary text-primary-on'
           : 'border border-border-strong text-muted hover:border-primary/50 hover:text-ink',

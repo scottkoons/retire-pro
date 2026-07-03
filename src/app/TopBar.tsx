@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useStore, useActiveScenario } from '@/state/store';
 import { Button, ScenarioChip } from '@/components/ui/primitives';
 import { ExportPdfButton } from '@/components/ExportPdfButton';
-import { IconPlus, IconPencil, IconTrash } from '@/components/icons';
+import { IconPlus, IconPencil, IconTrash, IconMenu } from '@/components/icons';
 import type { PresetKey } from '@/domain/types';
 
-export function TopBar() {
+export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const scenarios = useStore((s) => s.scenarios);
   const activeId = useStore((s) => s.activeScenarioId);
   const active = useActiveScenario();
@@ -41,8 +41,17 @@ export function TopBar() {
   };
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border-subtle bg-base px-8 py-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <header className="flex items-center justify-between gap-3 border-b border-border-subtle bg-base px-4 py-3 md:gap-4 md:px-8">
+      {/* Mobile: open the navigation drawer */}
+      <button
+        type="button"
+        onClick={onMenu}
+        aria-label="Open navigation"
+        className="shrink-0 rounded-md p-2 text-muted transition-colors hover:bg-hover hover:text-ink md:hidden"
+      >
+        <IconMenu className="h-5 w-5" />
+      </button>
+      <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
         {scenarios.map((sc) =>
           editing && sc.id === activeId ? (
             <input
@@ -73,8 +82,8 @@ export function TopBar() {
         )}
 
         {/* Create a new scenario */}
-        <div className="relative ml-1.5">
-          <Button variant="outline" size="sm" onClick={() => setNewOpen((o) => !o)}>
+        <div className="relative ml-1.5 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => setNewOpen((o) => !o)} className="whitespace-nowrap">
             <IconPlus className="h-4 w-4" /> New Scenario
           </Button>
           {newOpen && (
@@ -110,7 +119,7 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {/* Rename / delete the active scenario */}
         <div className="flex items-center gap-0.5">
           <button

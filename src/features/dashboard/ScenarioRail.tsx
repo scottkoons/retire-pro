@@ -4,7 +4,7 @@ import { useActiveScenario, useStore } from '@/state/store';
 import { Card, Button, MoneyInput, Segmented } from '@/components/ui/primitives';
 import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown, IconChevronLeft } from '@/components/icons';
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
-import { contributionOverlaps } from '@/lib/contributions';
+import { contributionOverlaps, contributionMonths, totalContributed } from '@/lib/contributions';
 import { fmtUSD, fmtAgeYM, fmtMonthsYM } from '@/lib/format';
 import type { DollarBasis, TaxStatus } from '@/domain/types';
 
@@ -155,9 +155,7 @@ export function ScenarioRail() {
     { value: 'tax-free', label: 'Tax-free' },
   ];
 
-  const totalMonthly = scn.contributions
-    .filter((c) => c.enabled)
-    .reduce((sum, c) => sum + Math.max(0, Math.round((c.endAge - c.startAge) * 12)) * c.monthlyAmount, 0);
+  const totalMonthly = totalContributed(scn.contributions);
   const overlaps = contributionOverlaps(scn.contributions, a);
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
@@ -199,7 +197,7 @@ export function ScenarioRail() {
           {openMonthly && (
           <div className="flex flex-col gap-3">
             {scn.contributions.map((c) => {
-              const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
+              const months = contributionMonths(c);
               return (
                 <EventCard key={c.id} accent={MONTHLY} name={c.name} onName={(v) => s.updateContribution(c.id, { name: v })} onDelete={() => s.removeContribution(c.id)} enabled={c.enabled} onToggle={() => s.updateContribution(c.id, { enabled: !c.enabled })}>
                   {/* Hero: the monthly amount, large and grouped. */}

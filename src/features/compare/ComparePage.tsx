@@ -94,6 +94,14 @@ export default function ComparePage() {
         </div>
       </div>
 
+      {rows.length < 2 && (
+        <div className="rounded-lg border border-border-subtle bg-card px-4 py-3 text-[13px] text-muted">
+          Only one scenario exists, so there is nothing to compare yet. Use the New Scenario button up top
+          (or Settings → Scenarios) to duplicate this plan and change one assumption — the curves and numbers
+          will appear here side by side.
+        </div>
+      )}
+
       <Section title="Wealth Curves" subtitle="Projected portfolio balance by age, one line per scenario">
         <ResponsiveContainer width="100%" height={380}>
           <LineChart data={series} margin={{ top: 20, right: 16, left: 8, bottom: 8 }}>
