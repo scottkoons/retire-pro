@@ -4,7 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button } from '@/components/ui/primitives';
 import { StatTile, BarRow } from '@/components/ui/tiles';
-import { Grid, THead, TR, TD, DeleteCell, AddRow, TextInput, NumberInput, SelectInput, useSort } from '@/components/grid/Grid';
+import { Grid, THead, TR, TD, DeleteCell, AddRow, TotalRow, TextInput, NumberInput, SelectInput, useSort } from '@/components/grid/Grid';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, fmtDate, todayISO } from '@/lib/format';
 import type { NetWorthCategory } from '@/domain/types';
@@ -159,6 +159,17 @@ export default function NetWorthStatementPage() {
             )}
           </tbody>
           <AddRow colSpan={4} onClick={() => addItem('realEstate')} label="Add asset" />
+          {assetsItems.length > 0 && (
+            <tbody>
+              <TotalRow>
+                <TD>Total other assets</TD>
+                <TD />
+                <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(manualAssets)}</span></TD>
+                <TD />
+                <td />
+              </TotalRow>
+            </tbody>
+          )}
         </Grid>
       </Section>
 
@@ -190,6 +201,16 @@ export default function NetWorthStatementPage() {
             )}
           </tbody>
           <AddRow colSpan={3} onClick={() => addItem('other', true)} label="Add debt" />
+          {debtItems.length > 0 && (
+            <tbody>
+              <TotalRow>
+                <TD>Total liabilities</TD>
+                <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(totalDebts)}</span></TD>
+                <TD />
+                <td />
+              </TotalRow>
+            </tbody>
+          )}
         </Grid>
       </Section>
 
