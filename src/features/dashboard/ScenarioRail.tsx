@@ -246,7 +246,7 @@ export function ScenarioRail() {
                   </div>
                   {overlaps.has(c.id) && (
                     <div className="mt-2 rounded-md bg-error-tint px-2.5 py-1.5 text-[11px] font-medium text-error">
-                      Overlaps “{overlaps.get(c.id)}” — those months count both amounts. Start this period in the month the other one ends.
+                      Overlaps “{overlaps.get(c.id)}” — those months count both amounts. Start this period the month after the other one ends.
                     </div>
                   )}
                 </EventCard>

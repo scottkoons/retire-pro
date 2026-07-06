@@ -75,10 +75,13 @@ function baseScenario(name: string, path: BusinessPath): Scenario {
       spouseAgeOffset: 0,
       displayMode: 'today',
     },
+    // End months PAY (start month through end month inclusive), so each period
+    // ends the month before the next one starts. Ages are exact month-grid
+    // fractions from the April birth anchor (age 56.0 = April 2026).
     contributions: [
-      { id: newId(), name: 'Current', startAge: 56.1, endAge: 56.43, monthlyAmount: 5_258, dollarBasis: 'today', enabled: true, startDateOverride: '2026-06-01', endDateOverride: '2026-10-01' },
-      { id: newId(), name: 'After Calibra Sale', startAge: 56.43, endAge: 60, monthlyAmount: 7_000, dollarBasis: 'today', enabled: true },
-      { id: newId(), name: 'Pre-retirement', startAge: 60, endAge: 67, monthlyAmount: 1_000, dollarBasis: 'today', enabled: true },
+      { id: newId(), name: 'Current', startAge: 56 + 2 / 12, endAge: 56 + 5 / 12, monthlyAmount: 5_258, dollarBasis: 'today', enabled: true, startDateOverride: '2026-06-01', endDateOverride: '2026-09-01' },
+      { id: newId(), name: 'After Calibra Sale', startAge: 56.5, endAge: 60 - 1 / 12, monthlyAmount: 7_000, dollarBasis: 'today', enabled: true },
+      { id: newId(), name: 'Pre-retirement', startAge: 60, endAge: 67 - 1 / 12, monthlyAmount: 1_000, dollarBasis: 'today', enabled: true },
     ],
     lumpSums: path === 'business-hold' ? holdRestaurantsLumps() : sellEarlyLumps(),
     incomeStreams: [...commonIncomeStreams(), ...earned],

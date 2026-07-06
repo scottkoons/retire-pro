@@ -156,11 +156,11 @@ export default function PlannerPage() {
       </Section>
 
       {/* Monthly Contributions */}
-      <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows · periods should run back-to-back; a gap simply contributes $0`}>
+      <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows · start and end months both pay; a gap simply contributes $0`}>
         {overlaps.size > 0 && (
           <div className="mb-3 rounded-lg border border-error/40 bg-error-tint px-4 py-2.5 text-[13px] text-error">
-            Contribution periods overlap — every overlapping month counts BOTH amounts. Adjust the dates so each
-            period starts in the month the previous one ends (the end month belongs to the next period).
+            Contribution periods overlap — every overlapping month counts BOTH amounts. A period pays through its
+            end month, so start each period the month AFTER the previous one ends.
           </div>
         )}
         <Grid minWidth={760}>

@@ -1,6 +1,7 @@
 import type { DisplayMode, ProjectionResult, Scenario } from '@/domain/types';
 import type { MonteCarloResult } from '@/engine/montecarlo/types';
 import { ssMonthlyBenefitToday, isLegacySsStream } from '@/engine/project';
+import { contributionMonths } from '@/lib/contributions';
 
 export interface PlanSummaryModel {
   scenarioName: string;
@@ -87,7 +88,7 @@ export function buildPlanSummaryModel(
     contributions: scn.contributions
       .filter((c) => c.enabled)
       .map((c) => {
-        const months = Math.max(0, Math.round((c.endAge - c.startAge) * 12));
+        const months = contributionMonths(c);
         return { name: c.name, start: c.startAge, end: c.endAge, monthly: c.monthlyAmount, months, total: months * c.monthlyAmount };
       }),
     lumpSums: scn.lumpSums.filter((l) => l.enabled).map((l) => ({ name: l.name, age: l.age, amount: l.amount })),

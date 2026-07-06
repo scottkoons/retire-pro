@@ -120,6 +120,16 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     .filter((l) => l.enabled)
     .map((l) => ({ ...l, t: lumpMonth(scn, l) }));
 
+  // Contribution windows in month indices. The end month is INCLUSIVE: a payment
+  // lands on the 1st of every month from start through end (Jul -> Aug = 2 payments).
+  const contribs = scn.contributions
+    .filter((c) => c.enabled)
+    .map((c) => ({
+      ...c,
+      tStart: ageToMonthIndex(c.startAge, a.currentAge),
+      tEnd: ageToMonthIndex(c.endAge, a.currentAge),
+    }));
+
   let balance = a.startingBalance;
   let depletionAge: number | null = null;
   const months: MonthState[] = [];
@@ -127,7 +137,6 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
 
   for (let t = 0; t < T; t++) {
     const age = monthIndexToAge(t, a.currentAge);
-    if (t === tRet) balanceAtRetire = balance;
 
     const cpiStart = Math.pow(1 + inflM, t);
     const cpiEnd = Math.pow(1 + inflM, t + 1);
@@ -136,11 +145,10 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     const rNet = provider({ age, yearIndex: Math.floor(t / 12), expectedReturn, volatility });
     const rM = monthlyRate(rNet);
 
-    // Contributions active this month
+    // Contributions active this month (end month inclusive)
     let C = 0;
-    for (const c of scn.contributions) {
-      if (!c.enabled) continue;
-      if (age >= c.startAge && age < c.endAge) {
+    for (const c of contribs) {
+      if (t >= c.tStart && t <= c.tEnd) {
         C += c.dollarBasis === 'today' ? c.monthlyAmount * cpiStart : c.monthlyAmount;
       }
     }
@@ -183,6 +191,9 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     //  fixed-amount:       fixed today's-$/yr, inflated to nominal
     //  target-income:      fund the spending-phase gap (target minus guaranteed income)
     const balEff = balance + C + L;
+    // Balance at Retirement counts this month's deposits (a sale lump timed at the
+    // retirement month belongs in it) but not the month's withdrawal or growth.
+    if (t === tRet) balanceAtRetire = balEff;
     let W = 0;
     if (age >= a.retirementAge) {
       if (scn.withdrawal.type === 'percent-of-balance') {
@@ -627,7 +638,6 @@ export function runProjectionV2(
     const cpiToday = Math.pow(1 + infl, j);
     const liquidStart = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
     const retired = age >= a.retirementAge;
-    if (j === tRetIndex) balanceAtRetire = liquidStart;
 
     const { expectedReturn, volatility } = resolveReturn(scn, age);
     const r = provider({ age, yearIndex: j, expectedReturn, volatility });
@@ -638,8 +648,9 @@ export function runProjectionV2(
     let contribThisYear = 0;
     for (const c of scn.contributions) {
       if (!c.enabled) continue;
-      if (age >= c.startAge && age < c.endAge) {
-        const yrs = Math.min(c.endAge, age + 1) - Math.max(c.startAge, age); // fraction of this year active
+      const endIncl = c.endAge + 1 / 12; // end month inclusive: Jul -> Aug = 2 payments
+      if (age >= c.startAge && age < endIncl) {
+        const yrs = Math.min(endIncl, age + 1) - Math.max(c.startAge, age); // fraction of this year active
         const frac = Math.max(0, Math.min(1, yrs));
         contribThisYear += (c.dollarBasis === 'today' ? c.monthlyAmount * cpiToday : c.monthlyAmount) * 12 * frac;
       }
@@ -655,6 +666,10 @@ export function runProjectionV2(
       const amt = inh.dollarBasis === 'today' ? inh.amount * cpiToday : inh.amount;
       addCash(inh.toAccountKind, 'self', amt);
     }
+
+    // Balance at Retirement counts this year's deposits (a lump timed at the
+    // retirement year belongs in it) but not spending, taxes, or growth.
+    if (j === tRetIndex) balanceAtRetire = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
 
     // ---- home: purchase transition, amortization, costs (every year) ----
     let homeCost = 0;
