@@ -336,10 +336,18 @@ function catForStream(s: Scenario['incomeStreams'][number]): IncomeComponent['ca
   return 5;
 }
 
-/** Income breakdown (the dashboard card) at a chosen age. */
+/** Income breakdown (the dashboard card) at a chosen age.
+ *  Sampled at the END of that age's projection-year row — the same month the
+ *  Balance at Retirement and income tiles read — so at the retirement age the
+ *  components sum EXACTLY to the Monthly Income tile, and a work stream that
+ *  stops at retirement no longer appears as retirement income. */
 export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: number): IncomeBreakdown {
   const a = scn.assumptions;
-  const t = Math.max(0, Math.min(months.length - 1, ageToMonthIndex(age, a.currentAge)));
+  // Year rows are 12-month slices from t=0 labeled round(currentAge + j); the
+  // slice for `age` ends at t = j*12 + 11 (see rollupYears / retirementRow).
+  const j = Math.max(0, Math.round(age) - Math.round(a.currentAge));
+  const t = Math.max(0, Math.min(months.length - 1, j * 12 + 11));
+  const ageAt = monthIndexToAge(t, a.currentAge); // engine-consistent fractional age at the sampled month
   const m = months[t];
   const components: IncomeComponent[] = [];
 
@@ -354,7 +362,7 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   }
 
   for (const s of scn.incomeStreams) {
-    const v = streamNominalAt(scn, s, t, age);
+    const v = streamNominalAt(scn, s, t, ageAt);
     if (v <= 0) continue; // only streams active at this age appear in the breakdown
     components.push({
       label: s.name,
@@ -368,7 +376,7 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   // panel explains upcoming income (e.g. Social Security before the claim age).
   // Superseded legacy SS rows are excluded here too — see streamNominalAt.
   for (const s of scn.incomeStreams) {
-    if (!s.enabled || s.startAge <= age || s.endAge <= s.startAge) continue;
+    if (!s.enabled || s.startAge <= ageAt || s.endAge <= s.startAge) continue;
     if (scn.socialSecurity?.enabled && isLegacySsStream(s)) continue;
     components.push({
       label: s.name,
@@ -392,9 +400,9 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
       const invest = !!scn.socialSecurity.investUntilRetirement;
       const effectiveStart = invest ? claimSelfAge : Math.max(claimSelfAge, a.retirementAge);
       const nominal = ssMonthlyBenefitToday(c) * Math.pow(1 + monthlyRate(c.cola), t);
-      if (age >= claimSelfAge && age >= a.retirementAge) {
+      if (ageAt >= claimSelfAge && ageAt >= a.retirementAge) {
         components.push({ label, monthlyNominal: nominal, taxStatus: 'taxable', cat });
-      } else if (age >= claimSelfAge && invest) {
+      } else if (ageAt >= claimSelfAge && invest) {
         components.push({ label, monthlyNominal: nominal, taxStatus: 'taxable', cat, fromAgeNote: 'invested until retirement' });
       } else if (effectiveStart <= a.modelEndAge) {
         components.push({ label, monthlyNominal: 0, taxStatus: 'taxable', cat, fromAgeNote: `from ${fmtAgeYM(effectiveStart)}`, upcoming: true });
