@@ -255,14 +255,19 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
       amount: months[l.t]?.lumpSums ?? l.amount,
     }));
 
-  // Tiles — read the actual values at the retirement month so they track the strategy.
-  const mRet = months[tRet];
+  // Tiles — income is measured at the END of the retirement-age year: the same
+  // point the Balance at Retirement tile and the chart read. Deposits landing
+  // anywhere in that year (e.g. a business sale months after the retirement
+  // date) raise a percent-of-balance draw exactly as they raise the balance, so
+  // a scenario with a larger retirement balance always shows larger income.
+  const retRow = retirementRow(rows, a.retirementAge);
+  const tIncome = retRow ? retRow.monthIndexEnd : tRet;
+  const mRet = months[tIncome];
   const gAtRet = mRet
     ? mRet.guaranteedIncome
     : scn.incomeStreams.reduce((sum, s) => sum + streamNominalAt(scn, s, tRet, a.retirementAge), 0);
   const requiredWithdrawal = mRet ? mRet.withdrawal : 0;
   const monthlyIncome = gAtRet + requiredWithdrawal;
-  const retRow = retirementRow(rows, a.retirementAge);
   const endNominal = months[months.length - 1]?.endingBalance ?? 0;
   const cpiEndAll = months[months.length - 1]?.cpi ?? 1;
 
