@@ -11,6 +11,7 @@ const YearByYearPage = lazy(() => import('@/features/yearByYear/YearByYearPage')
 const NetWorthStatementPage = lazy(() => import('@/features/netWorth/NetWorthStatementPage'));
 const MonteCarloPage = lazy(() => import('@/features/monteCarlo/MonteCarloPage'));
 const ComparePage = lazy(() => import('@/features/compare/ComparePage'));
+const WhatIfPage = lazy(() => import('@/features/whatif/WhatIfPage'));
 const SummaryPage = lazy(() => import('@/features/summary/SummaryPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 
@@ -42,6 +43,7 @@ export const router = createHashRouter([
       { path: 'net-worth', element: page(<NetWorthStatementPage />) },
       { path: 'monte-carlo', element: page(<MonteCarloPage />) },
       { path: 'compare', element: page(<ComparePage />) },
+      { path: 'what-if', element: page(<WhatIfPage />) },
       { path: 'summary', element: page(<SummaryPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
     ],

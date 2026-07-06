@@ -62,6 +62,8 @@ interface StoreState extends PersistedDocument {
   createFromPreset: (key: PresetKey) => void;
   createBlank: () => void;
   duplicateActive: () => void;
+  /** Add a fully-formed scenario (e.g. from the What-If Explorer) and select it. */
+  addScenario: (scn: Scenario) => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
 
@@ -365,6 +367,14 @@ export const useStore = create<StoreState>()(
           };
           s.scenarios.push(blank);
           s.activeScenarioId = blank.id;
+        });
+        schedulePersist();
+      },
+
+      addScenario: (scn) => {
+        set((s) => {
+          s.scenarios.push(scn);
+          s.activeScenarioId = scn.id;
         });
         schedulePersist();
       },

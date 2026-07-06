@@ -9,6 +9,7 @@ import {
   IconTable,
   IconDice,
   IconCompare,
+  IconSliders,
   IconCoins,
   IconDoc,
   IconSettings,
@@ -30,6 +31,7 @@ const NAV_GROUPS = [
   {
     heading: 'Analysis',
     items: [
+      { to: '/what-if', label: 'What-If Explorer', Icon: IconSliders },
       { to: '/compare', label: 'Compare Scenarios', Icon: IconCompare },
       { to: '/monte-carlo', label: 'Monte Carlo', Icon: IconDice },
       { to: '/summary', label: 'Plan Summary', Icon: IconDoc },
