@@ -19,6 +19,48 @@ export interface IncomePoint {
   other: number;
 }
 
+interface SeriesMeta {
+  label: string;
+  color: string;
+}
+
+function IncomeTooltip({
+  active,
+  payload,
+  label,
+  meta,
+}: {
+  active?: boolean;
+  payload?: { dataKey?: string | number; value?: number | string }[];
+  label?: number;
+  meta: Record<string, SeriesMeta>;
+}) {
+  if (!active || !payload?.length) return null;
+  const rows = payload.map((p) => ({
+    key: String(p.dataKey),
+    value: typeof p.value === 'number' ? p.value : 0,
+  }));
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  return (
+    <div className="rounded-lg border border-border-strong bg-card-high px-3 py-2 shadow-overlay">
+      <div className="label-mono mb-1.5">Age {label}</div>
+      {rows.map((r) => (
+        <div key={r.key} className="flex items-center justify-between gap-4 py-0.5 text-[12px]">
+          <span className="flex items-center gap-1.5 text-muted">
+            <span className="h-2 w-2 rounded-full" style={{ background: meta[r.key]?.color }} />
+            {meta[r.key]?.label ?? r.key}
+          </span>
+          <span className="font-semibold text-ink tabnum">{fmtUSD(r.value)}</span>
+        </div>
+      ))}
+      <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-border-strong pt-1.5 text-[12px]">
+        <span className="font-medium text-muted">Total income</span>
+        <span className="font-semibold text-ink tabnum">{fmtUSD(total)}</span>
+      </div>
+    </div>
+  );
+}
+
 export function IncomeChart({
   data,
   height = 280,
@@ -37,6 +79,9 @@ export function IncomeChart({
     { key: 'ssSpouse', color: SERIES.ssSpouse.color, label: `Social Security (${spouseName})` },
     { key: 'other', color: SERIES.other.color, label: SERIES.other.label },
   ];
+  const meta: Record<string, SeriesMeta> = Object.fromEntries(
+    KEYS.map((k) => [k.key, { label: k.label, color: k.color }]),
+  );
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1">
@@ -66,17 +111,7 @@ export function IncomeChart({
             tick={{ fontFamily: 'Inter Variable', fontSize: 11, fill: chart.axis }}
             tickFormatter={(n) => fmtUSDAbbrev(n)}
           />
-          <Tooltip
-            contentStyle={{
-              background: chart.tooltipBg,
-              border: `1px solid ${chart.tooltipBorder}`,
-              borderRadius: 8,
-              fontFamily: 'Inter',
-            }}
-            labelStyle={{ color: '#94a3b8', fontFamily: 'Inter Variable', fontSize: 11 }}
-            formatter={(v: number) => fmtUSD(v)}
-            labelFormatter={(a) => `Age ${a}`}
-          />
+          <Tooltip content={<IncomeTooltip meta={meta} />} />
           {KEYS.map((k) => (
             <Area
               key={k.key}
