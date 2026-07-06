@@ -122,12 +122,16 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
 
   // Contribution windows in month indices. The end month is INCLUSIVE: a payment
   // lands on the 1st of every month from start through end (Jul -> Aug = 2 payments).
+  // Typed dates win over stored ages (same rule as lumps and the month inputs), so
+  // the engine pays exactly the calendar months the Planner row displays.
+  const cMonth = (iso: string | undefined, age: number) =>
+    iso ? dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) : ageToMonthIndex(age, a.currentAge);
   const contribs = scn.contributions
     .filter((c) => c.enabled)
     .map((c) => ({
       ...c,
-      tStart: ageToMonthIndex(c.startAge, a.currentAge),
-      tEnd: ageToMonthIndex(c.endAge, a.currentAge),
+      tStart: cMonth(c.startDateOverride, c.startAge),
+      tEnd: cMonth(c.endDateOverride, c.endAge),
     }));
 
   let balance = a.startingBalance;
@@ -601,6 +605,18 @@ export function runProjectionV2(
   let paymentAnnual = homeEnabled ? annuityPaymentAnnual(homeMort, loanRate, home.mortgageTermYears ?? home.termYears) : 0;
   let clubActive = homeEnabled && !home.plannedPurchase; // club tied to the planned (new) home
 
+  // ---- contribution windows in effective ages: typed dates win over stored
+  //      ages, and the end month is inclusive (same rule as the v1 engine) ----
+  const effAge = (iso: string | undefined, age: number) =>
+    iso ? a.currentAge + dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) / 12 : age;
+  const contribWindows = scn.contributions
+    .filter((c) => c.enabled)
+    .map((c) => ({
+      ...c,
+      sAge: effAge(c.startDateOverride, c.startAge),
+      endIncl: effAge(c.endDateOverride, c.endAge) + 1 / 12,
+    }));
+
   // ---- lumps & inheritance pre-resolved to integer years ----
   const lumpByYear = new Map<number, number>();
   for (const l of scn.lumpSums) {
@@ -646,11 +662,9 @@ export function runProjectionV2(
 
     // ---- inflows that happen every year ----
     let contribThisYear = 0;
-    for (const c of scn.contributions) {
-      if (!c.enabled) continue;
-      const endIncl = c.endAge + 1 / 12; // end month inclusive: Jul -> Aug = 2 payments
-      if (age >= c.startAge && age < endIncl) {
-        const yrs = Math.min(endIncl, age + 1) - Math.max(c.startAge, age); // fraction of this year active
+    for (const c of contribWindows) {
+      if (age < c.endIncl && age + 1 > c.sAge) {
+        const yrs = Math.min(c.endIncl, age + 1) - Math.max(c.sAge, age); // fraction of this year active
         const frac = Math.max(0, Math.min(1, yrs));
         contribThisYear += (c.dollarBasis === 'today' ? c.monthlyAmount * cpiToday : c.monthlyAmount) * 12 * frac;
       }

@@ -88,7 +88,7 @@ export function buildPlanSummaryModel(
     contributions: scn.contributions
       .filter((c) => c.enabled)
       .map((c) => {
-        const months = contributionMonths(c);
+        const months = contributionMonths(c, a);
         return { name: c.name, start: c.startAge, end: c.endAge, monthly: c.monthlyAmount, months, total: months * c.monthlyAmount };
       }),
     lumpSums: scn.lumpSums.filter((l) => l.enabled).map((l) => ({ name: l.name, age: l.age, amount: l.amount })),

@@ -56,8 +56,8 @@ export default function PlannerPage() {
   const overlaps = contributionOverlaps(scn.contributions, a);
 
   // Totals row (enabled rows): months of contributing and actual cash put in.
-  const totalContribMonths = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contributionMonths(c), 0);
-  const totalCashIn = totalContributed(scn.contributions);
+  const totalContribMonths = scn.contributions.filter((c) => c.enabled).reduce((sum, c) => sum + contributionMonths(c, a), 0);
+  const totalCashIn = totalContributed(scn.contributions, a);
 
   // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
   const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
@@ -71,8 +71,8 @@ export default function PlannerPage() {
       endAge: (c) => c.endAge,
       monthlyAmount: (c) => c.monthlyAmount,
       dollarBasis: (c) => c.dollarBasis.toLowerCase(),
-      months: (c) => contributionMonths(c),
-      total: (c) => contributionMonths(c) * c.monthlyAmount,
+      months: (c) => contributionMonths(c, a),
+      total: (c) => contributionMonths(c, a) * c.monthlyAmount,
     },
     { key: 'startAge', dir: 'asc' },
   );
@@ -179,7 +179,7 @@ export default function PlannerPage() {
           />
           <tbody>
             {contribSort.sorted.map((c) => {
-              const months = contributionMonths(c);
+              const months = contributionMonths(c, a);
               return (
                 <TR key={c.id} dim={!c.enabled}>
                   <TD>

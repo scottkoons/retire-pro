@@ -155,7 +155,7 @@ export function ScenarioRail() {
     { value: 'tax-free', label: 'Tax-free' },
   ];
 
-  const totalMonthly = totalContributed(scn.contributions);
+  const totalMonthly = totalContributed(scn.contributions, a);
   const overlaps = contributionOverlaps(scn.contributions, a);
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
@@ -197,7 +197,7 @@ export function ScenarioRail() {
           {openMonthly && (
           <div className="flex flex-col gap-3">
             {scn.contributions.map((c) => {
-              const months = contributionMonths(c);
+              const months = contributionMonths(c, a);
               return (
                 <EventCard key={c.id} accent={MONTHLY} name={c.name} onName={(v) => s.updateContribution(c.id, { name: v })} onDelete={() => s.removeContribution(c.id)} enabled={c.enabled} onToggle={() => s.updateContribution(c.id, { enabled: !c.enabled })}>
                   {/* Hero: the monthly amount, large and grouped. */}
