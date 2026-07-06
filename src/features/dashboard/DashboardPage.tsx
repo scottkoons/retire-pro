@@ -65,6 +65,24 @@ export default function DashboardPage() {
   const mcFresh = mc.result && mc.configHash === currentHash;
 
   const balRetire = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
+  // "Path to retirement" decomposition: cumulative flows through the age-at-retirement
+  // year row (the same point the Balance at Retirement tile and the chart read), in
+  // actual dollars so the identity start + in - out = balance holds exactly.
+  const path = useMemo(() => {
+    const retAge = Math.round(a.retirementAge);
+    const idx = result.rows.findIndex((r) => r.age === retAge);
+    const rows = idx >= 0 ? result.rows.slice(0, idx + 1) : result.rows;
+    const sum = (sel: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + sel(r), 0);
+    return {
+      retAge,
+      start: result.rows[0]?.startingBalance ?? 0,
+      contributions: sum((r) => r.contributions),
+      lumps: sum((r) => r.lumpSums),
+      growth: sum((r) => r.investmentGrowth),
+      withdrawals: sum((r) => r.withdrawals),
+      end: rows[rows.length - 1]?.endingBalance ?? 0,
+    };
+  }, [result, a.retirementAge]);
   // Principal still invested at the end of the plan horizon (modelEndAge).
   const endHorizon = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
@@ -221,6 +239,42 @@ export default function DashboardPage() {
               </span>
             </div>
           )}
+        </Section>
+
+        {/* Path to the retirement balance — every dollar of the tile, itemized */}
+        <Section
+          title="Path to Balance at Retirement"
+          subtitle={`actual $ through the age-${path.retAge} year — the same point the chart plots at retirement`}
+          bodyClassName="pt-1"
+        >
+          <div className="flex flex-col text-[13px]">
+            {(
+              [
+                ['Starting investments', path.start, ''],
+                ['Monthly contributions deposited', path.contributions, '+'],
+                ['Lump sum events', path.lumps, '+'],
+                ['Investment growth', path.growth, '+'],
+                ...(path.withdrawals > 0.5 ? [['Withdrawals after retiring', path.withdrawals, '−'] as const] : []),
+              ] as const
+            ).map(([label, value, sign]) => (
+              <div key={label} className="flex items-center justify-between gap-4 border-b border-border-subtle py-2">
+                <span className="text-muted">{label}</span>
+                <span className="font-semibold text-ink tabnum">
+                  {sign}
+                  {fmtUSD(value as number)}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-4 py-2.5">
+              <span className="font-semibold text-ink">Balance at Retirement</span>
+              <span className="font-head text-[16px] font-bold text-ink tabnum">{fmtUSD(path.end)}</span>
+            </div>
+          </div>
+          <p className="mt-1 text-[11px] text-faint">
+            Contributions entered in today's dollars are deposited with inflation applied, so the deposited total can be
+            higher than the Planner Sheet's flat total. Withdrawals appear when your plan begins drawing before the
+            measurement point at the end of the age-{path.retAge} year.
+          </p>
         </Section>
 
         {/* Income breakdown — moved below the wealth graph */}
