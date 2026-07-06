@@ -15,6 +15,7 @@ import { SocialSecurityPanel } from './SocialSecurityPanel';
 import { IconCalendar, IconBank, IconDice, IconDiamond, IconChevronLeft } from '@/components/icons';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM, pctValue } from '@/lib/format';
+import { isoFromAge, fmtMonthYear } from '@/lib/dates';
 
 // Enable the Monte Carlo overlay once per session on the first dashboard view.
 let bandAutoEnabled = false;
@@ -65,24 +66,30 @@ export default function DashboardPage() {
   const mcFresh = mc.result && mc.configHash === currentHash;
 
   const balRetire = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
-  // "Path to retirement" decomposition: cumulative flows through the age-at-retirement
-  // year row (the same point the Balance at Retirement tile and the chart read), in
-  // actual dollars so the identity start + in - out = balance holds exactly.
+  // "Path to retirement" decomposition in actual dollars, split at the retirement
+  // DATE (the number outside estimators like ChatGPT produce) and continuing to the
+  // tile's measurement point (the chart's value at the retirement age). Both the
+  // subtotal and the total hold exactly: start + deposits + growth = date balance;
+  // date balance + first-year net - withdrawals = tile.
   const path = useMemo(() => {
     const retAge = Math.round(a.retirementAge);
     const idx = result.rows.findIndex((r) => r.age === retAge);
-    const rows = idx >= 0 ? result.rows.slice(0, idx + 1) : result.rows;
-    const sum = (sel: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + sel(r), 0);
+    const tEnd = idx >= 0 ? result.rows[idx].monthIndexEnd : months.length - 1;
+    const tRet = Math.max(0, Math.min(tEnd, ageToMonthIndex(a.retirementAge, a.currentAge)));
+    const sum = (from: number, to: number, sel: (m: (typeof months)[number]) => number) =>
+      months.slice(from, to + 1).reduce((s, m) => s + sel(m), 0);
     return {
       retAge,
-      start: result.rows[0]?.startingBalance ?? 0,
-      contributions: sum((r) => r.contributions),
-      lumps: sum((r) => r.lumpSums),
-      growth: sum((r) => r.investmentGrowth),
-      withdrawals: sum((r) => r.withdrawals),
-      end: rows[rows.length - 1]?.endingBalance ?? 0,
+      start: months[0]?.startingBalance ?? 0,
+      contributions: sum(0, tRet - 1, (m) => m.contributions),
+      lumps: sum(0, tRet - 1, (m) => m.lumpSums),
+      growth: sum(0, tRet - 1, (m) => m.growth),
+      atDate: months[tRet]?.startingBalance ?? 0,
+      yearNet: sum(tRet, tEnd, (m) => m.contributions + m.lumpSums + m.growth),
+      yearWithdrawals: sum(tRet, tEnd, (m) => m.withdrawal),
+      end: months[tEnd]?.endingBalance ?? 0,
     };
-  }, [result, a.retirementAge]);
+  }, [result, months, a.retirementAge, a.currentAge]);
   // Principal still invested at the end of the plan horizon (modelEndAge).
   const endHorizon = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
@@ -244,7 +251,7 @@ export default function DashboardPage() {
         {/* Path to the retirement balance — every dollar of the tile, itemized */}
         <Section
           title="Path to Balance at Retirement"
-          subtitle={`actual $ through the age-${path.retAge} year — the same point the chart plots at retirement`}
+          subtitle="actual $ — first to your retirement date, then to the chart's retirement-age point"
           bodyClassName="pt-1"
         >
           <div className="flex flex-col text-[13px]">
@@ -254,7 +261,6 @@ export default function DashboardPage() {
                 ['Monthly contributions deposited', path.contributions, '+'],
                 ['Lump sum events', path.lumps, '+'],
                 ['Investment growth', path.growth, '+'],
-                ...(path.withdrawals > 0.5 ? [['Withdrawals after retiring', path.withdrawals, '−'] as const] : []),
               ] as const
             ).map(([label, value, sign]) => (
               <div key={label} className="flex items-center justify-between gap-4 border-b border-border-subtle py-2">
@@ -265,15 +271,34 @@ export default function DashboardPage() {
                 </span>
               </div>
             ))}
+            <div className="flex items-center justify-between gap-4 border-b border-border-strong py-2.5">
+              <span className="font-semibold text-ink">
+                On your retirement date <span className="font-normal text-muted">({fmtMonthYear(isoFromAge(a.retirementAge, a))}, {fmtAgeYM(a.retirementAge)})</span>
+              </span>
+              <span className="font-head text-[15px] font-bold text-ink tabnum">{fmtUSD(path.atDate)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-2">
+              <span className="text-muted">Deposits and growth, first retirement year</span>
+              <span className="font-semibold text-ink tabnum">+{fmtUSD(path.yearNet)}</span>
+            </div>
+            {path.yearWithdrawals > 0.5 && (
+              <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-2">
+                <span className="text-muted">Withdrawals, first retirement year</span>
+                <span className="font-semibold text-ink tabnum">−{fmtUSD(path.yearWithdrawals)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-4 py-2.5">
-              <span className="font-semibold text-ink">Balance at Retirement</span>
+              <span className="font-semibold text-ink">
+                Balance at Retirement <span className="font-normal text-muted">(chart point at age {path.retAge})</span>
+              </span>
               <span className="font-head text-[16px] font-bold text-ink tabnum">{fmtUSD(path.end)}</span>
             </div>
           </div>
           <p className="mt-1 text-[11px] text-faint">
-            Contributions entered in today's dollars are deposited with inflation applied, so the deposited total can be
-            higher than the Planner Sheet's flat total. Withdrawals appear when your plan begins drawing before the
-            measurement point at the end of the age-{path.retAge} year.
+            "On your retirement date" is the number to compare against outside estimates. The tile and chart read the end
+            of the age-{path.retAge} year so events later in that year (like a business sale) are included. Contributions
+            entered in today's dollars are deposited with inflation applied, so the deposited total can be higher than the
+            Planner Sheet's flat total.
           </p>
         </Section>
 
