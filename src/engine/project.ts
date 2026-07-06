@@ -105,6 +105,15 @@ function streamNominalAt(scn: Scenario, s: Scenario['incomeStreams'][number], t:
   return s.monthlyAmountToday * Math.pow(1 + cm, t); // COLA anchored from today (t=0)
 }
 
+/** The yearly row the wealth chart plots at the retirement age. The Balance at
+ *  Retirement tile and the Compare table read THIS row's ending balance, so they
+ *  always agree with the chart — deposits landing anywhere in the retirement-age
+ *  year (e.g. a business sale months after the retirement date) are included. */
+function retirementRow(rows: YearRow[], retirementAge: number): YearRow | undefined {
+  const target = Math.round(retirementAge);
+  return rows.find((r) => r.age === target) ?? (target < (rows[0]?.age ?? 0) ? rows[0] : rows[rows.length - 1]);
+}
+
 /** Legacy v1 single-balance projection. Preserved verbatim so migrated v1 documents
  *  (home/healthcare/SS off, no expenses) keep projecting identically. The v2 engine
  *  below handles tax-aware, multi-account scenarios; runProjection dispatches between them. */
@@ -137,7 +146,6 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
   let balance = a.startingBalance;
   let depletionAge: number | null = null;
   const months: MonthState[] = [];
-  let balanceAtRetire = balance;
 
   for (let t = 0; t < T; t++) {
     const age = monthIndexToAge(t, a.currentAge);
@@ -195,9 +203,6 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     //  fixed-amount:       fixed today's-$/yr, inflated to nominal
     //  target-income:      fund the spending-phase gap (target minus guaranteed income)
     const balEff = balance + C + L;
-    // Balance at Retirement counts this month's deposits (a sale lump timed at the
-    // retirement month belongs in it) but not the month's withdrawal or growth.
-    if (t === tRet) balanceAtRetire = balEff;
     let W = 0;
     if (age >= a.retirementAge) {
       if (scn.withdrawal.type === 'percent-of-balance') {
@@ -257,7 +262,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     : scn.incomeStreams.reduce((sum, s) => sum + streamNominalAt(scn, s, tRet, a.retirementAge), 0);
   const requiredWithdrawal = mRet ? mRet.withdrawal : 0;
   const monthlyIncome = gAtRet + requiredWithdrawal;
-  const cpiRet = Math.pow(1 + inflM, tRet);
+  const retRow = retirementRow(rows, a.retirementAge);
   const endNominal = months[months.length - 1]?.endingBalance ?? 0;
   const cpiEndAll = months[months.length - 1]?.cpi ?? 1;
 
@@ -274,8 +279,8 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
   const result: ProjectionResult = {
     rows,
     markers,
-    projectedBalanceAtRetirement: balanceAtRetire,
-    projectedBalanceAtRetirementToday: balanceAtRetire / cpiRet,
+    projectedBalanceAtRetirement: retRow?.endingBalance ?? 0,
+    projectedBalanceAtRetirementToday: retRow?.endingBalanceToday ?? 0,
     guaranteedMonthlyIncome: gAtRet,
     requiredPortfolioWithdrawal: requiredWithdrawal,
     monthlyIncomeAtRetirement: monthlyIncome,
@@ -681,8 +686,9 @@ export function runProjectionV2(
       addCash(inh.toAccountKind, 'self', amt);
     }
 
-    // Balance at Retirement counts this year's deposits (a lump timed at the
-    // retirement year belongs in it) but not spending, taxes, or growth.
+    // Status baseline: liquid balance entering retirement, after the year's
+    // deposits land. (The displayed Balance at Retirement reads the yearly row
+    // instead — see retirementRow.)
     if (j === tRetIndex) balanceAtRetire = taxableBal + pretaxSelf + pretaxSpouse + rothBal;
 
     // ---- home: purchase transition, amortization, costs (every year) ----
@@ -1022,11 +1028,12 @@ export function runProjectionV2(
           ? 'caution'
           : 'shortfall';
 
+  const retRow = retirementRow(rows, a.retirementAge);
   const result: ProjectionResult = {
     rows,
     markers,
-    projectedBalanceAtRetirement: balanceAtRetire,
-    projectedBalanceAtRetirementToday: balanceAtRetire / cpiRet,
+    projectedBalanceAtRetirement: retRow?.endingBalance ?? 0,
+    projectedBalanceAtRetirementToday: retRow?.endingBalanceToday ?? 0,
     guaranteedMonthlyIncome: guaranteedAtRetire,
     requiredPortfolioWithdrawal: withdrawalAtRetire,
     monthlyIncomeAtRetirement: guaranteedAtRetire + withdrawalAtRetire,
