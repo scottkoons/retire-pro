@@ -88,7 +88,9 @@ export function buildWhatIfScenario(base: Scenario, inputs: WhatIfInputs): Scena
       startAge: start,
       endAge: end,
       monthlyAmount: tiers[i],
-      dollarBasis: 'today',
+      // Flat dollars: the slider value is the literal monthly check, not indexed
+      // to inflation (matches Scott's stated contribution model).
+      dollarBasis: 'actual',
       enabled: true,
     });
   }

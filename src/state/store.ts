@@ -458,7 +458,9 @@ export const useStore = create<StoreState>()(
           startAge,
           endAge: Math.max(a.retirementAge, startAge + 1),
           monthlyAmount: 0,
-          dollarBasis: 'today',
+          // Scott's model: a typed contribution is the literal flat check he writes
+          // every month, NOT indexed to inflation ("Actual $"), per 2026-07-06.
+          dollarBasis: 'actual',
           enabled: true,
         });
       }),
