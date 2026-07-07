@@ -1,6 +1,6 @@
 import type { DisplayMode, ProjectionResult, Scenario } from '@/domain/types';
 import type { MonteCarloResult } from '@/engine/montecarlo/types';
-import { ssMonthlyBenefitToday, isLegacySsStream } from '@/engine/project';
+import { ssMonthlyBenefitToday, isLegacySsStream, measurementYearsAtAge } from '@/engine/project';
 import { contributionMonths } from '@/lib/contributions';
 
 export interface PlanSummaryModel {
@@ -54,6 +54,9 @@ export function buildPlanSummaryModel(
   household: string,
 ): PlanSummaryModel {
   const a = scn.assumptions;
+  // "@ retirement" values are measured at the same month as the income tiles.
+  const retDelta = measurementYearsAtAge(a, Math.round(a.retirementAge));
+  const retMeasureAge = a.currentAge + retDelta;
   const wd =
     scn.withdrawal.type === 'percent-of-balance'
       ? `Percentage of balance, ${((scn.withdrawal.rate ?? 0.04) * 100).toFixed(1)}%, ${scn.withdrawal.taxStatus}`
@@ -104,7 +107,12 @@ export function buildPlanSummaryModel(
           end: st.endAge,
           cola: st.cola ?? a.inflation,
           tax: st.taxStatus,
-          atRetire: streamNominal(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, a.retirementAge - a.currentAge),
+          // Measured at the same month as the Guaranteed Income tile (and 0 when
+          // the stream is not active there), so the column sums to the tile.
+          atRetire:
+            retMeasureAge >= st.startAge && retMeasureAge <= st.endAge
+              ? streamNominal(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, retDelta)
+              : 0,
         })),
       // SS planner rows: with the planner on, the legacy "Social Security" income
       // rows are disabled, so the Summary/PDF tables list the planner claims
@@ -125,7 +133,7 @@ export function buildPlanSummaryModel(
                 end: a.modelEndAge,
                 cola: c.cola,
                 tax: 'taxable',
-                atRetire: a.retirementAge >= startSelfAge ? streamNominal(monthly, c.cola, true, a.retirementAge - a.currentAge) : 0,
+                atRetire: retMeasureAge >= startSelfAge ? streamNominal(monthly, c.cola, true, retDelta) : 0,
               };
             })
         : []),

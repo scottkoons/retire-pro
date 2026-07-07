@@ -1,7 +1,7 @@
 /* Runtime verification harness for the v2 engine. Not shipped; run via:
  *   npx esbuild src/engine/__verify.ts --bundle --platform=node --format=esm --alias:@=./src --outfile=/tmp/verify.mjs && node /tmp/verify.mjs
  */
-import { runProjection, runProjectionLegacy, runProjectionV2, usesV2 } from './project';
+import { runProjection, runProjectionLegacy, runProjectionV2, usesV2, incomeBreakdownAtAge, measurementYearsAtAge } from './project';
 import { estimateAnnualTaxes, resolveTaxConfig } from './tax';
 import { runMonteCarlo } from './montecarlo/simulate';
 import { seedDocument } from '@/domain/seed';
@@ -160,6 +160,48 @@ console.log('\n[7] Hold vs Sell both project without errors');
 {
   const h = runProjection(hold, settings);
   check('Hold produces 40 finite rows', h.result.rows.length === 40 && h.result.rows.every(rowAllFinite));
+}
+
+// -------------------------------------------------------------------------
+console.log('\n[8] Income identities: every income surface agrees with the tiles');
+{
+  const s: Scenario = structuredClone(sell);
+  const { result: r, months } = runProjection(s, settings);
+  const a = s.assumptions;
+  check(
+    'guaranteed + portfolio draw == monthly income',
+    near(r.guaranteedMonthlyIncome + r.requiredPortfolioWithdrawal, r.monthlyIncomeAtRetirement, 0.01),
+  );
+  check('monthly x 12 == annual', near(r.monthlyIncomeAtRetirement * 12, r.annualIncomeAtRetirement, 0.01));
+  const bd = incomeBreakdownAtAge(s, months, Math.round(a.retirementAge));
+  check(
+    'income breakdown sums to monthly income',
+    near(bd.components.reduce((x, c) => x + c.monthlyNominal, 0), r.monthlyIncomeAtRetirement, 0.5),
+    `bd=${bd.components.reduce((x, c) => x + c.monthlyNominal, 0).toFixed(0)} tile=${r.monthlyIncomeAtRetirement.toFixed(0)}`,
+  );
+  // Planner/Summary "@ retirement" column values (active streams only, at the
+  // shared measurement month) must sum to the Guaranteed Income tile.
+  const delta = measurementYearsAtAge(a, Math.round(a.retirementAge));
+  const ageAt = a.currentAge + delta;
+  const colSum = s.incomeStreams
+    .filter((st) => st.enabled && st.startAge <= ageAt && ageAt <= st.endAge)
+    .reduce(
+      (x, st) => x + (st.inflationAdjusted ? st.monthlyAmountToday * Math.pow(1 + (st.cola ?? a.inflation), delta) : st.monthlyAmountToday),
+      0,
+    );
+  check(
+    '"@ retirement" columns sum to the Guaranteed tile',
+    near(colSum, r.guaranteedMonthlyIncome, 1),
+    `cols=${colSum.toFixed(0)} tile=${r.guaranteedMonthlyIncome.toFixed(0)}`,
+  );
+  // The draw is taken on the pre-growth balance of the measurement month, so it
+  // sits within a small band of rate x (balance tile) / 12.
+  const approx = ((s.withdrawal.rate ?? 0.04) * r.projectedBalanceAtRetirement) / 12;
+  check(
+    'draw within 2% of rate x balance tile / 12',
+    Math.abs(r.requiredPortfolioWithdrawal - approx) / approx < 0.02,
+    `draw=${r.requiredPortfolioWithdrawal.toFixed(0)} approx=${approx.toFixed(0)}`,
+  );
 }
 
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);

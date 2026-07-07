@@ -114,6 +114,16 @@ function retirementRow(rows: YearRow[], retirementAge: number): YearRow | undefi
   return rows.find((r) => r.age === target) ?? (target < (rows[0]?.age ?? 0) ? rows[0] : rows[rows.length - 1]);
 }
 
+/** Years from now (t=0) to the month where "at age X" quantities are measured:
+ *  the END of that age's projection-year row (the month retirementRow's balance
+ *  and the income tiles read). The Planner and Summary "@ retirement" columns
+ *  use this so a COLA'd stream shows the exact nominal value the Guaranteed
+ *  Income tile counts — the columns SUM to the tile. */
+export function measurementYearsAtAge(a: { currentAge: number }, age: number): number {
+  const j = Math.max(0, Math.round(age) - Math.round(a.currentAge));
+  return (j * 12 + 11) / 12;
+}
+
 /** Legacy v1 single-balance projection. Preserved verbatim so migrated v1 documents
  *  (home/healthcare/SS off, no expenses) keep projecting identically. The v2 engine
  *  below handles tax-aware, multi-account scenarios; runProjection dispatches between them. */

@@ -17,6 +17,7 @@ import {
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
 import { contributionOverlaps, contributionMonths, totalContributed } from '@/lib/contributions';
+import { measurementYearsAtAge } from '@/engine/project';
 import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
@@ -31,6 +32,19 @@ const taxOpts: { value: TaxStatus; label: string }[] = [
 function streamNominalAtAge(todayMonthly: number, cola: number, inflationAdjusted: boolean, ageDelta: number): number {
   if (!inflationAdjusted) return todayMonthly;
   return todayMonthly * Math.pow(1 + cola, ageDelta);
+}
+
+/** A stream's monthly value at the standard measurement month for `delta`
+ *  years from now — 0 when the stream is not active at that month, matching
+ *  the engine, so the "@ retirement" column sums to the Guaranteed tile. */
+function streamAtDelta(
+  st: { monthlyAmountToday: number; cola?: number; inflationAdjusted: boolean; startAge: number; endAge: number },
+  delta: number,
+  a: { currentAge: number; inflation: number },
+): number {
+  const ageAt = a.currentAge + delta;
+  if (ageAt < st.startAge || ageAt > st.endAge) return 0;
+  return streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, delta);
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -61,6 +75,11 @@ export default function PlannerPage() {
 
   // Starting balance is the total of enabled accounts (the source of truth); shown read-only.
   const accountsTotal = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
+
+  // "@ retirement" / "@ 90" columns are measured at the same month as the
+  // dashboard's Guaranteed Income tile, so the column values sum to the tile.
+  const retDelta = measurementYearsAtAge(a, Math.round(a.retirementAge));
+  const at90Delta = measurementYearsAtAge(a, 90);
 
   // Sortable Monthly Contributions table.
   const contribSort = useSort(
@@ -101,8 +120,8 @@ export default function PlannerPage() {
       cola: (st) => st.cola ?? a.inflation,
       owner: (st) => st.owner.toLowerCase(),
       taxStatus: (st) => st.taxStatus.toLowerCase(),
-      atRet: (st) => streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, a.retirementAge - a.currentAge),
-      at90: (st) => streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, 90 - a.currentAge),
+      atRet: (st) => streamAtDelta(st, retDelta, a),
+      at90: (st) => streamAtDelta(st, at90Delta, a),
     },
     { key: 'startAge', dir: 'asc' },
   );
@@ -295,9 +314,8 @@ export default function PlannerPage() {
           />
           <tbody>
             {incomeSort.sorted.map((st) => {
-              const cola = st.cola ?? a.inflation;
-              const atRet = streamNominalAtAge(st.monthlyAmountToday, cola, st.inflationAdjusted, a.retirementAge - a.currentAge);
-              const at90 = streamNominalAtAge(st.monthlyAmountToday, cola, st.inflationAdjusted, 90 - a.currentAge);
+              const atRet = streamAtDelta(st, retDelta, a);
+              const at90 = streamAtDelta(st, at90Delta, a);
               return (
                 <TR key={st.id} dim={!st.enabled}>
                   <TD><TextInput value={st.name} onChange={(v) => s.updateIncomeStream(st.id, { name: v })} /></TD>
