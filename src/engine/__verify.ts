@@ -204,6 +204,80 @@ console.log('\n[8] Income identities: every income surface agrees with the tiles
   );
 }
 
+// -------------------------------------------------------------------------
+console.log('\n[9] External audit checklist: rate conversion, timing, double-counting');
+{
+  const { monthlyRate } = await import('./timeline');
+  const { ageFromISO } = await import('@/lib/dates');
+
+  // (1) annual -> monthly conversion must be geometric, not annual/12.
+  check('monthlyRate(7%) == 0.56541% (geometric), not 0.58333% (7/12)', near(monthlyRate(0.07), 0.0056541, 0.0000005), `got ${(monthlyRate(0.07) * 100).toFixed(5)}%`);
+
+  // (2)-(5) full reference-simulation parity on Scott's audited plan, with the
+  // calendar->month mapping derived INDEPENDENTLY of the app's date helpers.
+  const s: Scenario = structuredClone(sell);
+  const a = s.assumptions; // currentAge 56, born Apr 1970 -> t=0 is April 2026
+  a.startingBalance = 296_500;
+  a.annualReturn = 0.07;
+  a.retirementAge = 67;
+  s.investmentReturnPhases = [];
+  s.incomeStreams = [];
+  s.socialSecurity.enabled = false;
+  s.withdrawal = { type: 'percent-of-balance', rate: 0.04, taxStatus: 'taxable' };
+  const C = (from: string, to: string, amt: number) => ({
+    id: `${from}-${amt}`, name: `${amt}`, startAge: ageFromISO(from, a), endAge: ageFromISO(to, a),
+    monthlyAmount: amt, dollarBasis: 'actual' as const, enabled: true, startDateOverride: from, endDateOverride: to,
+  });
+  const L = (on: string, amt: number) => ({
+    id: `${on}-${amt}`, name: `${amt}`, age: ageFromISO(on, a), amount: amt,
+    dollarBasis: 'actual' as const, enabled: true, dateOverride: on,
+  });
+  s.contributions = [
+    C('2026-06-01', '2026-06-01', 5_250),
+    C('2026-07-01', '2026-08-01', 6_250),
+    C('2026-09-01', '2027-09-01', 7_000),
+    C('2027-10-01', '2032-08-01', 3_000),
+    C('2032-10-01', '2037-04-01', 1_500),
+  ];
+  s.lumpSums = [
+    L('2026-10-01', 40_000), L('2026-12-01', 50_000), L('2027-10-01', 500_000),
+    L('2027-10-01', 50_000), L('2032-09-01', 50_000), L('2032-09-01', 400_000),
+  ];
+
+  const { months } = runProjection(s, settings);
+
+  // Independent month grid: month index of calendar (year, month-1..12), anchor April 2026.
+  const ix = (y: number, m: number) => (y - 2026) * 12 + (m - 4);
+  const spans: [number, number, number][] = [
+    [ix(2026, 6), ix(2026, 6), 5_250],
+    [ix(2026, 7), ix(2026, 8), 6_250],
+    [ix(2026, 9), ix(2027, 9), 7_000],
+    [ix(2027, 10), ix(2032, 8), 3_000],
+    [ix(2032, 10), ix(2037, 4), 1_500],
+  ];
+  const lumpAt = new Map<number, number>();
+  for (const [y, m, amt] of [[2026, 10, 40_000], [2026, 12, 50_000], [2027, 10, 550_000], [2032, 9, 450_000]] as const) {
+    lumpAt.set(ix(y, m), amt);
+  }
+  const tRet = ix(2037, 4); // April 2037 = the month of the 67th birthday
+  const rM = monthlyRate(0.07);
+  let bal = 296_500;
+  let maxDiff = 0;
+  let depositTotal = 0;
+  for (let t = 0; t <= ix(2038, 3); t++) {
+    let c = 0;
+    for (const [from, to, amt] of spans) if (t >= from && t <= to) c += amt;
+    depositTotal += c;
+    const l = lumpAt.get(t) ?? 0;
+    const w = t >= tRet ? ((bal + c + l) * 0.04) / 12 : 0;
+    bal = bal + c + l - w + (bal + c + l - w) * rM;
+    maxDiff = Math.max(maxDiff, Math.abs(bal - months[t].endingBalance));
+  }
+  check('engine matches the independent simulation every month (<= $0.01)', maxDiff <= 0.01, `max diff $${maxDiff.toFixed(4)}`);
+  check('no double-counting: deposits == flat schedule total $368,250', depositTotal === 368_250, `got ${depositTotal}`);
+  check('balance on the retirement date ~= $3,064,518 (locked reference)', near(months[tRet].startingBalance, 3_064_518, 5), `got ${months[tRet].startingBalance.toFixed(0)}`);
+}
+
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);
 // dev-only harness; exit non-zero on failure when run under node
 if (fail > 0) (globalThis as { process?: { exit: (n: number) => void } }).process?.exit(1);
