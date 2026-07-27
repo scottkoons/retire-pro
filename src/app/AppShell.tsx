@@ -20,6 +20,14 @@ export function AppShell() {
     void initPlanFile();
   }, [initPlanFile]);
 
+  // Ask the browser to treat this origin's storage as durable so it is not
+  // evicted under disk pressure. Chrome grants it silently for installed apps.
+  // It is a request rather than a guarantee, which is exactly why the plan file
+  // above is the real durability story and this is only belt and braces.
+  useEffect(() => {
+    void navigator.storage?.persist?.();
+  }, []);
+
   return (
     <div
       className="h-screen bg-base text-ink md:grid md:transition-[grid-template-columns] md:duration-200 md:ease-out md:[grid-template-columns:var(--sidebar-w)_1fr]"

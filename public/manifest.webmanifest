@@ -1,0 +1,17 @@
+{
+  "name": "RetirePro",
+  "short_name": "RetirePro",
+  "description": "Private local retirement planner",
+  "start_url": "./",
+  "scope": "./",
+  "id": "retirepro",
+  "display": "standalone",
+  "background_color": "#0d1420",
+  "theme_color": "#0d1420",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

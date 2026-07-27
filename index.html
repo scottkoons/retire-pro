@@ -13,6 +13,10 @@
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: ws: wss: https://api.anthropic.com https://api.openai.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Lets Chrome install this as a standalone desktop app (own window and
+         dock icon, no tab strip) rather than a generic page shortcut. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0d1420" />
     <title>RetirePro</title>
     <meta name="description" content="Private local retirement planner" />
