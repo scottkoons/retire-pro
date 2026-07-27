@@ -7,6 +7,7 @@ import { Section, StatusPill } from '@/components/ui/primitives';
 import { StatTile } from '@/components/ui/tiles';
 import { WealthChart } from '@/components/charts/WealthChart';
 import { ExportPdfButton } from '@/components/ExportPdfButton';
+import { PlanNarrator } from './PlanNarrator';
 import { useSort, type SortState } from '@/components/grid/Grid';
 import { fmtUSD, fmtPct, fmtAgeYM } from '@/lib/format';
 
@@ -141,6 +142,8 @@ export default function SummaryPage() {
           <StatTile label="Status" value={<StatusPill status={k.status} />} />
         </div>
       </Section>
+
+      <PlanNarrator summary={model} scenarioId={scn.id} />
 
       <Section title="Assumptions">
         <MiniTable

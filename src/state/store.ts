@@ -44,18 +44,59 @@ import {
   defaultBusinessVenture,
   defaultSocialSecurity,
 } from '@/domain/defaults';
-import { loadDocument, saveDocument } from '@/persistence/storage';
+import { loadDocument, saveDocument, backupJSON, parseBackup } from '@/persistence/storage';
 import { AUTOSAVE_DEBOUNCE_MS } from '@/persistence/constants';
+import {
+  planFileSupported,
+  savedPlanHandle,
+  pickNewPlanFile,
+  pickExistingPlanFile,
+  checkPermission,
+  requestPermission,
+  readPlanFile,
+  writePlanFile,
+  forgetPlanHandle,
+  type PlanFileHandle,
+} from '@/persistence/planFile';
 import { ageFromBirthDate } from '@/lib/dates';
 import { isLegacySsStream } from '@/engine/project';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+/** Lifecycle of the optional on-disk mirror. See persistence/planFile.ts. */
+export type PlanFileStatus =
+  | 'unsupported' // no File System Access API (Safari, Firefox)
+  | 'off' // supported, but no file bound yet
+  | 'needs-permission' // a file is remembered; Chrome needs a click to re-grant
+  | 'connected'
+  | 'error';
+
+export interface PlanFileState {
+  status: PlanFileStatus;
+  /** File name only — the API never exposes the full path. */
+  name?: string;
+  lastWriteAt?: string;
+  error?: string;
+}
 
 interface StoreState extends PersistedDocument {
   ui: UiState;
   saveStatus: SaveStatus;
   saveError?: string;
   recovered?: string;
+  planFile: PlanFileState;
+
+  // plan file (on-disk mirror)
+  /** Called once on mount: re-attach a remembered file and adopt it if newer. */
+  initPlanFile: () => Promise<void>;
+  /** Pick a new location to write the plan to. Requires a user gesture. */
+  connectPlanFile: () => Promise<void>;
+  /** Attach to an existing plan file and load whichever copy is newer. */
+  attachPlanFile: () => Promise<void>;
+  /** Re-grant permission after a browser restart. Requires a user gesture. */
+  reconnectPlanFile: () => Promise<void>;
+  /** Stop mirroring to disk. The file itself is left untouched. */
+  disconnectPlanFile: () => Promise<void>;
 
   // scenario management
   selectScenario: (id: string) => void;
@@ -226,6 +267,14 @@ const nowISO = () => new Date().toISOString();
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+// The bound plan-file handle. Set ONLY once permission is granted, so the
+// write-through path can never attempt a write that would silently fail.
+let planHandle: PlanFileHandle | null = null;
+// A remembered handle whose permission has lapsed (Chrome resets a stored
+// handle to `prompt` on restart). Kept separate so "Reconnect" has a target
+// while writes stay disabled until the user actually re-grants.
+let pendingHandle: PlanFileHandle | null = null;
+
 export const useStore = create<StoreState>()(
   immer((set, get) => {
     // Account edits apply to the ACTIVE scenario, then mirror to every scenario:
@@ -277,6 +326,52 @@ export const useStore = create<StoreState>()(
       schedulePersist();
     };
 
+    /** The document exactly as it is persisted. */
+    const currentDoc = (): PersistedDocument => {
+      const st = get();
+      return {
+        schemaVersion: st.schemaVersion,
+        appVersion: st.appVersion,
+        savedAt: st.savedAt,
+        scenarios: st.scenarios,
+        activeScenarioId: st.activeScenarioId,
+        settings: st.settings,
+        netWorth: st.netWorth,
+      };
+    };
+
+    // Mirror the just-saved payload to disk. The file content is the same
+    // wrapper `exportBackup` writes, so the plan file doubles as a backup that
+    // "Import JSON backup" already understands, and reading it back reuses the
+    // existing validated `parseBackup` path.
+    async function writeThrough(saved: PersistedDocument): Promise<void> {
+      if (!planHandle) return;
+      try {
+        await writePlanFile(planHandle, backupJSON(saved));
+        set((s) => {
+          s.planFile.status = 'connected';
+          s.planFile.lastWriteAt = saved.savedAt;
+          s.planFile.error = undefined;
+        });
+      } catch (err) {
+        // Permission can lapse mid-session if the user revokes site access.
+        // Park the handle so Reconnect can recover it instead of losing it.
+        const denied = err instanceof DOMException && err.name === 'NotAllowedError';
+        if (denied) {
+          pendingHandle = planHandle;
+          planHandle = null;
+        }
+        set((s) => {
+          s.planFile.status = denied ? 'needs-permission' : 'error';
+          s.planFile.error = denied
+            ? 'Permission to write the plan file was lost.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not write the plan file.';
+        });
+      }
+    }
+
     function schedulePersist() {
       set((s) => {
         s.saveStatus = 'saving';
@@ -284,21 +379,62 @@ export const useStore = create<StoreState>()(
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         const st = get();
-        const doc: PersistedDocument = {
-          schemaVersion: st.schemaVersion,
-          appVersion: st.appVersion,
-          savedAt: st.savedAt,
-          scenarios: st.scenarios,
-          activeScenarioId: st.activeScenarioId,
-          settings: st.settings,
-          netWorth: st.netWorth,
-        };
-        const res = saveDocument(doc, st.ui);
+        const res = saveDocument(currentDoc(), st.ui);
         set((s) => {
           s.saveStatus = res.ok ? 'saved' : 'error';
           s.saveError = res.error;
+          // Keep the in-memory timestamp in step with what was actually
+          // written, so the plan-file comparison on next load is meaningful.
+          s.savedAt = res.saved.savedAt;
         });
+        void writeThrough(res.saved);
       }, AUTOSAVE_DEBOUNCE_MS);
+    }
+
+    /**
+     * Reconcile the on-disk copy with what is in memory.
+     *
+     * `preferFile` is passed by the automatic re-attach on boot and is true when
+     * localStorage was empty or corrupt, so the in-memory document is only the
+     * seed plan. That is precisely the case this feature exists for, and there
+     * is nothing to lose by taking the file. Otherwise the strictly newer
+     * `savedAt` wins.
+     */
+    async function reconcileWithFile(handle: PlanFileHandle, preferFile: boolean): Promise<void> {
+      const text = await readPlanFile(handle);
+      if (!text.trim()) {
+        // Brand-new empty file: seed it with what we have.
+        const st = get();
+        const res = saveDocument(currentDoc(), st.ui);
+        set((s) => {
+          s.savedAt = res.saved.savedAt;
+        });
+        await writeThrough(res.saved);
+        return;
+      }
+      const parsed = parseBackup(text);
+      if (!parsed.ok) {
+        set((s) => {
+          s.planFile.status = 'error';
+          s.planFile.error = `Plan file could not be read: ${parsed.error}`;
+        });
+        return;
+      }
+      const fileWins = preferFile || parsed.doc.savedAt > get().savedAt;
+      if (fileWins) {
+        get().replaceDocument(parsed.doc);
+        // The document we just adopted IS the file's content; do not immediately
+        // rewrite it. replaceDocument's own schedulePersist keeps localStorage
+        // in step, and its write-through is a no-op rewrite of identical data.
+      } else {
+        // Memory is newer (e.g. edits made while the file was disconnected).
+        const st = get();
+        const res = saveDocument(currentDoc(), st.ui);
+        set((s) => {
+          s.savedAt = res.saved.savedAt;
+        });
+        await writeThrough(res.saved);
+      }
     }
 
     return {
@@ -307,6 +443,7 @@ export const useStore = create<StoreState>()(
       ui: init.ui,
       saveStatus: 'idle',
       recovered: init.recovered,
+      planFile: { status: planFileSupported() ? 'off' : 'unsupported' },
 
       selectScenario: (id) => {
         set((s) => {
@@ -774,6 +911,177 @@ export const useStore = create<StoreState>()(
           s.ui.railCollapsed = on ?? !s.ui.railCollapsed;
         });
         schedulePersist();
+      },
+
+      // ---- plan file (on-disk mirror) ----
+      // `init.fresh` is the boot-time fact that localStorage held nothing
+      // usable, so the in-memory plan is only the seed. Both the automatic
+      // re-attach and the manual reconnect use it to decide that the file is
+      // authoritative — that is the whole recovery story for a cleared browser.
+      initPlanFile: async () => {
+        if (!planFileSupported()) {
+          set((s) => {
+            s.planFile.status = 'unsupported';
+          });
+          return;
+        }
+        const handle = await savedPlanHandle();
+        if (!handle) {
+          set((s) => {
+            s.planFile.status = 'off';
+          });
+          return;
+        }
+        if ((await checkPermission(handle)) !== 'granted') {
+          // Chrome resets a stored handle to `prompt` on restart, and
+          // re-granting needs a user gesture. Park it for Reconnect and leave
+          // writing disabled until then.
+          pendingHandle = handle;
+          set((s) => {
+            s.planFile.status = 'needs-permission';
+            s.planFile.name = handle.name;
+          });
+          return;
+        }
+        planHandle = handle;
+        set((s) => {
+          s.planFile.status = 'connected';
+          s.planFile.name = handle.name;
+        });
+        try {
+          await reconcileWithFile(handle, init.fresh === true);
+        } catch (err) {
+          set((s) => {
+            s.planFile.status = 'error';
+            s.planFile.error = err instanceof Error ? err.message : 'Could not read the plan file.';
+          });
+        }
+      },
+
+      connectPlanFile: async () => {
+        try {
+          const handle = await pickNewPlanFile();
+          if (!handle) return; // user cancelled the picker
+          planHandle = handle;
+          pendingHandle = null;
+          set((s) => {
+            s.planFile.status = 'connected';
+            s.planFile.name = handle.name;
+            s.planFile.error = undefined;
+          });
+          // Write immediately so the file is never left empty.
+          const res = saveDocument(currentDoc(), get().ui);
+          set((s) => {
+            s.savedAt = res.saved.savedAt;
+          });
+          await writeThrough(res.saved);
+        } catch (err) {
+          set((s) => {
+            s.planFile.status = 'error';
+            s.planFile.error = err instanceof Error ? err.message : 'Could not create the plan file.';
+          });
+        }
+      },
+
+      attachPlanFile: async () => {
+        try {
+          const handle = await pickExistingPlanFile();
+          if (!handle) return;
+          // Opening a file grants read access; writing needs an explicit
+          // readwrite grant. The picker click still counts as activation here.
+          if ((await checkPermission(handle)) !== 'granted' && (await requestPermission(handle)) !== 'granted') {
+            pendingHandle = handle;
+            set((s) => {
+              s.planFile.status = 'needs-permission';
+              s.planFile.name = handle.name;
+            });
+            return;
+          }
+          planHandle = handle;
+          pendingHandle = null;
+          set((s) => {
+            s.planFile.status = 'connected';
+            s.planFile.name = handle.name;
+            s.planFile.error = undefined;
+          });
+
+          // Attaching is deliberate and can be destructive in either direction,
+          // so unlike the automatic re-attach this one asks rather than guesses.
+          const text = await readPlanFile(handle);
+          const parsed = text.trim() ? parseBackup(text) : null;
+          if (parsed && parsed.ok) {
+            const fileNewer = parsed.doc.savedAt > get().savedAt;
+            const useFile = confirm(
+              fileNewer
+                ? 'That plan file is NEWER than the plan in this browser.\n\nLoad the file and replace what is here?'
+                : 'That plan file is OLDER than the plan in this browser.\n\nOK loads the file and replaces what is here. Cancel keeps the browser copy and overwrites the file on the next save.',
+            );
+            if (useFile) {
+              get().replaceDocument(parsed.doc);
+              return;
+            }
+          } else if (parsed && !parsed.ok) {
+            set((s) => {
+              s.planFile.error = `That file is not a RetirePro plan (${parsed.error}). It will be overwritten on the next save.`;
+            });
+          }
+          const res = saveDocument(currentDoc(), get().ui);
+          set((s) => {
+            s.savedAt = res.saved.savedAt;
+          });
+          await writeThrough(res.saved);
+        } catch (err) {
+          set((s) => {
+            s.planFile.status = 'error';
+            s.planFile.error = err instanceof Error ? err.message : 'Could not open the plan file.';
+          });
+        }
+      },
+
+      reconnectPlanFile: async () => {
+        const handle = pendingHandle ?? (await savedPlanHandle());
+        if (!handle) {
+          set((s) => {
+            s.planFile.status = 'off';
+          });
+          return;
+        }
+        if ((await requestPermission(handle)) !== 'granted') {
+          pendingHandle = handle;
+          set((s) => {
+            s.planFile.status = 'needs-permission';
+            s.planFile.name = handle.name;
+            s.planFile.error = 'Permission was not granted, so the plan is not being written to disk.';
+          });
+          return;
+        }
+        planHandle = handle;
+        pendingHandle = null;
+        set((s) => {
+          s.planFile.status = 'connected';
+          s.planFile.name = handle.name;
+          s.planFile.error = undefined;
+        });
+        try {
+          await reconcileWithFile(handle, init.fresh === true);
+        } catch (err) {
+          set((s) => {
+            s.planFile.status = 'error';
+            s.planFile.error = err instanceof Error ? err.message : 'Could not read the plan file.';
+          });
+        }
+      },
+
+      disconnectPlanFile: async () => {
+        planHandle = null;
+        pendingHandle = null;
+        await forgetPlanHandle();
+        set((s) => {
+          s.planFile.status = planFileSupported() ? 'off' : 'unsupported';
+          s.planFile.name = undefined;
+          s.planFile.lastWriteAt = undefined;
+          s.planFile.error = undefined;
+        });
       },
 
       replaceDocument: (doc) => {

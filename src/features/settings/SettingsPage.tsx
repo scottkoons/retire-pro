@@ -7,6 +7,8 @@ import { birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates'
 import { fmtAgeYM } from '@/lib/format';
 import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
+import { useAiStore } from '@/ai/aiStore';
+import { hasActiveKey, maskKey, PROVIDER_LABELS, type AiProviderId } from '@/ai/config';
 import type { PersistedDocument } from '@/domain/types';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -15,6 +17,253 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="label-mono">{label}</span>
       {children}
     </label>
+  );
+}
+
+/**
+ * Binds the plan to a real file on disk so every autosave writes through.
+ * localStorage lives inside the browser profile, where no backup tool can see
+ * it and "Clear browsing data" erases it; a file in an already-backed-up folder
+ * fixes both, and is what the app reads back if this browser is ever wiped.
+ */
+function PlanFilePanel() {
+  const planFile = useStore((s) => s.planFile);
+  const connectPlanFile = useStore((s) => s.connectPlanFile);
+  const attachPlanFile = useStore((s) => s.attachPlanFile);
+  const reconnectPlanFile = useStore((s) => s.reconnectPlanFile);
+  const disconnectPlanFile = useStore((s) => s.disconnectPlanFile);
+  const [busy, setBusy] = useState(false);
+
+  const run = (fn: () => Promise<void>) => async () => {
+    setBusy(true);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDisconnect = run(async () => {
+    if (!confirm('Stop writing your plan to disk?\n\nThe file itself is left alone, and your plan stays saved in this browser.')) return;
+    await disconnectPlanFile();
+  });
+
+  const lastWrite = planFile.lastWriteAt ? new Date(planFile.lastWriteAt) : null;
+
+  return (
+    <Section
+      title="Plan File"
+      subtitle="Mirror every save to a real file on disk, so a folder you already back up covers your plan too"
+    >
+      {planFile.status === 'unsupported' ? (
+        <p className="text-[13px] text-muted">
+          This browser cannot write directly to a file. Chrome and Edge support it; Safari and Firefox do not. Until then,
+          use "Export JSON backup" below to keep a copy outside the browser.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border-subtle bg-card-high px-4 py-3">
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                planFile.status === 'connected'
+                  ? 'bg-success'
+                  : planFile.status === 'error'
+                    ? 'bg-error'
+                    : planFile.status === 'needs-permission'
+                      ? 'bg-caution'
+                      : 'bg-border-strong'
+              }`}
+            />
+            {planFile.status === 'connected' && (
+              <>
+                <span className="text-[14px] font-semibold text-ink">{planFile.name}</span>
+                <span className="text-[12px] text-muted">
+                  {lastWrite ? `Written at ${lastWrite.toLocaleTimeString()}` : 'Waiting for the next save'}
+                </span>
+              </>
+            )}
+            {planFile.status === 'needs-permission' && (
+              <span className="text-[13px] text-ink">
+                {planFile.name ?? 'Your plan file'} is remembered, but this browser needs permission again before it can be
+                written.
+              </span>
+            )}
+            {planFile.status === 'off' && <span className="text-[13px] text-muted">Not saving to a file yet.</span>}
+            {planFile.status === 'error' && <span className="text-[13px] text-error">{planFile.error}</span>}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {planFile.status === 'needs-permission' && (
+              <Button disabled={busy} onClick={run(reconnectPlanFile)}>
+                Reconnect
+              </Button>
+            )}
+            <Button variant="outline" disabled={busy} onClick={run(connectPlanFile)}>
+              {planFile.status === 'connected' ? 'Change file…' : 'Choose plan file…'}
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={run(attachPlanFile)}>
+              Use an existing plan file…
+            </Button>
+            {planFile.status !== 'off' && (
+              <Button variant="danger" disabled={busy} onClick={onDisconnect}>
+                Stop saving to disk
+              </Button>
+            )}
+          </div>
+
+          <p className="text-[11px] text-faint">
+            "Choose plan file" creates the file and overwrites whatever is at that name. "Use an existing plan file"
+            attaches to one you already have and asks which copy to keep. Pick somewhere your backups already reach, for
+            example inside your Sync folder. Chrome asks for permission again after each restart, which is one click.
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * API keys for the optional AI features.
+ *
+ * Keys live under their own localStorage entry, never inside the plan document
+ * (see ai/config.ts), so they cannot leak into an exported backup, the
+ * clipboard transfer, or the plan file on disk.
+ */
+function AiSettingsPanel() {
+  const config = useAiStore((s) => s.config);
+  const setConfig = useAiStore((s) => s.setConfig);
+  const forgetKeys = useAiStore((s) => s.forgetKeys);
+  const [reveal, setReveal] = useState<Record<string, boolean>>({});
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const providers: AiProviderId[] = ['anthropic', 'openai'];
+
+  const patch = (id: AiProviderId, field: 'apiKey' | 'model', value: string) => {
+    setConfig({ ...config, [id]: { ...config[id], [field]: value } });
+    setResult(null);
+  };
+
+  const onTest = async () => {
+    setTesting(true);
+    setResult(null);
+    try {
+      const { testAiConnection } = await import('@/ai/client');
+      setResult({ ok: true, text: `Connected. ${PROVIDER_LABELS[config.provider]} replied "${await testAiConnection(config)}".` });
+    } catch (err) {
+      const { describeAiError } = await import('@/ai/client');
+      const d = describeAiError(err, config.provider);
+      setResult({ ok: false, text: d.hint ? `${d.message} ${d.hint}` : d.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const onForget = () => {
+    if (!confirm('Remove both API keys from this browser?')) return;
+    forgetKeys();
+    setResult(null);
+  };
+
+  const inputCls =
+    'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[13px] text-ink focus:border-primary focus:outline-none';
+
+  return (
+    <Section
+      title="AI Assistant"
+      subtitle="Optional. Adds a plain-English read of your plan on the Plan Summary page."
+      actions={
+        <Segmented
+          size="sm"
+          options={providers.map((p) => ({ value: p, label: p === 'anthropic' ? 'Claude' : 'OpenAI' }))}
+          value={config.provider}
+          onChange={(v) => {
+            setConfig({ ...config, provider: v });
+            setResult(null);
+          }}
+        />
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {providers.map((id) => (
+            <div
+              key={id}
+              className={`rounded-xl border p-4 ${config.provider === id ? 'border-primary/50 bg-card-high' : 'border-border-subtle bg-card-high opacity-70'}`}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-ink">{PROVIDER_LABELS[id]}</span>
+                {config.provider === id && (
+                  <span className="rounded-full bg-primary-tint px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-primary">
+                    In use
+                  </span>
+                )}
+              </div>
+              <Field label="API Key">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type={reveal[id] ? 'text' : 'password'}
+                    value={config[id].apiKey}
+                    onChange={(e) => patch(id, 'apiKey', e.target.value)}
+                    placeholder={id === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label={`${PROVIDER_LABELS[id]} API key`}
+                    className={`${inputCls} min-w-0 flex-1`}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReveal((r) => ({ ...r, [id]: !r[id] }))}
+                    title={reveal[id] ? 'Hide the key' : 'Show the key'}
+                  >
+                    {reveal[id] ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+                {config[id].apiKey && !reveal[id] && (
+                  <span className="mt-0.5 font-mono text-[11px] text-faint">{maskKey(config[id].apiKey)}</span>
+                )}
+              </Field>
+              <div className="mt-3">
+                <Field label="Model">
+                  <input
+                    type="text"
+                    value={config[id].model}
+                    onChange={(e) => patch(id, 'model', e.target.value)}
+                    spellCheck={false}
+                    aria-label={`${PROVIDER_LABELS[id]} model`}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {result && (
+          <div
+            className={`rounded-lg border px-4 py-2 text-[13px] ${result.ok ? 'border-success/40 bg-success-tint text-success' : 'border-error/40 bg-error-tint text-error'}`}
+          >
+            {result.text}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={testing || !hasActiveKey(config)} onClick={onTest}>
+            {testing ? 'Testing…' : 'Test connection'}
+          </Button>
+          <Button variant="danger" onClick={onForget}>
+            Forget keys
+          </Button>
+        </div>
+
+        <p className="text-[11px] text-faint">
+          Keys are stored only in this browser and are sent only to the provider they belong to. They are deliberately kept
+          out of the plan document, so exporting a backup or writing the plan file never includes them. The model field is
+          editable because provider line-ups change; if a request fails with an unknown model, correct it here.
+        </p>
+      </div>
+    </Section>
   );
 }
 
@@ -304,7 +553,11 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Data" subtitle="Your plan is stored locally in each browser. Back it up regularly, and use Copy/Paste plan to move it between your Mac and phone.">
+      <AiSettingsPanel />
+
+      <PlanFilePanel />
+
+      <Section title="Data" subtitle="Your plan is saved in this browser, and to your plan file when one is connected above. Export a backup before any big change.">
         {msg && <div className="mb-4 rounded-lg border border-primary/40 bg-primary-tint px-4 py-2 text-[13px] text-ink">{msg}</div>}
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onCopyPlan}>Copy plan</Button>
