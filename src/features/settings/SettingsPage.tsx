@@ -226,7 +226,7 @@ function AiSettingsPanel() {
     if (list.loading) return 'Loading the model list…';
     if (list.error) return list.error;
     if (list.live) return `${list.options.length} model${list.options.length === 1 ? '' : 's'} on this key`;
-    if (!config[id].apiKey.trim()) return 'Built-in list. Add a key to load the models your account can use.';
+    if (!config[id].apiKey.trim()) return 'Built-in list until a key is saved.';
     return 'Built-in list.';
   };
 
@@ -305,18 +305,20 @@ function AiSettingsPanel() {
                     ))}
                   </select>
                 </Field>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-faint">
+                <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-faint">
                   {/* Anthropic names its models for people, so show what is actually sent. */}
                   {selected && selected.label !== selected.id && <span>Sends {selected.id}</span>}
-                  <span className={modelLists[id].error ? 'text-error' : undefined}>{modelStatus(id)}</span>
-                  <button
-                    type="button"
-                    onClick={() => void loadModels(id, config[id].apiKey)}
-                    disabled={modelLists[id].loading || !config[id].apiKey.trim()}
-                    className="underline underline-offset-2 text-primary disabled:text-faint disabled:no-underline"
-                  >
-                    Refresh
-                  </button>
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <span className={modelLists[id].error ? 'text-error' : undefined}>{modelStatus(id)}</span>
+                    <button
+                      type="button"
+                      onClick={() => void loadModels(id, config[id].apiKey)}
+                      disabled={modelLists[id].loading || !config[id].apiKey.trim()}
+                      className="underline underline-offset-2 text-primary disabled:text-faint disabled:no-underline"
+                    >
+                      Refresh
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
