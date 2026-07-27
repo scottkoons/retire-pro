@@ -30,7 +30,7 @@ export function AppShell() {
 
   return (
     <div
-      className="h-screen bg-base text-ink md:grid md:transition-[grid-template-columns] md:duration-200 md:ease-out md:[grid-template-columns:var(--sidebar-w)_1fr]"
+      className="rp-app-bg h-screen text-ink md:grid md:transition-[grid-template-columns] md:duration-200 md:ease-out md:[grid-template-columns:var(--sidebar-w)_1fr]"
       style={{ '--sidebar-w': `${collapsed ? 64 : 240}px` } as React.CSSProperties}
     >
       <div className="hidden md:block">

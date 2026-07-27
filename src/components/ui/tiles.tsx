@@ -54,7 +54,7 @@ export function ControlTile({
         {icon && <span className="text-primary">{icon}</span>}
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="font-head text-[34px] font-bold leading-none text-ink tabnum">{value}</span>
+        <span className="font-head text-[34px] font-semibold leading-none tracking-[-0.025em] text-ink tabnum">{value}</span>
         {unit && <span className="font-mono text-[14px] text-muted">{unit}</span>}
       </div>
       {children && <div className="mt-4">{children}</div>}
@@ -115,7 +115,7 @@ export function StatTile({
         />
       )}
       <div className="label-mono mb-1.5">{label}</div>
-      <div className="font-head text-[22px] font-semibold text-ink tabnum" style={t ? { color: t.text } : undefined}>
+      <div className="font-head text-[22px] font-semibold tracking-[-0.02em] text-ink tabnum" style={t ? { color: t.text } : undefined}>
         {value}
       </div>
       {sub && <div className="mt-1 text-[12px] text-muted">{sub}</div>}
@@ -147,7 +147,7 @@ export function SummaryTile({
       >
         {label}
       </div>
-      <div className="font-head text-[32px] font-bold text-ink tabnum">{value}</div>
+      <div className="font-head text-[32px] font-semibold tracking-[-0.025em] text-ink tabnum">{value}</div>
     </div>
   );
 }
@@ -178,7 +178,7 @@ export function BarRow({
           {chip}
           {sublabel && <span className="font-mono text-[10px] uppercase tracking-wide text-faint">{sublabel}</span>}
         </div>
-        <span className="font-head text-[18px] font-bold text-ink tabnum">{value}</span>
+        <span className="font-head text-[18px] font-semibold tracking-[-0.015em] text-ink tabnum">{value}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-input">
         <div

@@ -319,7 +319,7 @@ export function DateInput({ value, onChange }: { value?: string; onChange: (v: s
       type="date"
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className={clsx(inputCls, 'text-muted [color-scheme:dark]')}
+      className={clsx(inputCls, 'text-muted')}
     />
   );
 }
@@ -331,14 +331,14 @@ export function MonthYearInput({ value, onChange }: { value: string; onChange: (
       type="month"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={clsx(inputCls, 'text-muted [color-scheme:dark]')}
+      className={clsx(inputCls, 'text-muted')}
     />
   );
 }
 
 export function SelectInput<T extends string>({ value, options, onChange, ariaLabel }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; ariaLabel?: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel} className={clsx(inputCls, 'cursor-pointer pr-5 [color-scheme:dark]')}>
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel} className={clsx(inputCls, 'cursor-pointer pr-5')}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

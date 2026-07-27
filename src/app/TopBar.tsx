@@ -41,7 +41,9 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   };
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-border-subtle bg-base px-4 py-3 md:gap-4 md:px-8">
+    // Transparent so the page-level ambient wash reads through the header strip;
+    // nothing scrolls beneath it, so there is nothing to obscure.
+    <header className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3 md:gap-4 md:px-8">
       {/* Mobile: open the navigation drawer */}
       <button
         type="button"

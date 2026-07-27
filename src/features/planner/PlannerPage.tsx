@@ -141,12 +141,12 @@ export default function PlannerPage() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <Field label="Birth Date">
             {/* Current age is derived from this, so the plan stays anchored to today. */}
-            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(a)} onChange={(e) => e.target.value && s.setBirthDate(e.target.value)} />
+            <input type="date" className={`${fieldCls}`} value={birthDateISO(a)} onChange={(e) => e.target.value && s.setBirthDate(e.target.value)} />
             <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(a.currentAge)} old today</span>
           </Field>
           <Field label="Spouse Birth Date">
             {/* Names live in Settings, Household. */}
-            <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={spouseBirthDateISO(a)} onChange={(e) => e.target.value && s.setSpouseBirthDate(e.target.value)} />
+            <input type="date" className={`${fieldCls}`} value={spouseBirthDateISO(a)} onChange={(e) => e.target.value && s.setSpouseBirthDate(e.target.value)} />
             <span className="mt-0.5 text-[11px] text-muted">{spouseBirthDateISO(a) ? `${fmtAgeYM(spouseCurrentAge(a))} old today` : 'not set'}</span>
           </Field>
           <Field label="Retirement Age">

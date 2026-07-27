@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useActiveScenario, useStore } from '@/state/store';
 import { Section, Button, Segmented, NumField, MoneyInput } from '@/components/ui/primitives';
 import { IconTrash } from '@/components/icons';
@@ -9,6 +9,7 @@ import { seedDocument } from '@/domain/seed';
 import { AccountsManager } from './AccountsManager';
 import { useAiStore } from '@/ai/aiStore';
 import { hasActiveKey, maskKey, PROVIDER_LABELS, type AiProviderId } from '@/ai/config';
+import { FALLBACK_MODELS, fetchProviderModels, withCurrentModel, type ModelOption } from '@/ai/models';
 import type { PersistedDocument } from '@/domain/types';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -122,6 +123,22 @@ function PlanFilePanel() {
   );
 }
 
+const AI_PROVIDERS: AiProviderId[] = ['anthropic', 'openai'];
+
+/** Per-provider state for the model dropdown. */
+interface ModelListState {
+  options: ModelOption[];
+  /** True once the provider itself supplied the list. */
+  live: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+const initialModelLists = (): Record<AiProviderId, ModelListState> => ({
+  anthropic: { options: FALLBACK_MODELS.anthropic, live: false, loading: false, error: null },
+  openai: { options: FALLBACK_MODELS.openai, live: false, loading: false, error: null },
+});
+
 /**
  * API keys for the optional AI features.
  *
@@ -136,13 +153,44 @@ function AiSettingsPanel() {
   const [reveal, setReveal] = useState<Record<string, boolean>>({});
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [modelLists, setModelLists] = useState<Record<AiProviderId, ModelListState>>(initialModelLists);
 
-  const providers: AiProviderId[] = ['anthropic', 'openai'];
+  const providers = AI_PROVIDERS;
 
   const patch = (id: AiProviderId, field: 'apiKey' | 'model', value: string) => {
     setConfig({ ...config, [id]: { ...config[id], [field]: value } });
     setResult(null);
   };
+
+  /**
+   * Replace a provider's dropdown with the models its own key can reach.
+   * Listing models is free and read-only, so this runs on open rather than
+   * making the user press anything to see a real line-up.
+   */
+  const loadModels = useCallback(async (id: AiProviderId, apiKey: string) => {
+    if (!apiKey.trim()) return;
+    setModelLists((s) => ({ ...s, [id]: { ...s[id], loading: true, error: null } }));
+    try {
+      const options = await fetchProviderModels(id, apiKey);
+      setModelLists((s) => ({
+        ...s,
+        [id]: options.length
+          ? { options, live: true, loading: false, error: null }
+          : { ...s[id], loading: false, error: 'That key reached the provider but returned no usable models.' },
+      }));
+    } catch (err) {
+      const { describeAiError } = await import('@/ai/client');
+      setModelLists((s) => ({ ...s, [id]: { ...s[id], loading: false, error: describeAiError(err, id).message } }));
+    }
+  }, []);
+
+  // Read through a ref so opening the page loads both lists exactly once,
+  // rather than re-firing on every keystroke in a key field.
+  const configRef = useRef(config);
+  configRef.current = config;
+  useEffect(() => {
+    for (const id of AI_PROVIDERS) void loadModels(id, configRef.current[id].apiKey);
+  }, [loadModels]);
 
   const onTest = async () => {
     setTesting(true);
@@ -150,6 +198,9 @@ function AiSettingsPanel() {
     try {
       const { testAiConnection } = await import('@/ai/client');
       setResult({ ok: true, text: `Connected. ${PROVIDER_LABELS[config.provider]} replied "${await testAiConnection(config)}".` });
+      // The key just proved it works, so this is the moment its real model
+      // line-up becomes available.
+      void loadModels(config.provider, config[config.provider].apiKey);
     } catch (err) {
       const { describeAiError } = await import('@/ai/client');
       const d = describeAiError(err, config.provider);
@@ -163,10 +214,21 @@ function AiSettingsPanel() {
     if (!confirm('Remove both API keys from this browser?')) return;
     forgetKeys();
     setResult(null);
+    setModelLists(initialModelLists()); // no key left to list models with
   };
 
   const inputCls =
     'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[13px] text-ink focus:border-primary focus:outline-none';
+
+  /** Where this provider's dropdown came from, or why it could not be loaded. */
+  const modelStatus = (id: AiProviderId): string => {
+    const list = modelLists[id];
+    if (list.loading) return 'Loading the model list…';
+    if (list.error) return list.error;
+    if (list.live) return `${list.options.length} model${list.options.length === 1 ? '' : 's'} on this key`;
+    if (!config[id].apiKey.trim()) return 'Built-in list. Add a key to load the models your account can use.';
+    return 'Built-in list.';
+  };
 
   return (
     <Section
@@ -186,7 +248,11 @@ function AiSettingsPanel() {
     >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {providers.map((id) => (
+          {providers.map((id) => {
+            // The saved model is always offered, even if this key cannot see it.
+            const options = withCurrentModel(modelLists[id].options, config[id].model);
+            const selected = options.find((o) => o.id === config[id].model);
+            return (
             <div
               key={id}
               className={`rounded-xl border p-4 ${config.provider === id ? 'border-primary/50 bg-card-high' : 'border-border-subtle bg-card-high opacity-70'}`}
@@ -226,18 +292,36 @@ function AiSettingsPanel() {
               </Field>
               <div className="mt-3">
                 <Field label="Model">
-                  <input
-                    type="text"
+                  <select
                     value={config[id].model}
                     onChange={(e) => patch(id, 'model', e.target.value)}
-                    spellCheck={false}
                     aria-label={`${PROVIDER_LABELS[id]} model`}
-                    className={inputCls}
-                  />
+                    className={`${inputCls} cursor-pointer`}
+                  >
+                    {options.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-faint">
+                  {/* Anthropic names its models for people, so show what is actually sent. */}
+                  {selected && selected.label !== selected.id && <span>Sends {selected.id}</span>}
+                  <span className={modelLists[id].error ? 'text-error' : undefined}>{modelStatus(id)}</span>
+                  <button
+                    type="button"
+                    onClick={() => void loadModels(id, config[id].apiKey)}
+                    disabled={modelLists[id].loading || !config[id].apiKey.trim()}
+                    className="underline underline-offset-2 text-primary disabled:text-faint disabled:no-underline"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {result && (
@@ -259,8 +343,9 @@ function AiSettingsPanel() {
 
         <p className="text-[11px] text-faint">
           Keys are stored only in this browser and are sent only to the provider they belong to. They are deliberately kept
-          out of the plan document, so exporting a backup or writing the plan file never includes them. The model field is
-          editable because provider line-ups change; if a request fails with an unknown model, correct it here.
+          out of the plan document, so exporting a backup or writing the plan file never includes them. Once a key is
+          saved, each model list is loaded from that provider, so it shows what your own account can actually reach;
+          without a key you get a built-in list instead. Press Refresh after changing a key.
         </p>
       </div>
     </Section>
@@ -430,7 +515,7 @@ export default function SettingsPage() {
             </Field>
             <div className="mt-3">
               <Field label="Your Birth Date">
-                <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={birthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setBirthDate(e.target.value)} />
+                <input type="date" className={`${fieldCls}`} value={birthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setBirthDate(e.target.value)} />
                 <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(scn.assumptions.currentAge)} old today</span>
               </Field>
             </div>
@@ -441,7 +526,7 @@ export default function SettingsPage() {
             </Field>
             <div className="mt-3">
               <Field label="Spouse's Birth Date">
-                <input type="date" className={`${fieldCls} [color-scheme:dark]`} value={spouseBirthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setSpouseBirthDate(e.target.value)} />
+                <input type="date" className={`${fieldCls}`} value={spouseBirthDateISO(scn.assumptions)} onChange={(e) => e.target.value && setSpouseBirthDate(e.target.value)} />
                 {spouseBirthDateISO(scn.assumptions) ? (
                   <span className="mt-0.5 text-[11px] text-muted">{fmtAgeYM(spouseCurrentAge(scn.assumptions))} old today</span>
                 ) : (

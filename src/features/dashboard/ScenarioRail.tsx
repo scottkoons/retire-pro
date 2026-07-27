@@ -12,7 +12,7 @@ import type { DollarBasis, TaxStatus } from '@/domain/types';
 // 9–12px they were before.
 const control =
   'h-9 w-full rounded-md border border-border-strong bg-input px-2.5 text-[13px] text-ink transition-colors focus:border-primary focus:outline-none';
-const dateInput = clsx(control, 'font-mono tabnum [color-scheme:dark]');
+const dateInput = clsx(control, 'font-mono tabnum');
 
 // Each section gets its own colour so monthly (recurring) and lump-sum (one-time)
 // money read as two distinct kinds of thing at a glance.

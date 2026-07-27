@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 
-import '@fontsource-variable/hanken-grotesk';
+import '@fontsource-variable/figtree';
 import '@fontsource-variable/inter';
 import './styles/theme.css';
 

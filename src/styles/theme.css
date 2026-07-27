@@ -2,18 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   Palette.
+
+   Both themes are WARM and share one geometry. Surfaces are never pure white
+   or pure black: light sits on a pale sage off-white, dark on a warm
+   near-black. Ink is #0e0e0b rather than #000, borders are a single sage
+   hairline, and accented elements follow one rule everywhere — fill at ~6%,
+   border at ~22%, text at full strength.
+
+   `--ambient` is the page-level wash: soft, desaturated radials that sit
+   behind content and never on a component. Nothing here puts a gradient on a
+   button or a card.
+   ============================================================================ */
+
 :root,
 [data-theme='dark'] {
-  --bg-base: #0d1420;
-  --surface-card: #141d2b;
-  --surface-card-high: #1b2638;
-  --surface-input: #0f1825;
-  --surface-hover: #1f2c40;
-  --border-subtle: #243043;
-  --border-strong: #33425c;
-  --text-on-surface: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-faint: #64748b;
+  --bg-base: #12120f;
+  --surface-card: #1a1a16;
+  --surface-card-high: #21211c;
+  --surface-input: #161612;
+  --surface-hover: #26261f;
+  --border-subtle: #2a2a23;
+  --border-strong: #3a3a30;
+  --text-on-surface: #f4f4ec;
+  --text-muted: #a3a396;
+  --text-faint: #74746a;
   --primary: #f97316;
   --primary-hover: #ea670c;
   --primary-press: #c2570b;
@@ -21,16 +35,26 @@
   --on-primary: #ffffff;
   --focus-ring: #f97316;
 
-  --success: #22c55e;
-  --success-tint: rgba(34, 197, 94, 0.14);
-  --caution: #f59e0b;
-  --caution-tint: rgba(245, 158, 11, 0.14);
-  --error: #ef4444;
-  --error-tint: rgba(239, 68, 68, 0.14);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 0 0 0 rgba(0, 0, 0, 0);
+
+  /* Warm embers rather than colour: barely-there glow anchored top-left and
+     top-right, so the page has depth without tinting the data. */
+  --ambient:
+    radial-gradient(70% 48% at 12% -6%, rgba(249, 115, 22, 0.07), rgba(249, 115, 22, 0) 62%),
+    radial-gradient(62% 44% at 96% 4%, rgba(125, 168, 208, 0.06), rgba(125, 168, 208, 0) 64%),
+    radial-gradient(90% 60% at 50% 112%, rgba(163, 163, 150, 0.05), rgba(163, 163, 150, 0) 66%);
+
+  --success: #34d399;
+  --success-tint: rgba(52, 211, 153, 0.13);
+  --caution: #fbbf24;
+  --caution-tint: rgba(251, 191, 36, 0.13);
+  --error: #f87171;
+  --error-tint: rgba(248, 113, 113, 0.13);
   --tax: #fbbf24;
-  --tax-tint: rgba(251, 191, 36, 0.15);
+  --tax-tint: rgba(251, 191, 36, 0.13);
   --tax-free: #2dd4bf;
-  --tax-free-tint: rgba(45, 212, 191, 0.15);
+  --tax-free-tint: rgba(45, 212, 191, 0.13);
 
   --cat-1: #a78bfa;
   --cat-2: #f472b6;
@@ -39,68 +63,104 @@
   --cat-5: #60a5fa;
   --cat-6: #f97316;
 
-  /* Stat-tile tints: bar / value text / fill / border per hue (light theme overrides below). */
+  /* Stat-tile tints: bar / value text / fill / border per hue (light overrides below). */
   --tint-blue-bar: #60a5fa;
   --tint-blue-text: #bfdbfe;
-  --tint-blue-bg: rgba(96, 165, 250, 0.1);
-  --tint-blue-border: rgba(96, 165, 250, 0.32);
+  --tint-blue-bg: rgba(96, 165, 250, 0.09);
+  --tint-blue-border: rgba(96, 165, 250, 0.24);
   --tint-green-bar: #34d399;
   --tint-green-text: #a7f3d0;
-  --tint-green-bg: rgba(52, 211, 153, 0.1);
-  --tint-green-border: rgba(52, 211, 153, 0.32);
+  --tint-green-bg: rgba(52, 211, 153, 0.09);
+  --tint-green-border: rgba(52, 211, 153, 0.24);
   --tint-violet-bar: #a78bfa;
   --tint-violet-text: #ddd6fe;
-  --tint-violet-bg: rgba(167, 139, 250, 0.1);
-  --tint-violet-border: rgba(167, 139, 250, 0.32);
+  --tint-violet-bg: rgba(167, 139, 250, 0.09);
+  --tint-violet-border: rgba(167, 139, 250, 0.24);
   --tint-teal-bar: #2dd4bf;
   --tint-teal-text: #99f6e4;
-  --tint-teal-bg: rgba(45, 212, 191, 0.1);
-  --tint-teal-border: rgba(45, 212, 191, 0.32);
+  --tint-teal-bg: rgba(45, 212, 191, 0.09);
+  --tint-teal-border: rgba(45, 212, 191, 0.24);
   --tint-amber-bar: #fbbf24;
   --tint-amber-text: #fde68a;
-  --tint-amber-bg: rgba(251, 191, 36, 0.1);
-  --tint-amber-border: rgba(251, 191, 36, 0.32);
+  --tint-amber-bg: rgba(251, 191, 36, 0.09);
+  --tint-amber-border: rgba(251, 191, 36, 0.24);
   color-scheme: dark;
 }
 
 [data-theme='light'] {
-  --bg-base: #f7f9fb;
-  --surface-card: #ffffff;
-  --surface-card-high: #f2f4f6;
+  --bg-base: #fbfcf7;
+  --surface-card: #f4f7ec;
+  --surface-card-high: #eef2e2;
+  /* Inputs stay white: a field has to read as writable against the sage card. */
   --surface-input: #ffffff;
-  --surface-hover: #eef2f6;
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text-on-surface: #191c1e;
-  --text-muted: #475569;
-  --text-faint: #94a3b8;
+  --surface-hover: #e9eedc;
+  --border-subtle: #e3e8d6;
+  --border-strong: #d5daca;
+  --text-on-surface: #0e0e0b;
+  --text-muted: #5c6052;
+  --text-faint: #8e9382;
   --primary: #f97316;
   --primary-hover: #ea670c;
   --primary-press: #c2570b;
-  --primary-tint: rgba(249, 115, 22, 0.1);
+  --primary-tint: rgba(249, 115, 22, 0.08);
   --on-primary: #ffffff;
 
-  /* Darker tile-tint text so values stay readable on white. */
-  --tint-blue-bar: #3b82f6;
-  --tint-blue-text: #1d4ed8;
-  --tint-blue-bg: rgba(59, 130, 246, 0.08);
-  --tint-blue-border: rgba(59, 130, 246, 0.35);
-  --tint-green-bar: #10b981;
-  --tint-green-text: #047857;
-  --tint-green-bg: rgba(16, 185, 129, 0.08);
-  --tint-green-border: rgba(16, 185, 129, 0.35);
-  --tint-violet-bar: #8b5cf6;
-  --tint-violet-text: #6d28d9;
-  --tint-violet-bg: rgba(139, 92, 246, 0.08);
-  --tint-violet-border: rgba(139, 92, 246, 0.35);
-  --tint-teal-bar: #14b8a6;
-  --tint-teal-text: #0f766e;
-  --tint-teal-bg: rgba(20, 184, 166, 0.08);
-  --tint-teal-border: rgba(20, 184, 166, 0.35);
-  --tint-amber-bar: #f59e0b;
-  --tint-amber-text: #b45309;
-  --tint-amber-bg: rgba(245, 158, 11, 0.08);
-  --tint-amber-border: rgba(245, 158, 11, 0.35);
+  --shadow-overlay: 0 12px 32px rgba(24, 26, 16, 0.16);
+  --shadow-card: 0 1px 2px rgba(24, 26, 16, 0.04);
+
+  /* Pale sage, warm cream and a blush corner: the wash that makes the page feel
+     lit rather than flat. Kept under 50% alpha so text contrast never moves. */
+  --ambient:
+    radial-gradient(78% 58% at 10% -4%, rgba(198, 227, 194, 0.5), rgba(198, 227, 194, 0) 62%),
+    radial-gradient(68% 52% at 94% 6%, rgba(246, 224, 210, 0.45), rgba(246, 224, 210, 0) 64%),
+    radial-gradient(94% 66% at 52% 110%, rgba(206, 222, 240, 0.42), rgba(206, 222, 240, 0) 66%);
+
+  /* Deeper, warmer semantics. These were previously inherited from the dark
+     block, which is why status colour looked washed out on a light page. */
+  --success: #15803d;
+  --success-tint: rgba(21, 128, 61, 0.1);
+  --caution: #b45309;
+  --caution-tint: rgba(180, 83, 9, 0.1);
+  --error: #b91c1c;
+  --error-tint: rgba(185, 28, 28, 0.1);
+  --tax: #a16207;
+  --tax-tint: rgba(161, 98, 7, 0.1);
+  --tax-free: #0f766e;
+  --tax-free-tint: rgba(15, 118, 110, 0.1);
+
+  /* Series colours darkened so they hold up against a pale surface. */
+  --cat-1: #7c5cd6;
+  --cat-2: #d14d86;
+  --cat-3: #0f9d6e;
+  --cat-4: #c07c06;
+  --cat-5: #3b7fd4;
+  --cat-6: #ea670c;
+
+  /* Blue and violet are pulled toward the warm family on purpose: at full
+     chroma they out-shouted the sage, amber and green tiles and broke the
+     muted palette. Still distinguishable, no longer the loudest thing on
+     the page. The chart series (--cat-*) stay more saturated, because a
+     thin plotted line needs the chroma that a large tile does not. */
+  --tint-blue-bar: #4a7fb5;
+  --tint-blue-text: #275c8a;
+  --tint-blue-bg: rgba(74, 127, 181, 0.06);
+  --tint-blue-border: rgba(74, 127, 181, 0.22);
+  --tint-green-bar: #0f9d6e;
+  --tint-green-text: #046c4e;
+  --tint-green-bg: rgba(15, 157, 110, 0.06);
+  --tint-green-border: rgba(15, 157, 110, 0.22);
+  --tint-violet-bar: #8368b5;
+  --tint-violet-text: #55407f;
+  --tint-violet-bg: rgba(131, 104, 181, 0.06);
+  --tint-violet-border: rgba(131, 104, 181, 0.22);
+  --tint-teal-bar: #0f9488;
+  --tint-teal-text: #0b6b62;
+  --tint-teal-bg: rgba(15, 148, 136, 0.06);
+  --tint-teal-border: rgba(15, 148, 136, 0.22);
+  --tint-amber-bar: #c07c06;
+  --tint-amber-text: #92400e;
+  --tint-amber-bg: rgba(192, 124, 6, 0.06);
+  --tint-amber-border: rgba(192, 124, 6, 0.22);
   color-scheme: light;
 }
 
@@ -143,6 +203,17 @@
 }
 
 @layer components {
+  /* Page-level ambient wash. Lives on the app shell (which does not scroll)
+     rather than on <body>, because the shell paints over the body background.
+     `fixed` attachment keeps the wash anchored to the viewport while the main
+     column scrolls underneath it. */
+  .rp-app-bg {
+    background-color: var(--bg-base);
+    background-image: var(--ambient);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
   /* Micro-label ("overline") style. Inter, not monospace — Scott dislikes the
      typewriter look; the uppercase + tracking carries the label treatment. */
   .label-mono {

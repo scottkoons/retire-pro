@@ -14,11 +14,15 @@ export function Button({ variant = 'primary', size = 'md', className, ...rest }:
   return (
     <button
       {...rest}
+      // Flat by design: no shadow and no border on any variant. `outline` is a
+      // neutral surface wash rather than an orange-bordered button, so a screen
+      // with several secondary actions does not read as a row of outlines and
+      // the single orange primary keeps its weight.
       className={clsx(
-        'inline-flex items-center justify-center gap-1.5 rounded font-body font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base',
-        size === 'sm' ? 'px-2.5 py-1 text-[13px]' : 'px-4 py-2 text-[14px]',
+        'inline-flex items-center justify-center gap-1.5 rounded-lg font-body font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base',
+        size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2.5 text-[14px]',
         variant === 'primary' && 'bg-primary text-primary-on hover:bg-primary-hover active:bg-primary-press',
-        variant === 'outline' && 'border border-primary text-primary hover:bg-primary-tint',
+        variant === 'outline' && 'bg-card-high text-ink hover:bg-hover',
         variant === 'ghost' && 'text-muted hover:bg-hover hover:text-ink',
         variant === 'danger' && 'text-muted hover:bg-error-tint hover:text-error',
         className,
@@ -28,7 +32,7 @@ export function Button({ variant = 'primary', size = 'md', className, ...rest }:
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx('rounded-xl border border-border-subtle bg-card', className)}>{children}</div>;
+  return <div className={clsx('rounded-xl border border-border-subtle bg-card shadow-card', className)}>{children}</div>;
 }
 
 /**
@@ -195,7 +199,7 @@ export function Section({ title, subtitle, actions, children, className, bodyCla
       {(title || actions) && (
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-6 pt-5">
           <div className="min-w-0">
-            {title && <h2 className="font-head text-[20px] font-semibold leading-7 tracking-[-0.01em] text-ink">{title}</h2>}
+            {title && <h2 className="font-head text-[20px] font-medium leading-7 tracking-[-0.02em] text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

@@ -36,29 +36,40 @@ export default {
           6: 'var(--cat-6)',
         },
       },
+      // Softer, larger geometry. Buttons land on 12px and cards on 18px, which
+      // is the proportion the reference design uses; chips and inputs stay
+      // tighter so dense grids do not turn into a row of lozenges.
       borderRadius: {
-        sm: '2px',
-        DEFAULT: '4px',
-        md: '6px',
-        lg: '8px',
-        xl: '12px',
-        '2xl': '16px',
+        sm: '4px',
+        DEFAULT: '6px',
+        md: '8px',
+        lg: '12px',
+        xl: '18px',
+        '2xl': '24px',
         full: '9999px',
       },
       fontFamily: {
-        head: ['"Hanken Grotesk Variable"', 'system-ui', 'sans-serif'],
+        // Figtree for display, Inter for body — the same split the reference
+        // site uses. Both are bundled via @fontsource so the CSP stays 'self'.
+        head: ['"Figtree Variable"', 'system-ui', 'sans-serif'],
         body: ['"Inter Variable"', 'system-ui', 'sans-serif'],
         // Intentionally NOT monospace: Scott dislikes the typewriter look, so every
         // `font-mono` site renders Inter; numeric columns stay aligned via `tabnum`.
         mono: ['"Inter Variable"', 'system-ui', 'sans-serif'],
       },
+      // Display type is set LIGHT and TIGHT: weight 500 with negative tracking
+      // that grows with size. Heavy headings are what made this read as a
+      // generic dashboard rather than the reference look.
       fontSize: {
-        'head-xl': ['48px', { lineHeight: '56px', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'head-lg': ['32px', { lineHeight: '40px', letterSpacing: '-0.01em', fontWeight: '600' }],
-        'head-md': ['24px', { lineHeight: '30px', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'head-xl': ['48px', { lineHeight: '54px', letterSpacing: '-0.025em', fontWeight: '500' }],
+        'head-lg': ['32px', { lineHeight: '38px', letterSpacing: '-0.02em', fontWeight: '500' }],
+        'head-md': ['24px', { lineHeight: '30px', letterSpacing: '-0.015em', fontWeight: '500' }],
       },
       boxShadow: {
-        overlay: '0 8px 24px rgba(0,0,0,0.45)',
+        // Theme-aware: light uses a soft wide lift, dark uses depth. A surface
+        // gets a hairline border OR a shadow, never both.
+        overlay: 'var(--shadow-overlay)',
+        card: 'var(--shadow-card)',
       },
       keyframes: {
         'fade-in': {
