@@ -118,9 +118,16 @@ export default function DashboardPage() {
   const bandActive = ui.showMonteCarloBand && !!mc.result;
 
   return (
-    <div className={`grid grid-cols-1 gap-6 ${ui.railCollapsed ? 'xl:[grid-template-columns:minmax(0,1fr)_2rem]' : 'xl:grid-cols-12'}`}>
+    // The rail collapses by animating ONE grid track, the same way the sidebar
+    // animates --sidebar-w in AppShell. The previous version swapped a 12-track
+    // template for a 2-track one, and two templates with different track counts
+    // cannot interpolate, so it could only snap.
+    <div
+      className="grid grid-cols-1 gap-6 xl:[grid-template-columns:minmax(0,1fr)_var(--rail-w)] xl:transition-[grid-template-columns] xl:duration-200 xl:ease-out"
+      style={{ '--rail-w': ui.railCollapsed ? '2rem' : '24rem' } as React.CSSProperties}
+    >
       {/* MAIN COLUMN */}
-      <div className={`flex min-w-0 flex-col gap-6 ${ui.railCollapsed ? '' : 'xl:col-span-8'}`}>
+      <div className="flex min-w-0 flex-col gap-6">
         {/* Tiles */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -347,17 +354,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* RIGHT RAIL — scenario inputs (collapsible) */}
-      {ui.railCollapsed ? (
-        // Collapsed: a slim full-height strip stays at the right edge, exactly
-        // where the panel lives, so re-opening it is obvious.
-        <div className="hidden xl:block">
+      {/* RIGHT RAIL — scenario inputs (collapsible).
+          Both states stay mounted: the panel slides out to the right while the
+          strip fades in behind it. Unmounting one of them, as this used to do,
+          is what made the change read as a snap no matter what the grid did.
+          `overflow-hidden` sits ON the sticky wrapper rather than above it,
+          because a clipping ANCESTOR would kill the rail's sticky behaviour. */}
+      {/* Below xl there is no second track to animate, so the panel simply
+          stacks at full width and the collapsed state hides the cell outright,
+          which is what it did before. */}
+      <div className={ui.railCollapsed ? 'hidden xl:block' : ''}>
+        <div className="relative xl:sticky xl:top-0 xl:overflow-hidden">
           <button
             type="button"
             onClick={() => toggleRail(false)}
             title="Show scenario inputs"
             aria-label="Show scenario inputs"
-            className="group sticky top-0 flex h-[calc(100vh-8rem)] w-8 flex-col items-center justify-center gap-3 rounded-full border border-border-subtle bg-card transition-colors hover:border-primary hover:bg-primary-tint"
+            tabIndex={ui.railCollapsed ? 0 : -1}
+            className={`group absolute inset-y-0 right-0 hidden w-8 flex-col items-center justify-center gap-3 rounded-full border border-border-subtle bg-card transition-[opacity,border-color,background-color] duration-200 hover:border-primary hover:bg-primary-tint xl:flex ${
+              ui.railCollapsed ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0'
+            }`}
           >
             <IconChevronLeft className="h-4 w-4 text-muted transition-colors group-hover:text-primary" />
             <span className="rotate-180 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted transition-colors [writing-mode:vertical-rl] group-hover:text-primary">
@@ -365,12 +381,18 @@ export default function DashboardPage() {
             </span>
             <IconDiamond className="h-3 w-3 text-primary" />
           </button>
+          {/* Fixed width so the panel slides intact instead of reflowing its
+              form as the track narrows. */}
+          <div
+            className={`w-full xl:w-96 xl:transition-transform xl:duration-200 xl:ease-out ${
+              ui.railCollapsed ? 'xl:translate-x-full' : 'xl:translate-x-0'
+            }`}
+            aria-hidden={ui.railCollapsed}
+          >
+            <ScenarioRail />
+          </div>
         </div>
-      ) : (
-        <div className="xl:col-span-4">
-          <ScenarioRail />
-        </div>
-      )}
+      </div>
     </div>
   );
 }

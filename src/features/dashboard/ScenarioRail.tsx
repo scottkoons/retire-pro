@@ -160,7 +160,9 @@ export function ScenarioRail() {
   const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
 
   return (
-    <Card className="xl:sticky xl:top-0">
+    // Stickiness lives on the collapsible wrapper in DashboardPage now, so that
+    // the wrapper can clip this panel as it slides without breaking sticky.
+    <Card>
       <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
         <div>
           <div className="label-mono flex items-center gap-1.5">
