@@ -208,7 +208,8 @@ export function NumberInput({
   grouping,
   ariaLabel,
 }: {
-  value: number;
+  /** `undefined` renders an EMPTY field — used for endpoints not filled in yet. */
+  value: number | undefined;
   onChange: (v: number) => void;
   prefix?: string;
   suffix?: string;
@@ -220,7 +221,7 @@ export function NumberInput({
 }) {
   // Dollar amounts read far better grouped; percents and ages stay plain numeric inputs.
   if (grouping ?? (prefix === '$')) {
-    return <GroupedNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} align={align} ariaLabel={ariaLabel} />;
+    return <GroupedNumberInput value={value ?? 0} onChange={onChange} prefix={prefix} suffix={suffix} align={align} ariaLabel={ariaLabel} />;
   }
   return <DraftNumberInput value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} align={align} ariaLabel={ariaLabel} />;
 }
@@ -237,7 +238,7 @@ function DraftNumberInput({
   align = 'right',
   ariaLabel,
 }: {
-  value: number;
+  value: number | undefined;
   onChange: (v: number) => void;
   prefix?: string;
   suffix?: string;
@@ -265,7 +266,8 @@ function DraftNumberInput({
         type="number"
         step={step}
         aria-label={ariaLabel}
-        value={draft ?? (Number.isFinite(value) ? value : 0)}
+        // An unset endpoint shows as blank, not 0 — 0 would read as a real age.
+        value={draft ?? (value == null ? '' : Number.isFinite(value) ? value : 0)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {

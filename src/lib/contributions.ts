@@ -10,16 +10,25 @@ import { ageFromISO } from './dates';
  * DIFFERENCE of raw fractional ages must be avoided: an off-grid stored age
  * (e.g. from old seeded data) would make the count disagree with the dates.
  */
-function windowMonths(c: MonthlyContribution, a: ScenarioAssumptions): [number, number] {
+/**
+ * Null when either endpoint is still blank. A half-filled row has no window, so
+ * it pays nothing and — importantly — cannot be reported as overlapping
+ * anything, which is what a guessed default date used to cause.
+ */
+export function contributionWindow(c: MonthlyContribution, a: ScenarioAssumptions): [number, number] | null {
   const s = c.startDateOverride ? ageFromISO(c.startDateOverride, a) : c.startAge;
   const e = c.endDateOverride ? ageFromISO(c.endDateOverride, a) : c.endAge;
+  if (s == null || e == null) return null;
   return [Math.round(s * 12), Math.round(e * 12)];
 }
 
 /** Payments a contribution makes: one on the 1st of every month from the start
- *  month through the end month INCLUSIVE (Jun -> Jun = 1, Jul -> Aug = 2). */
+ *  month through the end month INCLUSIVE (Jun -> Jun = 1, Jul -> Aug = 2).
+ *  Zero while the row is undated. */
 export function contributionMonths(c: MonthlyContribution, a: ScenarioAssumptions): number {
-  const [s, e] = windowMonths(c, a);
+  const w = contributionWindow(c, a);
+  if (!w) return 0;
+  const [s, e] = w;
   return e < s ? 0 : e - s + 1;
 }
 
@@ -37,11 +46,12 @@ export function totalContributed(contribs: MonthlyContribution[], a: ScenarioAss
  */
 export function contributionOverlaps(contribs: MonthlyContribution[], a: ScenarioAssumptions): Map<string, string> {
   const out = new Map<string, string>();
-  const en = contribs.filter((c) => c.enabled);
+  // Undated rows are not on the timeline, so they cannot overlap anything.
+  const en = contribs.filter((c) => c.enabled && contributionWindow(c, a));
   for (let i = 0; i < en.length; i++) {
     for (let j = i + 1; j < en.length; j++) {
-      const [s1, e1] = windowMonths(en[i], a);
-      const [s2, e2] = windowMonths(en[j], a);
+      const [s1, e1] = contributionWindow(en[i], a)!;
+      const [s2, e2] = contributionWindow(en[j], a)!;
       if (s1 <= e2 && s2 <= e1) {
         if (!out.has(en[i].id)) out.set(en[i].id, en[j].name);
         if (!out.has(en[j].id)) out.set(en[j].id, en[i].name);

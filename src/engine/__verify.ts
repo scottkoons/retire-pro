@@ -184,7 +184,7 @@ console.log('\n[8] Income identities: every income surface agrees with the tiles
   const delta = measurementYearsAtAge(a, Math.round(a.retirementAge));
   const ageAt = a.currentAge + delta;
   const colSum = s.incomeStreams
-    .filter((st) => st.enabled && st.startAge <= ageAt && ageAt <= st.endAge)
+    .filter((st) => st.enabled && st.startAge != null && st.endAge != null && st.startAge <= ageAt && ageAt <= st.endAge)
     .reduce(
       (x, st) => x + (st.inflationAdjusted ? st.monthlyAmountToday * Math.pow(1 + (st.cola ?? a.inflation), delta) : st.monthlyAmountToday),
       0,

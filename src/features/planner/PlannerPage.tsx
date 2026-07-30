@@ -38,10 +38,12 @@ function streamNominalAtAge(todayMonthly: number, cola: number, inflationAdjuste
  *  years from now — 0 when the stream is not active at that month, matching
  *  the engine, so the "@ retirement" column sums to the Guaranteed tile. */
 function streamAtDelta(
-  st: { monthlyAmountToday: number; cola?: number; inflationAdjusted: boolean; startAge: number; endAge: number },
+  st: { monthlyAmountToday: number; cola?: number; inflationAdjusted: boolean; startAge?: number; endAge?: number },
   delta: number,
   a: { currentAge: number; inflation: number },
 ): number {
+  // Undated streams pay nothing, matching the engine's isScheduled guard.
+  if (st.startAge == null || st.endAge == null) return 0;
   const ageAt = a.currentAge + delta;
   if (ageAt < st.startAge || ageAt > st.endAge) return 0;
   return streamNominalAtAge(st.monthlyAmountToday, st.cola ?? a.inflation, st.inflationAdjusted, delta);
@@ -217,7 +219,13 @@ export default function PlannerPage() {
                   </TD>
                   <TD>
                     <MonthYearInput
-                      value={monthValueFromISO(c.startDateOverride ?? isoFromAge(c.startAge, a))}
+                      value={
+                        c.startDateOverride
+                          ? monthValueFromISO(c.startDateOverride)
+                          : c.startAge != null
+                            ? monthValueFromISO(isoFromAge(c.startAge, a))
+                            : '' /* not scheduled yet */
+                      }
                       onChange={(v) => {
                         const iso = isoFromMonthValue(v);
                         if (iso) s.updateContribution(c.id, { startDateOverride: iso, startAge: ageFromISO(iso, a) });
@@ -226,7 +234,13 @@ export default function PlannerPage() {
                   </TD>
                   <TD>
                     <MonthYearInput
-                      value={monthValueFromISO(c.endDateOverride ?? isoFromAge(c.endAge, a))}
+                      value={
+                        c.endDateOverride
+                          ? monthValueFromISO(c.endDateOverride)
+                          : c.endAge != null
+                            ? monthValueFromISO(isoFromAge(c.endAge, a))
+                            : '' /* not scheduled yet */
+                      }
                       onChange={(v) => {
                         const iso = isoFromMonthValue(v);
                         if (iso) s.updateContribution(c.id, { endDateOverride: iso, endAge: ageFromISO(iso, a) });

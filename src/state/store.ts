@@ -582,22 +582,18 @@ export const useStore = create<StoreState>()(
         scn.withdrawal = { ...scn.withdrawal, ...patch };
       }),
 
+      // Deliberately undated. Guessing a start of "where the last one ends"
+      // both dropped the row into the sorted middle AND tripped the overlap
+      // warning, because an end month still pays. With no dates it sits at the
+      // bottom, warns about nothing, and contributes nothing until scheduled.
       addContribution: () => mutateActive((scn) => {
-        const a = scn.assumptions;
-        // New periods start where the latest existing one ends, so contribution
-        // windows stay sequential by default (overlapping months would count
-        // both amounts). Gaps are fine: uncovered months simply contribute 0.
-        const latestEnd = Math.max(a.currentAge, ...scn.contributions.filter((c) => c.enabled).map((c) => c.endAge));
-        const startAge = Math.min(latestEnd, a.modelEndAge - 1 / 12);
         scn.contributions.push({
           id: newId(),
           name: 'New contribution',
-          startAge,
-          endAge: Math.max(a.retirementAge, startAge + 1),
-          monthlyAmount: 0,
           // Scott's model: a typed contribution is the literal flat check he writes
           // every month, NOT indexed to inflation ("Actual $"), per 2026-07-06.
           dollarBasis: 'actual',
+          monthlyAmount: 0,
           enabled: true,
         });
       }),
@@ -629,13 +625,14 @@ export const useStore = create<StoreState>()(
         scn.lumpSums = scn.lumpSums.filter((x) => x.id !== id);
       }),
 
+      // Undated like contributions and lump sums: a guessed start of
+      // "retirement age" sorted the row above anything starting later (Social
+      // Security at 67, say), which is exactly where it is hardest to spot.
       addIncomeStream: () => mutateActive((scn) => {
         scn.incomeStreams.push({
           id: newId(),
           name: 'New income',
           monthlyAmountToday: 0,
-          startAge: scn.assumptions.retirementAge,
-          endAge: scn.assumptions.modelEndAge,
           taxStatus: 'taxable',
           cola: scn.assumptions.inflation,
           inflationAdjusted: true,

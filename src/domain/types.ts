@@ -47,8 +47,14 @@ export interface ScenarioAssumptions {
 export interface MonthlyContribution {
   id: string;
   name: string;
-  startAge: Age;
-  endAge: Age;
+  /**
+   * Undated until you fill them in. A row from "Add row" starts with no dates
+   * so it sits at the bottom, raises no spurious overlap warning against the
+   * period it would otherwise have been guessed onto, and contributes nothing
+   * until BOTH endpoints are set.
+   */
+  startAge?: Age;
+  endAge?: Age;
   monthlyAmount: Dollars;
   dollarBasis: DollarBasis; // how monthlyAmount is denominated
   enabled: boolean;
@@ -79,8 +85,9 @@ export interface IncomeStream {
   id: string;
   name: string;
   monthlyAmountToday: Dollars; // today's $ (spec-fixed)
-  startAge: Age;
-  endAge: Age;
+  /** Undated until filled in — see MonthlyContribution. Pays nothing until both are set. */
+  startAge?: Age;
+  endAge?: Age;
   taxStatus: TaxStatus;
   cola?: Rate; // explicit COLA override
   inflationAdjusted: boolean; // false = flat nominal

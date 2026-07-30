@@ -152,8 +152,10 @@ export const BusinessVentureConfigSchema = z.object({
 export const MonthlyContributionSchema = z.object({
   id: Id,
   name: z.string(),
-  startAge: Age,
-  endAge: Age,
+  // Optional: an undated row is added but not yet scheduled. Widening a
+  // required field is backward-compatible, so no migration is needed.
+  startAge: Age.optional(),
+  endAge: Age.optional(),
   monthlyAmount: Dollars,
   dollarBasis: DollarBasis,
   enabled: z.boolean(),
@@ -180,8 +182,8 @@ export const IncomeStreamSchema = z.object({
   id: Id,
   name: z.string(),
   monthlyAmountToday: Dollars,
-  startAge: Age,
-  endAge: Age,
+  startAge: Age.optional(),
+  endAge: Age.optional(),
   taxStatus: TaxStatus,
   cola: Rate.optional(),
   inflationAdjusted: z.boolean(),

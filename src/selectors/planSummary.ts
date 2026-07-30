@@ -88,8 +88,9 @@ export function buildPlanSummaryModel(
       status: result.status,
       depletionAge: result.depletionAge,
     },
+    // Undated rows are not scheduled, so they stay out of the summary and the PDF.
     contributions: scn.contributions
-      .filter((c) => c.enabled)
+      .filter((c): c is typeof c & { startAge: number; endAge: number } => c.enabled && c.startAge != null && c.endAge != null)
       .map((c) => {
         const months = contributionMonths(c, a);
         return { name: c.name, start: c.startAge, end: c.endAge, monthly: c.monthlyAmount, months, total: months * c.monthlyAmount };
@@ -102,7 +103,13 @@ export function buildPlanSummaryModel(
       ...scn.incomeStreams
         // Same guard as the engine (streamNominalAt): a legacy SS row never
         // lists here while the planner is on, even if its own flag is stale.
-        .filter((st) => st.enabled && !(scn.socialSecurity?.enabled && isLegacySsStream(st)))
+        .filter(
+          (st): st is typeof st & { startAge: number; endAge: number } =>
+            st.enabled &&
+            st.startAge != null &&
+            st.endAge != null &&
+            !(scn.socialSecurity?.enabled && isLegacySsStream(st)),
+        )
         .map((st) => ({
           name: st.name,
           today: st.monthlyAmountToday,

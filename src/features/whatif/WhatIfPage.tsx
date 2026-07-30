@@ -121,7 +121,8 @@ export default function WhatIfPage() {
 
   // Default the "own both" tier to the contribution you are making today.
   const currentContrib =
-    base.contributions.filter((c) => c.enabled && c.startAge <= a.currentAge + 1 && c.monthlyAmount > 0)[0]?.monthlyAmount ?? 7_000;
+    base.contributions.filter((c) => c.enabled && c.startAge != null && c.startAge <= a.currentAge + 1 && c.monthlyAmount > 0)[0]
+      ?.monthlyAmount ?? 7_000;
 
   const [inputs, setInputs] = useState<WhatIfInputs>(() => ({
     retirementAge: Math.round(a.retirementAge),

@@ -232,7 +232,13 @@ export function ScenarioRail() {
                       <input
                         type="month"
                         className={dateInput}
-                        value={monthValueFromISO(c.startDateOverride ?? isoFromAge(c.startAge, a))}
+                        value={
+                          c.startDateOverride
+                            ? monthValueFromISO(c.startDateOverride)
+                            : c.startAge != null
+                              ? monthValueFromISO(isoFromAge(c.startAge, a))
+                              : '' /* not scheduled yet */
+                        }
                         onChange={(e) => {
                           const iso = isoFromMonthValue(e.target.value);
                           if (iso) s.updateContribution(c.id, { startDateOverride: iso, startAge: ageFromISO(iso, a) });
@@ -243,7 +249,13 @@ export function ScenarioRail() {
                       <input
                         type="month"
                         className={dateInput}
-                        value={monthValueFromISO(c.endDateOverride ?? isoFromAge(c.endAge, a))}
+                        value={
+                          c.endDateOverride
+                            ? monthValueFromISO(c.endDateOverride)
+                            : c.endAge != null
+                              ? monthValueFromISO(isoFromAge(c.endAge, a))
+                              : '' /* not scheduled yet */
+                        }
                         onChange={(e) => {
                           const iso = isoFromMonthValue(e.target.value);
                           if (iso) s.updateContribution(c.id, { endDateOverride: iso, endAge: ageFromISO(iso, a) });

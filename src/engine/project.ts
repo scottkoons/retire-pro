@@ -79,6 +79,21 @@ function resolveReturn(scn: Scenario, age: number): { expectedReturn: number; vo
  */
 export const isDatedLump = (l: LumpSumEvent): l is LumpSumEvent & { age: number } => l.age != null;
 
+/**
+ * Same idea for anything with a start/end window (contributions, income
+ * streams): a row missing either endpoint is not on the timeline yet.
+ *
+ * This guard is load-bearing, not defensive. With an optional age, a bare
+ * `age < s.startAge` comparison against `undefined` evaluates to false, so an
+ * undated stream would read as ALWAYS active and pay out forever. Every window
+ * check must call this first.
+ */
+export function isScheduled<T extends { startAge?: number; endAge?: number }>(
+  r: T,
+): r is T & { startAge: number; endAge: number } {
+  return r.startAge != null && r.endAge != null;
+}
+
 function lumpMonth(scn: Scenario, ev: { age: number; dateOverride?: string }): number {
   const a = scn.assumptions;
   if (ev.dateOverride) return dateToMonthIndex(ev.dateOverride, a.currentAge, a.birthYear, a.birthMonth);
@@ -103,7 +118,7 @@ export function isLegacySsStream(s: { name: string; isSocialSecurity?: boolean }
 }
 
 function streamNominalAt(scn: Scenario, s: Scenario['incomeStreams'][number], t: number, age: number): number {
-  if (!s.enabled || age < s.startAge || age > s.endAge) return 0;
+  if (!s.enabled || !isScheduled(s) || age < s.startAge || age > s.endAge) return 0;
   // The SS claim-age planner supersedes the legacy row once enabled — checked
   // here, at the single choke point every caller goes through, so Social
   // Security can never be counted twice regardless of whether the row's own
@@ -154,7 +169,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
   const cMonth = (iso: string | undefined, age: number) =>
     iso ? dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) : ageToMonthIndex(age, a.currentAge);
   const contribs = scn.contributions
-    .filter((c) => c.enabled)
+    .filter((c): c is typeof c & { startAge: number; endAge: number } => c.enabled && isScheduled(c))
     .map((c) => ({
       ...c,
       tStart: cMonth(c.startDateOverride, c.startAge),
@@ -394,7 +409,7 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   // panel explains upcoming income (e.g. Social Security before the claim age).
   // Superseded legacy SS rows are excluded here too — see streamNominalAt.
   for (const s of scn.incomeStreams) {
-    if (!s.enabled || s.startAge <= ageAt || s.endAge <= s.startAge) continue;
+    if (!s.enabled || !isScheduled(s) || s.startAge <= ageAt || s.endAge <= s.startAge) continue;
     if (scn.socialSecurity?.enabled && isLegacySsStream(s)) continue;
     components.push({
       label: s.name,
@@ -646,7 +661,7 @@ export function runProjectionV2(
   const effAge = (iso: string | undefined, age: number) =>
     iso ? a.currentAge + dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) / 12 : age;
   const contribWindows = scn.contributions
-    .filter((c) => c.enabled)
+    .filter((c): c is typeof c & { startAge: number; endAge: number } => c.enabled && isScheduled(c))
     .map((c) => ({
       ...c,
       sAge: effAge(c.startDateOverride, c.startAge),
@@ -777,7 +792,7 @@ export function runProjectionV2(
     let ssGross = 0;
     let taxFree = 0;
     for (const s of scn.incomeStreams) {
-      if (!s.enabled || age < s.startAge || age > s.endAge) continue;
+      if (!s.enabled || !isScheduled(s) || age < s.startAge || age > s.endAge) continue;
       const annual = streamNominalAt(scn, s, j * 12, age) * 12;
       if (annual <= 0) continue;
       const isSS = /social security/i.test(s.name);
