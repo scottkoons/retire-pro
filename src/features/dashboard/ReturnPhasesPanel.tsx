@@ -71,7 +71,7 @@ export function ReturnPhasesPanel() {
                 </button>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="w-14 shrink-0 font-head text-[22px] font-bold leading-none text-ink tabnum">
+                <span className="w-14 shrink-0 font-head text-[22px] font-semibold tracking-[-0.02em] leading-none text-ink tabnum">
                   {+(p.expectedReturn * 100).toFixed(1)}
                   <span className="ml-0.5 text-[13px] font-semibold text-muted">%</span>
                 </span>
@@ -93,7 +93,7 @@ export function ReturnPhasesPanel() {
                 All ages <span className="font-normal text-faint">· default</span>
               </span>
               <div className="flex min-w-[220px] flex-1 items-center gap-2.5">
-                <span className="w-14 shrink-0 font-head text-[22px] font-bold leading-none text-ink tabnum">
+                <span className="w-14 shrink-0 font-head text-[22px] font-semibold tracking-[-0.02em] leading-none text-ink tabnum">
                   {+(a.annualReturn * 100).toFixed(1)}
                   <span className="ml-0.5 text-[13px] font-semibold text-muted">%</span>
                 </span>

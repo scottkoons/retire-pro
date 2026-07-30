@@ -21,8 +21,18 @@ type Accent = {
   text: string; // accent text + icon colour
   chip: string; // tinted icon-chip background (rgba, applied inline)
 };
-const MONTHLY: Accent = { bar: 'bg-primary', text: 'text-primary', chip: 'rgba(249, 115, 22, 0.14)' };
-const LUMP: Accent = { bar: 'bg-cat-1', text: 'text-cat-1', chip: 'rgba(167, 139, 250, 0.16)' };
+// Chips mix from the theme variable rather than a literal rgba, so the violet
+// follows --cat-1 into light mode instead of staying the dark-theme value.
+const MONTHLY: Accent = {
+  bar: 'bg-primary',
+  text: 'text-primary',
+  chip: 'color-mix(in oklab, var(--primary) 14%, transparent)',
+};
+const LUMP: Accent = {
+  bar: 'bg-cat-1',
+  text: 'text-cat-1',
+  chip: 'color-mix(in oklab, var(--cat-1) 16%, transparent)',
+};
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (

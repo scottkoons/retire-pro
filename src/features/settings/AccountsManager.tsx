@@ -120,7 +120,7 @@ export function AccountsManager() {
 
         <div className="flex items-center justify-between rounded-lg bg-primary-tint px-4 py-3">
           <span className="font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-primary">Total current assets</span>
-          <span className="font-head text-[20px] font-bold text-ink tabnum">{fmtUSD(total)}</span>
+          <span className="font-head text-[20px] font-semibold tracking-[-0.02em] text-ink tabnum">{fmtUSD(total)}</span>
         </div>
         <p className="-mt-3 text-[11px] text-faint">
           Editing an amount stamps today as its “Updated” date. Total shown: {fmtUSDAbbrev(total)}.

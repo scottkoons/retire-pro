@@ -103,7 +103,7 @@ function SankeyNode({
         textAnchor={anchor}
         fontFamily="Inter Variable"
         fontSize={11}
-        fill="#e2e8f0"
+        fill={chart.ink}
       >
         {fmtUSDAbbrev(value)}
       </text>

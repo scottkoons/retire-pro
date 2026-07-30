@@ -74,7 +74,7 @@ export function LoansManager() {
 
       <div className="mt-4 flex items-center justify-between rounded-lg bg-error-tint px-4 py-3">
         <span className="font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-error">Total loan balances</span>
-        <span className="font-head text-[18px] font-bold text-ink tabnum">{fmtUSD(total)}</span>
+        <span className="font-head text-[18px] font-semibold tracking-[-0.02em] text-ink tabnum">{fmtUSD(total)}</span>
       </div>
       <p className="mt-2 text-[12px] text-faint">
         Leave Payment at $0 to let the plan estimate one (5-year payoff). These balances reduce your net worth.{' '}

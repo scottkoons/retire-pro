@@ -282,7 +282,7 @@ export default function DashboardPage() {
               <span className="font-semibold text-ink">
                 On your retirement date <span className="font-normal text-muted">({fmtMonthYear(isoFromAge(a.retirementAge, a))}, {fmtAgeYM(a.retirementAge)})</span>
               </span>
-              <span className="font-head text-[15px] font-bold text-ink tabnum">{fmtUSD(path.atDate)}</span>
+              <span className="font-head text-[15px] font-semibold tracking-[-0.02em] text-ink tabnum">{fmtUSD(path.atDate)}</span>
             </div>
             <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-2">
               <span className="text-muted">Deposits and growth, first retirement year</span>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
               <span className="font-semibold text-ink">
                 Balance at Retirement <span className="font-normal text-muted">(chart point at age {path.retAge})</span>
               </span>
-              <span className="font-head text-[16px] font-bold text-ink tabnum">{fmtUSD(path.end)}</span>
+              <span className="font-head text-[16px] font-semibold tracking-[-0.02em] text-ink tabnum">{fmtUSD(path.end)}</span>
             </div>
           </div>
           <p className="mt-1 text-[11px] text-faint">

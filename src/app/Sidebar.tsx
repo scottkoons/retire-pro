@@ -66,12 +66,12 @@ export function Sidebar({ variant = 'desktop' }: { variant?: 'desktop' | 'drawer
       {/* Brand */}
       <div className={clsx('flex items-center py-5', collapsed ? 'justify-center px-2' : 'px-5')}>
         {!collapsed ? (
-          <span className="whitespace-nowrap font-head text-[22px] font-bold tracking-tight">
+          <span className="whitespace-nowrap font-head text-[22px] font-semibold tracking-[-0.03em]">
             <span className="text-primary">Retire</span>
             <span className="text-ink">Pro</span>
           </span>
         ) : (
-          <span className="font-head text-[22px] font-bold tracking-tight text-primary">R</span>
+          <span className="font-head text-[22px] font-semibold tracking-[-0.03em] text-primary">R</span>
         )}
       </div>
 

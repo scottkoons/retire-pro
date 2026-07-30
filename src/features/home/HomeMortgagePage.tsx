@@ -169,7 +169,7 @@ export default function HomeMortgagePage() {
             <div className="flex items-end">
               <div className="rounded-lg bg-success-tint px-4 py-2.5">
                 <span className="font-mono text-[12px] uppercase tracking-wide text-success">You save</span>
-                <span className="ml-2 font-head text-[18px] font-bold text-ink tabnum">{fmtUSD(Math.max(0, interestSaved))}</span>
+                <span className="ml-2 font-head text-[18px] font-semibold tracking-[-0.02em] text-ink tabnum">{fmtUSD(Math.max(0, interestSaved))}</span>
                 <span className="ml-2 text-[12px] text-muted">in interest, paid off {fmtMonthsYM(Math.max(0, monthsSaved))} sooner</span>
               </div>
             </div>

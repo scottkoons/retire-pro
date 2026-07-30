@@ -49,6 +49,10 @@ export const chart = {
   get bgBase() {
     return pick('#fbfcf7', '#12120f');
   },
+  /** Full-strength label text drawn directly into SVG (mirrors --text-on-surface). */
+  get ink() {
+    return pick('#0e0e0b', '#f4f4ec');
+  },
 
   // Data. Orange stays the projection colour in both themes.
   get primary() {
