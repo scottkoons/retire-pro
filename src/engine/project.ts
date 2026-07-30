@@ -7,7 +7,7 @@ import type {
   Scenario,
   YearRow,
 } from '@/domain/types';
-import type { Account, AccountKind, ExpenseCategory, Owner, Settings, SocialSecurityClaim } from '@/domain/types';
+import type { Account, AccountKind, ExpenseCategory, LumpSumEvent, Owner, Settings, SocialSecurityClaim } from '@/domain/types';
 import { ageToMonthIndex, dateToMonthIndex, monthIndexToAge, monthlyRate } from './timeline';
 import { fmtAgeYM } from '@/lib/format';
 import {
@@ -70,6 +70,14 @@ function resolveReturn(scn: Scenario, age: number): { expectedReturn: number; vo
     volatility: scn.monteCarlo?.returnVolatility ?? 0.12,
   };
 }
+
+/**
+ * A lump sum with no age is one the user has added but not yet dated. It has no
+ * position on the timeline, so it is excluded from the projection, the markers
+ * and the totals until a date is entered. Every consumer filters on this rather
+ * than defaulting the age, which would silently schedule money at today.
+ */
+export const isDatedLump = (l: LumpSumEvent): l is LumpSumEvent & { age: number } => l.age != null;
 
 function lumpMonth(scn: Scenario, ev: { age: number; dateOverride?: string }): number {
   const a = scn.assumptions;
@@ -136,7 +144,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
 
   // Pre-resolve lump months.
   const lumps = scn.lumpSums
-    .filter((l) => l.enabled)
+    .filter((l): l is LumpSumEvent & { age: number } => l.enabled && isDatedLump(l))
     .map((l) => ({ ...l, t: lumpMonth(scn, l) }));
 
   // Contribution windows in month indices. The end month is INCLUSIVE: a payment
@@ -648,7 +656,7 @@ export function runProjectionV2(
   // ---- lumps & inheritance pre-resolved to integer years ----
   const lumpByYear = new Map<number, number>();
   for (const l of scn.lumpSums) {
-    if (!l.enabled) continue;
+    if (!l.enabled || !isDatedLump(l)) continue;
     const j = Math.max(0, Math.round(l.age - a.currentAge));
     const cpiToday = Math.pow(1 + infl, j);
     const amt = l.dollarBasis === 'today' ? l.amount * cpiToday : l.amount;
@@ -1031,7 +1039,7 @@ export function runProjectionV2(
   }
 
   const markers: MarkerPoint[] = scn.lumpSums
-    .filter((l) => l.enabled)
+    .filter((l): l is LumpSumEvent & { age: number } => l.enabled && isDatedLump(l))
     .map((l) => {
       const j = Math.max(0, Math.round(l.age - a.currentAge));
       return { age: a.currentAge + j, balance: rows[Math.min(j, rows.length - 1)]?.endingBalance ?? 0, label: l.name, amount: lumpByYear.get(j) ?? l.amount };

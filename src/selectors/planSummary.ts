@@ -94,7 +94,10 @@ export function buildPlanSummaryModel(
         const months = contributionMonths(c, a);
         return { name: c.name, start: c.startAge, end: c.endAge, monthly: c.monthlyAmount, months, total: months * c.monthlyAmount };
       }),
-    lumpSums: scn.lumpSums.filter((l) => l.enabled).map((l) => ({ name: l.name, age: l.age, amount: l.amount })),
+    // Undated rows are not scheduled, so they stay out of the summary and the PDF.
+    lumpSums: scn.lumpSums
+      .filter((l): l is typeof l & { age: number } => l.enabled && l.age != null)
+      .map((l) => ({ name: l.name, age: l.age, amount: l.amount })),
     incomeStreams: [
       ...scn.incomeStreams
         // Same guard as the engine (streamNominalAt): a legacy SS row never

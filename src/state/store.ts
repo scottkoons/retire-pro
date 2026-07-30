@@ -610,10 +610,12 @@ export const useStore = create<StoreState>()(
       }),
 
       addLumpSum: () => mutateActive((scn) => {
+        // Deliberately undated. A guessed date used to drop the new row into
+        // the middle of the sorted table, where it was easy to lose; with no
+        // age it sinks to the bottom and moves into place once you date it.
         scn.lumpSums.push({
           id: newId(),
           name: 'New event',
-          age: scn.assumptions.currentAge + 1,
           amount: 0,
           dollarBasis: 'actual',
           enabled: true,

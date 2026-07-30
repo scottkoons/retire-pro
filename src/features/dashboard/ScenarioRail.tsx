@@ -167,7 +167,11 @@ export function ScenarioRail() {
 
   const totalMonthly = totalContributed(scn.contributions, a);
   const overlaps = contributionOverlaps(scn.contributions, a);
-  const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
+  // Undated rows are not scheduled, so they stay out of the total, matching
+  // both the projection and the Planner Sheet's total.
+  const totalLumps = scn.lumpSums
+    .filter((l) => l.enabled && (l.dateOverride != null || l.age != null))
+    .reduce((sum, l) => sum + l.amount, 0);
 
   return (
     // Stickiness lives on the collapsible wrapper in DashboardPage now, so that
@@ -310,7 +314,13 @@ export function ScenarioRail() {
                       <input
                         type="month"
                         className={dateInput}
-                        value={monthValueFromISO(l.dateOverride ?? isoFromAge(l.age, a))}
+                        value={
+                          l.dateOverride
+                            ? monthValueFromISO(l.dateOverride)
+                            : l.age != null
+                              ? monthValueFromISO(isoFromAge(l.age, a))
+                              : '' /* undated: leave the picker empty */
+                        }
                         onChange={(e) => {
                           const iso = isoFromMonthValue(e.target.value);
                           if (iso) s.updateLumpSum(l.id, { dateOverride: iso, age: ageFromISO(iso, a) });
@@ -327,7 +337,9 @@ export function ScenarioRail() {
 
                   <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-2.5 text-[12px]">
                     <span className="font-mono text-muted">Occurs at</span>
-                    <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtAgeYM(age)}</span>
+                    <span className="font-mono tabnum text-[13px] font-semibold text-ink">
+                      {age != null ? fmtAgeYM(age) : <span className="font-normal text-faint">Set a date</span>}
+                    </span>
                   </div>
                 </EventCard>
               );

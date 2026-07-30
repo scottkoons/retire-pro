@@ -165,7 +165,9 @@ export const MonthlyContributionSchema = z.object({
 export const LumpSumEventSchema = z.object({
   id: Id,
   name: z.string(),
-  age: Age,
+  // Optional: an undated row is one you have added but not yet scheduled.
+  // Widening a required field is backward-compatible, so no migration is needed.
+  age: Age.optional(),
   amount: Dollars,
   dollarBasis: DollarBasis,
   taxStatus: TaxStatus.optional(),

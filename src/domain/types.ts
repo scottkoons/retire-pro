@@ -60,7 +60,13 @@ export interface MonthlyContribution {
 export interface LumpSumEvent {
   id: string;
   name: string;
-  age: Age;
+  /**
+   * Undated until you fill the date in. A row added from "Add row" starts with
+   * no age so it sits at the bottom of the table instead of jumping into the
+   * middle of your existing events, and it stays out of the projection and the
+   * totals until it is actually scheduled.
+   */
+  age?: Age;
   amount: Dollars; // positive = inflow
   dollarBasis: DollarBasis;
   taxStatus?: TaxStatus;

@@ -64,7 +64,14 @@ export default function PlannerPage() {
 
   const fieldCls = 'rounded-md border border-border-strong bg-input px-2.5 py-1.5 font-mono text-[14px] text-ink focus:border-primary focus:outline-none';
 
-  const totalLumps = scn.lumpSums.filter((l) => l.enabled).reduce((sum, l) => sum + l.amount, 0);
+  // Effective age of a lump sum, or undefined while it is still undated.
+  const lumpAge = (l: (typeof scn.lumpSums)[number]): number | undefined =>
+    l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age;
+  // Undated rows are not scheduled, so they do not count toward the total
+  // either — the total has to agree with what the projection actually uses.
+  const totalLumps = scn.lumpSums
+    .filter((l) => l.enabled && lumpAge(l) != null)
+    .reduce((sum, l) => sum + l.amount, 0);
 
   // Overlapping contribution periods double-count those months — warn loudly.
   const overlaps = contributionOverlaps(scn.contributions, a);
@@ -101,7 +108,8 @@ export default function PlannerPage() {
     scn.lumpSums,
     {
       name: (l) => l.name.toLowerCase(),
-      age: (l) => (l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age),
+      // Undefined for an undated row; useSort keeps blanks at the bottom.
+      age: (l) => lumpAge(l),
       amount: (l) => l.amount,
       dollarBasis: (l) => l.dollarBasis.toLowerCase(),
       taxStatus: (l) => (l.taxStatus ?? 'taxable').toLowerCase(),
@@ -268,14 +276,24 @@ export default function PlannerPage() {
                 <TD><TextInput value={l.name} onChange={(v) => s.updateLumpSum(l.id, { name: v })} /></TD>
                 <TD>
                   <MonthYearInput
-                    value={monthValueFromISO(l.dateOverride ?? isoFromAge(l.age, a))}
+                    value={
+                      l.dateOverride
+                        ? monthValueFromISO(l.dateOverride)
+                        : l.age != null
+                          ? monthValueFromISO(isoFromAge(l.age, a))
+                          : '' /* undated: leave the picker empty */
+                    }
                     onChange={(v) => {
                       const iso = isoFromMonthValue(v);
                       if (iso) s.updateLumpSum(l.id, { dateOverride: iso, age: ageFromISO(iso, a) });
                     }}
                   />
                 </TD>
-                <TD align="right"><span className="whitespace-nowrap font-mono text-muted tabnum">{fmtAgeYM(l.dateOverride ? ageFromISO(l.dateOverride, a) : l.age)}</span></TD>
+                <TD align="right">
+                  <span className="whitespace-nowrap font-mono text-muted tabnum">
+                    {lumpAge(l) != null ? fmtAgeYM(lumpAge(l)!) : <span className="text-faint">—</span>}
+                  </span>
+                </TD>
                 <TD align="right"><NumberInput value={l.amount} prefix="$" onChange={(v) => s.updateLumpSum(l.id, { amount: v })} /></TD>
                 <TD><SelectInput value={l.dollarBasis} options={basisOpts} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} /></TD>
                 <TD><SelectInput value={l.taxStatus ?? 'taxable'} options={taxOpts} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} /></TD>

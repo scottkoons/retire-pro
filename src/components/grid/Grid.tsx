@@ -12,7 +12,8 @@ export interface SortState {
  *  Returns the sorted rows plus the current sort and a toggle handler for THead. */
 export function useSort<T>(
   rows: T[],
-  accessors: Record<string, (row: T) => number | string>,
+  // An accessor may return null/undefined for "not filled in yet".
+  accessors: Record<string, (row: T) => number | string | null | undefined>,
   initial: SortState,
 ): { sorted: T[]; sort: SortState; onSort: (key: string) => void } {
   const [sort, setSort] = useState<SortState>(initial);
@@ -22,11 +23,16 @@ export function useSort<T>(
     const acc = accessors[sort.key];
     if (!acc) return rows;
     const arr = [...rows];
+    const blank = (v: number | string | null | undefined) => v == null || v === '';
     arr.sort((a, b) => {
       const x = acc(a);
       const y = acc(b);
-      if (x < y) return sort.dir === 'asc' ? -1 : 1;
-      if (x > y) return sort.dir === 'asc' ? 1 : -1;
+      // Blanks sink to the bottom in BOTH directions. A row you just added has
+      // nothing to sort by, so it stays where you can see it until you fill it
+      // in; flipping the sort must not shuffle it to the top.
+      if (blank(x) || blank(y)) return blank(x) && blank(y) ? 0 : blank(x) ? 1 : -1;
+      if (x! < y!) return sort.dir === 'asc' ? -1 : 1;
+      if (x! > y!) return sort.dir === 'asc' ? 1 : -1;
       return 0;
     });
     return arr;
