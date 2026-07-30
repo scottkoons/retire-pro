@@ -14,6 +14,8 @@ import {
   IconDoc,
   IconSettings,
   IconChevronLeft,
+  IconSun,
+  IconMoon,
 } from '@/components/icons';
 import { useStore } from '@/state/store';
 
@@ -44,6 +46,8 @@ export function Sidebar({ variant = 'desktop' }: { variant?: 'desktop' | 'drawer
   const collapsedStore = useStore((s) => s.ui.sidebarCollapsed);
   const toggle = useStore((s) => s.toggleSidebar);
   const saveStatus = useStore((s) => s.saveStatus);
+  const theme = useStore((s) => s.settings.theme);
+  const setTheme = useStore((s) => s.setTheme);
   // The mobile drawer is always fully expanded; only the desktop rail collapses.
   const collapsed = variant === 'drawer' ? false : collapsedStore;
 
@@ -122,15 +126,62 @@ export function Sidebar({ variant = 'desktop' }: { variant?: 'desktop' | 'drawer
         ))}
       </nav>
 
-      <div className={clsx('border-t border-border-subtle py-3', collapsed ? 'flex justify-center px-2' : 'px-5')}>
-        <div className={clsx('label-mono flex items-center gap-2', collapsed && 'justify-center')}>
-          <span
-            className={clsx(
-              'h-1.5 w-1.5 shrink-0 rounded-full',
-              saveStatus === 'error' ? 'bg-error' : saveStatus === 'saving' ? 'bg-caution' : 'bg-success',
-            )}
-          />
-          {!collapsed && (saveStatus === 'error' ? 'Save failed' : saveStatus === 'saving' ? 'Saving…' : 'Auto-saved')}
+      <div className={clsx('border-t border-border-subtle py-3', collapsed ? 'px-2' : 'px-5')}>
+        <div className={clsx('flex gap-2.5', collapsed ? 'flex-col items-center' : 'items-center justify-between')}>
+          <div className="label-mono flex items-center gap-2">
+            <span
+              className={clsx(
+                'h-1.5 w-1.5 shrink-0 rounded-full',
+                saveStatus === 'error' ? 'bg-error' : saveStatus === 'saving' ? 'bg-caution' : 'bg-success',
+              )}
+            />
+            {!collapsed && (saveStatus === 'error' ? 'Save failed' : saveStatus === 'saving' ? 'Saving…' : 'Auto-saved')}
+          </div>
+
+          {/* Theme. Expanded shows both options so the active one is visible at
+              a glance; collapsed shows the theme you would switch TO, since
+              that is the only thing a single icon can usefully communicate. */}
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              onMouseEnter={showTip(theme === 'dark' ? 'Light theme' : 'Dark theme')}
+              onMouseLeave={hideTip}
+              className="rounded-md p-2 text-muted transition-colors hover:bg-hover hover:text-ink"
+            >
+              {theme === 'dark' ? <IconSun className="h-5 w-5" /> : <IconMoon className="h-5 w-5" />}
+            </button>
+          ) : (
+            <div
+              role="radiogroup"
+              aria-label="Theme"
+              className="inline-flex shrink-0 rounded-full border border-border-subtle bg-input p-0.5"
+            >
+              {(
+                [
+                  { value: 'light', Icon: IconSun, label: 'Light theme' },
+                  { value: 'dark', Icon: IconMoon, label: 'Dark theme' },
+                ] as const
+              ).map(({ value, Icon, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === value}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => setTheme(value)}
+                  className={clsx(
+                    'rounded-full p-1.5 transition-colors',
+                    theme === value ? 'bg-primary text-primary-on' : 'text-muted hover:text-ink',
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
