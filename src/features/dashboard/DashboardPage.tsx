@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useActiveScenario, useEffectiveDisplayMode, useStore } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { useMcStore, mcConfigHash } from '@/state/mcStore';
-import { incomeBreakdownAtAge } from '@/engine/project';
+import { incomeBreakdownAtAge, incomeYearTotalsAtAge } from '@/engine/project';
 import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
 import { Section, Button, Segmented, TaxChip, StatusPill } from '@/components/ui/primitives';
 import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components/ui/tiles';
@@ -46,17 +46,18 @@ export default function DashboardPage() {
   const incomeSeries = useMemo<IncomePoint[]>(() => {
     const pts: IncomePoint[] = [];
     for (let age = Math.round(a.currentAge); age <= Math.round(a.modelEndAge); age++) {
-      const bd = incomeBreakdownAtAge(scn, months, age);
-      const p: IncomePoint = { age, investment: 0, va: 0, ssSelf: 0, ssSpouse: 0, other: 0 };
-      for (const c of bd.components) {
-        const annual = deflate(c.monthlyNominal * 12, age);
-        if (c.cat === 1) p.investment += annual;
-        else if (c.cat === 2) p.va += annual;
-        else if (c.cat === 3) p.ssSelf += annual;
-        else if (c.cat === 4) p.ssSpouse += annual;
-        else p.other += annual;
-      }
-      pts.push(p);
+      // True 12-month sum, not one month x 12 — see incomeYearTotalsAtAge. The
+      // old point-sample landed past the row's own label when the current age
+      // has a fractional part, which cut a stream off a year early.
+      const y = incomeYearTotalsAtAge(scn, months, age);
+      pts.push({
+        age,
+        investment: deflate(y.investment, age),
+        va: deflate(y.va, age),
+        ssSelf: deflate(y.ssSelf, age),
+        ssSpouse: deflate(y.ssSpouse, age),
+        other: deflate(y.other, age),
+      });
     }
     return pts;
     // eslint-disable-next-line react-hooks/exhaustive-deps

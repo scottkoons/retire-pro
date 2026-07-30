@@ -450,6 +450,68 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   return { age, components, taxablePerMo, taxFreePerMo };
 }
 
+export interface IncomeYearTotals {
+  investment: number;
+  va: number;
+  ssSelf: number;
+  ssSpouse: number;
+  other: number;
+}
+
+/**
+ * ANNUAL income by chart category for the 12-month slice labeled `age`, summing
+ * the months actually received.
+ *
+ * Why this exists alongside incomeBreakdownAtAge: that function samples the
+ * slice's LAST month, which is right for the tiles (they must agree with the
+ * year row's ending balance — see the Balance at Retirement decision) but wrong
+ * for a chart. With a fractional current age the last month lands past the
+ * label: at 56 yrs 2 mos the row labeled 94 samples age 95.083, so a stream
+ * ending at 95 read $0 a full year before it actually stops. Summing the twelve
+ * months removes that artifact, and a true 12-month sum is what an "annual
+ * income" chart should show anyway rather than one month multiplied by 12.
+ *
+ * Deliberately NOT used by the tiles or the "@ age" columns — those keep
+ * end-of-year sampling so the numbers Scott cross-checks do not move.
+ */
+export function incomeYearTotalsAtAge(scn: Scenario, months: MonthState[], age: number): IncomeYearTotals {
+  const a = scn.assumptions;
+  const j = Math.max(0, Math.round(age) - Math.round(a.currentAge));
+  const out: IncomeYearTotals = { investment: 0, va: 0, ssSelf: 0, ssSpouse: 0, other: 0 };
+  const add = (cat: number, v: number) => {
+    if (!(v > 0)) return;
+    if (cat === 1) out.investment += v;
+    else if (cat === 2) out.va += v;
+    else if (cat === 3) out.ssSelf += v;
+    else if (cat === 4) out.ssSpouse += v;
+    else out.other += v;
+  };
+
+  const spouseOffset = a.spouseAgeOffset ?? 0;
+  for (let k = 0; k < 12; k++) {
+    const t = j * 12 + k;
+    if (t < 0 || t >= months.length) continue;
+    const ageAt = monthIndexToAge(t, a.currentAge);
+    const m = months[t];
+    if (m) add(1, m.withdrawal);
+    for (const s of scn.incomeStreams) add(catForStream(s), streamNominalAt(scn, s, t, ageAt));
+
+    // Social Security planner, mirroring incomeBreakdownAtAge's cash cases so
+    // the chart and the breakdown panel agree on what counts as income.
+    if (scn.socialSecurity?.enabled) {
+      for (const c of scn.socialSecurity.claims) {
+        if (!c.enabled) continue;
+        const cat: 3 | 4 = c.owner === 'spouse' ? 4 : 3;
+        const claimSelfAge = Math.min(70, Math.max(62, c.claimAge)) - (c.owner === 'spouse' ? spouseOffset : 0);
+        if (ageAt < claimSelfAge) continue;
+        if (ageAt < a.retirementAge && !scn.socialSecurity.investUntilRetirement) continue;
+        add(cat, ssMonthlyBenefitToday(c) * Math.pow(1 + monthlyRate(c.cola), t));
+      }
+    }
+  }
+  return out;
+}
+
 // ===========================================================================
 // v2 tax-aware, multi-account engine
 //
