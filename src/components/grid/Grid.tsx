@@ -338,7 +338,9 @@ export function MonthYearInput({ value, onChange }: { value: string; onChange: (
 
 export function SelectInput<T extends string>({ value, options, onChange, ariaLabel }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; ariaLabel?: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel} className={clsx(inputCls, 'cursor-pointer pr-5')}>
+    // No extra right padding: the native (appearance: auto) arrow already
+    // reserves its own space, and padding on top of it clipped short labels.
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel} className={clsx(inputCls, 'cursor-pointer pr-1')}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

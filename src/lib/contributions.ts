@@ -39,7 +39,10 @@ export function totalContributed(contribs: MonthlyContribution[], a: ScenarioAss
 
 /**
  * Detect overlapping contribution periods: months covered by two enabled rows
- * would count BOTH amounts, which is almost always accidental double-counting.
+ * going to the SAME account would count both amounts, which is almost always
+ * accidental double-counting. Rows for different accounts may share months on
+ * purpose: one payment split across a 401(k), a Roth and a brokerage account is
+ * entered as one row per account.
  * End months PAY, so a row ending in the month the next one starts overlaps it;
  * sequential rows start the month after the previous one ends.
  * Returns id -> the other row's name.
@@ -50,6 +53,7 @@ export function contributionOverlaps(contribs: MonthlyContribution[], a: Scenari
   const en = contribs.filter((c) => c.enabled && contributionWindow(c, a));
   for (let i = 0; i < en.length; i++) {
     for (let j = i + 1; j < en.length; j++) {
+      if ((en[i].accountKind ?? 'pretax') !== (en[j].accountKind ?? 'pretax')) continue;
       const [s1, e1] = contributionWindow(en[i], a)!;
       const [s2, e2] = contributionWindow(en[j], a)!;
       if (s1 <= e2 && s2 <= e1) {

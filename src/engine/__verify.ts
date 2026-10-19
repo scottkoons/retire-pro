@@ -478,6 +478,34 @@ console.log('\n[16] Engine tax tracking: account mix decides how withdrawals are
   check('breakdown: taxable + tax-free equals the total', near(bd.taxablePerMo + bd.taxFreePerMo, bd.components.reduce((t, c) => t + c.monthlyNominal, 0), 0.01));
 }
 
+console.log('\n[17] One payment split across accounts: rows per account share months');
+{
+  const { contributionOverlaps } = await import('@/lib/contributions');
+  const a = sell.assumptions;
+  const row = (id: string, accountKind: 'pretax' | 'roth' | 'taxable' | undefined, amt: number) => ({
+    id, name: id, startAge: 57, endAge: 60, monthlyAmount: amt, dollarBasis: 'actual' as const, accountKind, enabled: true,
+  });
+  const split = [row('k401', 'pretax', 4_000), row('roth', 'roth', 1_000), row('brk', 'taxable', 2_000)];
+  check('different accounts in the same months are not an overlap', contributionOverlaps(split, a).size === 0);
+  check('same account in the same months is still flagged', contributionOverlaps([row('a', 'pretax', 1), row('b', undefined, 1)], a).size === 2);
+
+  const run = (contribs: Scenario['contributions']) => {
+    const x: Scenario = structuredClone(sell);
+    x.accounts = [{ id: 'p', name: 'p', kind: 'pretax', balance: 100_000, enabled: true }];
+    x.assumptions.startingBalance = 100_000;
+    x.contributions = contribs;
+    x.lumpSums = [];
+    return runProjection(x, settings);
+  };
+  const splitRun = run(split);
+  const oneRow = run([row('all', 'pretax', 7_000)]);
+  check('split rows deposit the same total as one row', near(splitRun.result.endingBalance, oneRow.result.endingBalance, 0.01));
+  const tR = splitRun.result.rows.find((r) => r.age === Math.round(a.retirementAge))!.monthIndexEnd;
+  const m = splitRun.months[tR];
+  check('split rows land in their own accounts (part Roth, part brokerage)', m.pOrd < oneRow.months[tR].pOrd && m.pGain > 0, `${m.pOrd} ${m.pGain}`);
+  check('splitting lowers the estimated tax versus all pre-tax', splitRun.result.estimatedTaxMonthly < oneRow.result.estimatedTaxMonthly);
+}
+
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);
 // dev-only harness; exit non-zero on failure when run under node
 if (fail > 0) (globalThis as { process?: { exit: (n: number) => void } }).process?.exit(1);

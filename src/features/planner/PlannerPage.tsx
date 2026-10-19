@@ -192,11 +192,15 @@ export default function PlannerPage() {
       </Section>
 
       {/* Monthly Contributions */}
-      <Section title="Monthly Contributions" subtitle={`${scn.contributions.length} rows · start and end months both pay; a gap simply contributes $0`}>
+      <Section
+        title="Monthly Contributions"
+        subtitle={`${scn.contributions.length} rows · start and end months both pay; a gap simply contributes $0 · to split a payment, add one row per account for the same months`}
+      >
         {overlaps.size > 0 && (
           <div className="mb-3 rounded-lg border border-error/40 bg-error-tint px-4 py-2.5 text-[13px] text-error">
-            Contribution periods overlap — every overlapping month counts BOTH amounts. A period pays through its
-            end month, so start each period the month AFTER the previous one ends.
+            Two periods for the same account overlap, so every overlapping month counts BOTH amounts. A period pays
+            through its end month, so start each period the month AFTER the previous one ends. Rows for different
+            accounts may share months: that is how you split one payment across accounts.
           </div>
         )}
         <Grid minWidth={860}>
@@ -209,7 +213,7 @@ export default function PlannerPage() {
               { label: 'End', sortKey: 'endAge' },
               { label: 'Monthly $', align: 'right', sortKey: 'monthlyAmount' },
               { label: 'Basis', w: '120px', sortKey: 'dollarBasis' },
-              { label: 'Account', w: '112px', sortKey: 'accountKind' },
+              { label: 'Account', w: '120px', sortKey: 'accountKind' },
               { label: 'Months', align: 'right', sortKey: 'months' },
               { label: 'Total', align: 'right', sortKey: 'total' },
             ]}
@@ -354,7 +358,7 @@ export default function PlannerPage() {
               { label: 'Start', align: 'right', sortKey: 'startAge' },
               { label: 'End', align: 'right', sortKey: 'endAge' },
               { label: 'COLA %', align: 'right', sortKey: 'cola' },
-              { label: 'Owner', w: '96px', sortKey: 'owner' },
+              { label: 'Owner', w: '108px', sortKey: 'owner' },
               { label: 'Tax', w: '112px', sortKey: 'taxStatus' },
               { label: `@ ${Math.round(a.retirementAge)}`, align: 'right', sortKey: 'atRet' },
               { label: '@ 90', align: 'right', sortKey: 'at90' },
