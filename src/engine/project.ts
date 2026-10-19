@@ -96,7 +96,7 @@ export function isScheduled<T extends { startAge?: number; endAge?: number }>(
 
 function lumpMonth(scn: Scenario, ev: { age: number; dateOverride?: string }): number {
   const a = scn.assumptions;
-  if (ev.dateOverride) return dateToMonthIndex(ev.dateOverride, a.currentAge, a.birthYear, a.birthMonth);
+  if (ev.dateOverride) return dateToMonthIndex(ev.dateOverride, a.currentAge, a.birthYear, a.birthMonth, a.birthDay);
   return ageToMonthIndex(ev.age, a.currentAge);
 }
 
@@ -179,7 +179,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
   // Typed dates win over stored ages (same rule as lumps and the month inputs), so
   // the engine pays exactly the calendar months the Planner row displays.
   const cMonth = (iso: string | undefined, age: number) =>
-    iso ? dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) : ageToMonthIndex(age, a.currentAge);
+    iso ? dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth, a.birthDay) : ageToMonthIndex(age, a.currentAge);
   const contribs = scn.contributions
     .filter((c): c is typeof c & { startAge: number; endAge: number } => c.enabled && isScheduled(c))
     .map((c) => ({
@@ -744,7 +744,7 @@ export function runProjectionV2(
   // ---- contribution windows in effective ages: typed dates win over stored
   //      ages, and the end month is inclusive (same rule as the v1 engine) ----
   const effAge = (iso: string | undefined, age: number) =>
-    iso ? a.currentAge + dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth) / 12 : age;
+    iso ? a.currentAge + dateToMonthIndex(iso, a.currentAge, a.birthYear, a.birthMonth, a.birthDay) / 12 : age;
   const contribWindows = scn.contributions
     .filter((c): c is typeof c & { startAge: number; endAge: number } => c.enabled && isScheduled(c))
     .map((c) => ({

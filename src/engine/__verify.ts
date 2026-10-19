@@ -247,8 +247,13 @@ console.log('\n[9] External audit checklist: rate conversion, timing, double-cou
 
   const { months } = runProjection(s, settings);
 
-  // Independent month grid: month index of calendar (year, month-1..12), anchor April 2026.
-  const ix = (y: number, m: number) => (y - 2026) * 12 + (m - 4);
+  // Independent month grid. Born Apr 28 1970, age 56 exactly, so model month 0
+  // runs Apr 28 - May 27 2026 and model month k starts on the 28th of
+  // (April + k). Every reference date is the 1st, which falls BEFORE the 28th,
+  // so the 1st of month m belongs to the model month that began on the 28th of
+  // month m-1. (Until 2026-10-18 this mapping omitted the -1, and so did the
+  // engine, which put every typed payment one model month late.)
+  const ix = (y: number, m: number) => (y - 2026) * 12 + (m - 4) - 1;
   const spans: [number, number, number][] = [
     [ix(2026, 6), ix(2026, 6), 5_250],
     [ix(2026, 7), ix(2026, 8), 6_250],
@@ -260,7 +265,9 @@ console.log('\n[9] External audit checklist: rate conversion, timing, double-cou
   for (const [y, m, amt] of [[2026, 10, 40_000], [2026, 12, 50_000], [2027, 10, 550_000], [2032, 9, 450_000]] as const) {
     lumpAt.set(ix(y, m), amt);
   }
-  const tRet = ix(2037, 4); // April 2037 = the month of the 67th birthday
+  // Retirement begins ON the 67th birthday, Apr 28 2037: model month 132, the one
+  // that STARTS that day. The Apr 1 2037 payment (ix = 131) is the last one before it.
+  const tRet = (2037 - 2026) * 12 + (4 - 4);
   const rM = monthlyRate(0.07);
   let bal = 296_500;
   let maxDiff = 0;
@@ -276,7 +283,10 @@ console.log('\n[9] External audit checklist: rate conversion, timing, double-cou
   }
   check('engine matches the independent simulation every month (<= $0.01)', maxDiff <= 0.01, `max diff $${maxDiff.toFixed(4)}`);
   check('no double-counting: deposits == flat schedule total $368,250', depositTotal === 368_250, `got ${depositTotal}`);
-  check('balance on the retirement date ~= $3,064,518 (locked reference)', near(months[tRet].startingBalance, 3_064_518, 5), `got ${months[tRet].startingBalance.toFixed(0)}`);
+  // Re-locked 2026-10-18 after the date-anchor fix (was $3,064,518): payments now
+  // land in the model month that contains the 1st, so the Apr 1 2037 payment is
+  // before the Apr 28 retirement and every flow earns one more month of growth.
+  check('balance on the retirement date ~= $3,079,825 (locked reference)', near(months[tRet].startingBalance, 3_079_825, 5), `got ${months[tRet].startingBalance.toFixed(0)}`);
 }
 
 // -------------------------------------------------------------------------
@@ -311,6 +321,52 @@ console.log('\n[12] Undated rows stay out of the projection');
   scn.lumpSums.push({ id: 'u3', name: 'undated', amount: 9_999_999, dollarBasis: 'actual', enabled: true });
   const r = runProjection(scn, settings).result;
   check('undated contribution, income stream and lump sum change nothing', near(r.endingBalance, base.endingBalance, 0.01) && near(r.monthlyIncomeAtRetirement, base.monthlyIncomeAtRetirement, 0.01), `${r.endingBalance} vs ${base.endingBalance}`);
+}
+
+console.log('\n[13] Calendar dates map to the model month containing the 1st');
+{
+  const { dateToMonthIndex } = await import('./timeline');
+  const { ageFromISO, isoFromAge, ageFromBirthDate } = await import('@/lib/dates');
+  for (const birthDay of [1, 15, 28]) {
+    const a = { ...sell.assumptions, birthYear: 1970, birthMonth: 3, birthDay };
+    a.currentAge = ageFromBirthDate(1970, 3, birthDay, new Date(2026, 9, 18)); // Oct 18 2026
+    const t = dateToMonthIndex('2026-10-01', a.currentAge, 1970, 3, birthDay);
+    // Oct 1 is "now" unless the age month restarts between Oct 1 and Oct 18 (birthday on the 15th).
+    const expected = birthDay === 15 ? -1 : 0;
+    check(`birthday the ${birthDay}: Oct 1 2026 lands in model month ${expected} on Oct 18`, t === expected, `got ${t}`);
+    let ok = true;
+    for (const iso of ['2026-11-01', '2030-04-01', '2037-04-01', '2037-05-01']) {
+      if (isoFromAge(ageFromISO(iso, a), a) !== iso) ok = false;
+    }
+    check(`birthday the ${birthDay}: isoFromAge(ageFromISO(date)) round-trips`, ok);
+  }
+}
+
+console.log('\n[14] v2 -> v3 migration keeps every row meaning the month it displayed');
+{
+  const { migrate } = await import('@/persistence/migrations');
+  const { contributionMonths } = await import('@/lib/contributions');
+  const { ageToMonthIndex, dateToMonthIndex } = await import('./timeline');
+  const a = { ...sell.assumptions, birthYear: 1970, birthMonth: 3, birthDay: 28, currentAge: 56 };
+  const mixed = { id: 'm', name: 'mixed', startAge: 57, endAge: 60, startDateOverride: '2027-06-01', monthlyAmount: 1000, dollarBasis: 'actual', enabled: true };
+  const ageOnly = { id: 'g', name: 'age-only', startAge: 60 + 1 / 12, endAge: 62, monthlyAmount: 1000, dollarBasis: 'actual', enabled: true };
+  const undated = { id: 'u', name: 'undated', monthlyAmount: 1000, dollarBasis: 'actual', enabled: true };
+  const lump = { id: 'l', name: 'lump', age: 57.5, amount: 1, dollarBasis: 'actual', enabled: true };
+  // Payments each row made under the OLD rule (dates mapped without the birthday-day step).
+  const oldIx = (iso: string) => dateToMonthIndex(iso, a.currentAge, 1970, 3, 1);
+  const oldCount = (s: number, e: number) => e - s + 1;
+  const doc = { schemaVersion: 2, scenarios: [{ assumptions: a, contributions: [mixed, ageOnly, undated], lumpSums: [lump] }] };
+  const out = migrate(doc as never) as unknown as { schemaVersion: number; scenarios: Array<{ contributions: Array<Record<string, unknown>>; lumpSums: Array<Record<string, unknown>> }> };
+  const [m2, g2, u2] = out.scenarios[0].contributions;
+  const [l2] = out.scenarios[0].lumpSums;
+  check('migrated doc reaches schema v3', out.schemaVersion === 3, String(out.schemaVersion));
+  check('mixed row: age-only end frozen to the month it displayed (Apr 2030)', m2.endDateOverride === '2030-04-01', String(m2.endDateOverride));
+  check('mixed row keeps its old payment count', contributionMonths(m2 as never, a) === oldCount(oldIx('2027-06-01'), ageToMonthIndex(60, a.currentAge)));
+  check('age-only row frozen to its displayed months (May 2030 -> Apr 2032)', g2.startDateOverride === '2030-05-01' && g2.endDateOverride === '2032-04-01', `${g2.startDateOverride} ${g2.endDateOverride}`);
+  check('age-only row keeps its old payment count', contributionMonths(g2 as never, a) === oldCount(ageToMonthIndex(60 + 1 / 12, a.currentAge), ageToMonthIndex(62, a.currentAge)));
+  check('mixed and age-only rows stay contiguous (no gap, no overlap)', dateToMonthIndex(String(g2.startDateOverride), 56, 1970, 3, 28) === dateToMonthIndex(String(m2.endDateOverride), 56, 1970, 3, 28) + 1);
+  check('undated row is untouched', u2.startDateOverride === undefined && u2.endDateOverride === undefined);
+  check('age-only lump frozen to the month it displayed (Oct 2027)', l2.dateOverride === '2027-10-01', String(l2.dateOverride));
 }
 
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);

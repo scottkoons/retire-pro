@@ -17,7 +17,7 @@ interface McState {
 let worker: Worker | null = null;
 
 // Bump when the projection/withdrawal math changes so cached MC results invalidate.
-const ENGINE_VERSION = 10; // 10: MC redraws when the return phase changes mid-year
+const ENGINE_VERSION = 11; // 10: MC redraw on mid-year phase change. 11: date anchor uses the birthday day
 
 function mcConfigHash(scn: Scenario, settings: Settings, criterion: SuccessCriterion): string {
   return String(

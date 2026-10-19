@@ -93,7 +93,53 @@ const migrations: Migration[] = [
       rmdStartAge: 73,
     },
   }),
+  // index 2: v2 -> v3 (date anchor honours the birthday day)
+  (doc) => ({
+    ...doc,
+    scenarios: Array.isArray(doc.scenarios)
+      ? (doc.scenarios as Array<Record<string, unknown>>).map(freezeDisplayedDates)
+      : doc.scenarios,
+  }),
 ];
+
+/**
+ * v2 -> v3: the date anchor changed (dateToMonthIndex now honours the birthday
+ * day; isoFromAge now shows the 1st that falls inside an age month). Every
+ * age-only contribution end and lump sum was DISPLAYED as a calendar month in
+ * the Planner, and the user planned around those labels (e.g. one row ending
+ * September, the next starting October). Leaving them age-based would change
+ * their labels and open gaps against typed neighbours, so each one is frozen
+ * to the exact month the OLD display showed. The whole plan then reads as it
+ * did before and every dated flow moves onto the corrected grid together.
+ * Undated rows (no age) are left untouched.
+ */
+function freezeDisplayedDates(scn: Record<string, unknown>): Record<string, unknown> {
+  const a = (scn.assumptions ?? {}) as Record<string, unknown>;
+  const by = Number(a.birthYear);
+  const bm = Number(a.birthMonth);
+  if (!Number.isFinite(by) || !Number.isFinite(bm)) return scn;
+  // The pre-v3 isoFromAge, reproduced here so this step never drifts with the live helper.
+  const oldLabel = (age: number) => {
+    const whole = Math.floor(age);
+    const d = new Date(by + whole, bm + Math.round((age - whole) * 12), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  };
+  const has = (v: unknown) => typeof v === 'string' && v !== '';
+  const contributions = Array.isArray(scn.contributions)
+    ? (scn.contributions as Array<Record<string, unknown>>).map((c) => {
+        const out = { ...c };
+        if (!has(c.startDateOverride) && typeof c.startAge === 'number') out.startDateOverride = oldLabel(c.startAge);
+        if (!has(c.endDateOverride) && typeof c.endAge === 'number') out.endDateOverride = oldLabel(c.endAge);
+        return out;
+      })
+    : scn.contributions;
+  const lumpSums = Array.isArray(scn.lumpSums)
+    ? (scn.lumpSums as Array<Record<string, unknown>>).map((l) =>
+        !has(l.dateOverride) && typeof l.age === 'number' ? { ...l, dateOverride: oldLabel(l.age) } : l,
+      )
+    : scn.lumpSums;
+  return { ...scn, contributions, lumpSums };
+}
 
 export function migrate(raw: AnyDoc): AnyDoc {
   let doc = raw;
