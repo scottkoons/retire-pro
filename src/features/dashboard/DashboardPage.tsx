@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useActiveScenario, useEffectiveDisplayMode, useStore } from '@/state/store';
 import { useProjection } from '@/selectors/projection';
 import { useMcStore, mcConfigHash } from '@/state/mcStore';
-import { incomeBreakdownAtAge, incomeYearTotalsAtAge } from '@/engine/project';
+import { estimatedMonthlyTaxAt, incomeBreakdownAtAge, incomeYearTotalsAtAge } from '@/engine/project';
 import { ageToMonthIndex } from '@/engine/timeline';
 import { Section, Button, Segmented, TaxChip, StatusPill } from '@/components/ui/primitives';
 import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components/ui/tiles';
@@ -49,6 +49,14 @@ export default function DashboardPage() {
 
   const [breakdownAge, setBreakdownAge] = useState(Math.round(a.retirementAge));
   const breakdown = useMemo(() => incomeBreakdownAtAge(scn, months, breakdownAge), [scn, months, breakdownAge]);
+  // Estimated tax at the same sampled month as the breakdown (end of that age's
+  // year row). Only shown from retirement: working-years income is not modeled.
+  const breakdownTax = useMemo(() => {
+    const j = Math.max(0, Math.round(breakdownAge) - Math.round(a.currentAge));
+    const t = Math.max(0, Math.min(months.length - 1, j * 12 + 11));
+    return months[t] && months[t].age >= a.retirementAge ? estimatedMonthlyTaxAt(scn, months, t) : null;
+  }, [scn, months, breakdownAge, a.currentAge, a.retirementAge]);
+  const breakdownTotal = breakdown.taxablePerMo + breakdown.taxFreePerMo;
 
   const incomeSeries = useMemo<IncomePoint[]>(() => {
     const pts: IncomePoint[] = [];
@@ -96,6 +104,8 @@ export default function DashboardPage() {
   const monthlyIncome = today ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement;
   const guaranteedAtRet = today ? result.guaranteedMonthlyIncomeToday : result.guaranteedMonthlyIncome;
   const portfolioDrawAtRet = today ? result.requiredPortfolioWithdrawalToday : result.requiredPortfolioWithdrawal;
+  const afterTaxAtRet = today ? result.afterTaxMonthlyIncomeToday : result.afterTaxMonthlyIncome;
+  const taxAtRet = today ? result.estimatedTaxMonthlyToday : result.estimatedTaxMonthly;
   const maxComponent = Math.max(1, ...breakdown.components.map((c) => c.monthlyNominal));
 
   // On first dashboard view this session: make sure Monte Carlo has a fresh result and show the overlay.
@@ -166,7 +176,12 @@ export default function DashboardPage() {
               sub={`guaranteed ${fmtUSDAbbrev(guaranteedAtRet)} + draw ${fmtUSDAbbrev(portfolioDrawAtRet)}`}
               tint="green"
             />
-            <StatTile label="Annual Income" value={fmtUSD(monthlyIncome * 12)} tint="violet" />
+            <StatTile
+              label="Annual Income"
+              value={fmtUSD(monthlyIncome * 12)}
+              sub={`after est. tax ${fmtUSD(afterTaxAtRet * 12)} (${fmtUSD(taxAtRet)}/mo tax)`}
+              tint="violet"
+            />
             <StatTile label="End of Horizon" value={fmtUSD(endHorizon)} sub={`remaining principal at ${fmtAgeYM(a.modelEndAge)}`} tint="blue" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -179,10 +194,10 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => navigate('/settings')}
                 title="Total of your accounts — edit balances in Settings, Accounts & Assets"
-                className="flex w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-input px-3 py-2 text-left transition-colors hover:border-primary"
+                className="flex w-full min-w-0 items-center justify-center rounded-md border border-border-strong bg-input px-2 py-2 transition-colors hover:border-primary"
               >
-                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-faint">Accounts</span>
-                <span className="font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(currentAssets)}</span>
+                {/* Value only: a label beside it overflowed the tile at desktop widths. */}
+                <span className="truncate font-mono tabnum text-[13px] font-semibold text-ink">{fmtUSD(currentAssets)}</span>
               </button>
             </ControlTile>
             <ControlTile label="Withdrawal Rate" value={pctValue(scn.withdrawal.rate ?? 0.04, 2)} unit="%">
@@ -339,6 +354,22 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:content-start">
               <SummaryTile label="Taxable / mo" value={fmtUSD(deflateAtRow(breakdown.taxablePerMo, breakdownAge))} tone="tax" />
               <SummaryTile label="Tax-free / mo" value={fmtUSD(deflateAtRow(breakdown.taxFreePerMo, breakdownAge))} tone="tax-free" />
+              <SummaryTile
+                label="Est. tax / mo"
+                value={breakdownTax == null ? '—' : fmtUSD(deflateAtRow(breakdownTax, breakdownAge))}
+                sub={
+                  breakdownTax == null
+                    ? 'starts at retirement'
+                    : `federal + Colorado, ${breakdownTotal > 0 ? ((breakdownTax / breakdownTotal) * 100).toFixed(1) : '0.0'}% of income`
+                }
+                tone="neutral"
+              />
+              <SummaryTile
+                label="After tax / mo"
+                value={breakdownTax == null ? '—' : fmtUSD(deflateAtRow(breakdownTotal - breakdownTax, breakdownAge))}
+                sub={breakdownTax == null ? undefined : 'estimate, married filing jointly'}
+                tone="neutral"
+              />
             </div>
           </div>
         </Section>

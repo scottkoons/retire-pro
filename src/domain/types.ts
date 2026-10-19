@@ -57,6 +57,9 @@ export interface MonthlyContribution {
   endAge?: Age;
   monthlyAmount: Dollars;
   dollarBasis: DollarBasis; // how monthlyAmount is denominated
+  /** Which kind of account the deposits go into; decides how the money is
+   *  taxed when it is withdrawn. Absent = 'pretax' (401(k) / traditional IRA). */
+  accountKind?: AccountKind;
   enabled: boolean;
   startDateOverride?: string; // ISO yyyy-mm-dd typed by user
   endDateOverride?: string;
@@ -75,7 +78,13 @@ export interface LumpSumEvent {
   age?: Age;
   amount: Dollars; // positive = inflow
   dollarBasis: DollarBasis;
+  /** Unused since the tax estimate arrived: amounts are after-tax cash. Kept so
+   *  older documents still validate. */
   taxStatus?: TaxStatus;
+  /** Where a deposit goes. Absent = 'taxable' (a regular brokerage account),
+   *  since IRA and 401(k) limits rule out sale-sized deposits. A negative
+   *  amount is a withdrawal and comes out of every account proportionally. */
+  accountKind?: AccountKind;
   enabled: boolean;
   dateOverride?: string;
   notes?: string;
@@ -439,6 +448,9 @@ export interface IncomeComponent {
   monthlyNominal: number;
   taxStatus: TaxStatus;
   cat: 1 | 2 | 3 | 4 | 5 | 6;
+  /** Fraction counted as taxable income (a portfolio draw is partly tax-free:
+   *  Roth money and brokerage cost basis). Absent = all or nothing by taxStatus. */
+  taxableShare?: number;
   fromAgeNote?: string;
   upcoming?: boolean; // stream has not started yet at the breakdown age (shown dimmed)
 }
@@ -473,6 +485,17 @@ export interface ProjectionResult {
   guaranteedMonthlyIncomeToday: number;
   requiredPortfolioWithdrawalToday: number;
   monthlyIncomeAtRetirementToday: number;
+  /**
+   * Estimated federal + Colorado income tax per month at the same point the
+   * income tiles are measured, treating that month's income as a full year.
+   * Display-only: taxes never change the balance path. Married filing jointly.
+   */
+  estimatedTaxMonthly: number;
+  estimatedTaxMonthlyToday: number;
+  afterTaxMonthlyIncome: number;
+  afterTaxMonthlyIncomeToday: number;
+  /** estimatedTaxMonthly / monthlyIncomeAtRetirement (0 when there is no income). */
+  effectiveTaxRate: number;
   endingBalance: number;
   endingBalanceToday: number;
   depletionAge: number | null;

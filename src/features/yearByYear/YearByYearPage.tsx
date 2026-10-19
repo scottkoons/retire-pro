@@ -21,6 +21,7 @@ export default function YearByYearPage() {
     { label: 'Growth', sortKey: 'investmentGrowth' },
     { label: 'Guaranteed', sortKey: 'guaranteedIncome' },
     { label: 'Withdrawals', sortKey: 'withdrawals' },
+    { label: 'Est. Tax', sortKey: 'totalTax' },
     { label: 'Ending', sortKey: 'endingBalance' },
     { label: "Today's $", sortKey: 'endingBalanceToday' },
     { label: 'Actual $', sortKey: 'endingBalanceActual' },
@@ -39,6 +40,8 @@ export default function YearByYearPage() {
       investmentGrowth: (r) => r.investmentGrowth,
       guaranteedIncome: (r) => r.guaranteedIncome,
       withdrawals: (r) => r.withdrawals,
+      // Undefined before retirement; useSort keeps blanks at the bottom.
+      totalTax: (r) => r.totalTax,
       endingBalance: (r) => r.endingBalance,
       endingBalanceToday: (r) => r.endingBalanceToday,
       endingBalanceActual: (r) => r.endingBalance,
@@ -53,7 +56,8 @@ export default function YearByYearPage() {
       <div>
         <h1 className="font-head text-head-lg text-ink">Year-by-Year</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Full projection, {result.rows.length} model years.{' '}
+          Full projection, {result.rows.length} model years. Est. Tax is federal plus Colorado income tax on retirement
+          income (married filing jointly, actual dollars); hover a value for the split.{' '}
           <span className="ml-1 rounded bg-input px-2 py-0.5 font-mono text-[11px] text-muted">{displayMode === 'today' ? "today's $" : 'actual $'}</span>
         </p>
       </div>
@@ -112,6 +116,18 @@ export default function YearByYearPage() {
                     <td className="px-3 py-1.5 text-right"><span className="font-mono tabnum text-success">{fmtUSD(r.investmentGrowth)}</span></td>
                     <td className="px-3 py-1.5 text-right">{cell(r.guaranteedIncome)}</td>
                     <td className="px-3 py-1.5 text-right">{r.withdrawals ? <span className="font-mono tabnum text-cat-1">{fmtUSD(r.withdrawals)}</span> : <span className="text-faint">—</span>}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      {r.totalTax != null ? (
+                        <span
+                          className="font-mono tabnum text-tax"
+                          title={`Federal ${fmtUSD((r.federalTax ?? 0) + (r.capGainsTax ?? 0) + (r.niit ?? 0))} + Colorado ${fmtUSD(r.stateTax ?? 0)} · ${fmtPct(r.effectiveRate ?? 0, 1)} of income`}
+                        >
+                          {fmtUSD(r.totalTax)}
+                        </span>
+                      ) : (
+                        <span className="text-faint">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-1.5 text-right">{cell(r.endingBalance)}</td>
                     <td className="px-3 py-1.5 text-right font-mono tabnum text-muted">{fmtUSD(r.endingBalanceToday)}</td>
                     <td className="px-3 py-1.5 text-right font-mono tabnum text-muted">{fmtUSD(r.endingBalance)}</td>

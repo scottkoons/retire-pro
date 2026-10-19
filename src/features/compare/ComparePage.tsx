@@ -156,13 +156,13 @@ export default function ComparePage() {
 
       <Section title="Key Numbers" subtitle="Deterministic projection per scenario" bodyClassName="px-0 pb-0">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]" style={{ minWidth: 820 }}>
+          <table className="w-full border-collapse text-[13px]" style={{ minWidth: 940 }}>
             <thead>
               <tr>
-                {['Scenario', 'Balance at Retirement', 'Monthly Income', 'End of Horizon', 'Depletes', 'Status', ''].map((h, i) => (
+                {['Scenario', 'Balance at Retirement', 'Monthly Income', 'After Tax / mo', 'End of Horizon', 'Depletes', 'Status', ''].map((h, i) => (
                   <th
                     key={h || 'open'}
-                    className={`sticky top-0 border-b border-border-strong bg-card-high px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted ${i === 0 || i > 4 ? 'text-left' : 'text-right'}`}
+                    className={`sticky top-0 border-b border-border-strong bg-card-high px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted ${i === 0 || i > 5 ? 'text-left' : 'text-right'}`}
                   >
                     {h}
                   </th>
@@ -174,6 +174,7 @@ export default function ComparePage() {
                 const res = r.result;
                 const balRet = displayMode === 'today' ? res.projectedBalanceAtRetirementToday : res.projectedBalanceAtRetirement;
                 const monthly = displayMode === 'today' ? res.monthlyIncomeAtRetirementToday : res.monthlyIncomeAtRetirement;
+                const afterTax = displayMode === 'today' ? res.afterTaxMonthlyIncomeToday : res.afterTaxMonthlyIncome;
                 const ending = displayMode === 'today' ? res.endingBalanceToday : res.endingBalance;
                 const isActive = r.scn.id === activeId;
                 return (
@@ -186,6 +187,7 @@ export default function ComparePage() {
                     </td>
                     <td className="px-4 py-2.5 text-right text-ink tabnum">{fmtUSD(balRet)}</td>
                     <td className="px-4 py-2.5 text-right text-ink tabnum">{fmtUSD(monthly)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted tabnum">{fmtUSD(afterTax)}</td>
                     <td className="px-4 py-2.5 text-right text-ink tabnum">{fmtUSD(ending)}</td>
                     <td className="px-4 py-2.5 text-right text-muted">{res.depletionAge != null ? fmtAgeYM(res.depletionAge) : 'never'}</td>
                     <td className="px-4 py-2.5"><StatusPill status={res.status} /></td>

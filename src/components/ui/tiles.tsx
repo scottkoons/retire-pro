@@ -127,27 +127,30 @@ export function SummaryTile({
   label,
   value,
   tone,
+  sub,
 }: {
   label: string;
   value: ReactNode;
-  tone: 'tax' | 'tax-free';
+  tone: 'tax' | 'tax-free' | 'neutral';
+  sub?: ReactNode;
 }) {
   return (
     <div
       className={clsx(
         'rounded-xl border bg-card-high p-5',
-        tone === 'tax' ? 'border-tax/40' : 'border-tax-free/40',
+        tone === 'tax' ? 'border-tax/40' : tone === 'tax-free' ? 'border-tax-free/40' : 'border-border-subtle',
       )}
     >
       <div
         className={clsx(
           'mb-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em]',
-          tone === 'tax' ? 'text-tax' : 'text-tax-free',
+          tone === 'tax' ? 'text-tax' : tone === 'tax-free' ? 'text-tax-free' : 'text-muted',
         )}
       >
         {label}
       </div>
       <div className="font-head text-[32px] font-semibold tracking-[-0.025em] text-ink tabnum">{value}</div>
+      {sub && <div className="mt-1 text-[12px] text-muted">{sub}</div>}
     </div>
   );
 }

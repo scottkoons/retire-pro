@@ -146,6 +146,7 @@ export default function WhatIfPage() {
   const balRet = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
   const ending = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const monthly = displayMode === 'today' ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement;
+  const afterTax = displayMode === 'today' ? result.afterTaxMonthlyIncomeToday : result.afterTaxMonthlyIncome;
 
   const makeScenario = () => {
     const real = cloneScenario(scn, whatIfName(inputs), new Date().toISOString());
@@ -263,7 +264,7 @@ export default function WhatIfPage() {
             <StatTile
               label="Monthly Income"
               value={fmtUSD(monthly)}
-              sub={pin ? delta(monthly, pin.monthly) : `${fmtUSD(monthly * 12)} / yr`}
+              sub={pin ? delta(monthly, pin.monthly) : `${fmtUSD(monthly * 12)} / yr · ${fmtUSD(afterTax)} / mo after tax`}
               tint="green"
             />
             <StatTile

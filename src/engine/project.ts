@@ -16,6 +16,7 @@ import {
   solveGrossWithdrawal,
   rmd as rmdAmount,
   irmaaPartBSurchargeMonthly,
+  type AnnualTaxResult,
   type TaxConfig,
   type TaxableIncomeInputs,
   type TaxContext,
@@ -35,6 +36,18 @@ export interface MonthState {
   withdrawal: number;
   endingBalance: number;
   cpi: number;
+  // ---- tax character (display-only; never feeds back into the balance) ----
+  /** Guaranteed income split by how it is taxed; the three sum to guaranteedIncome. */
+  gSS: number;
+  gOrd: number;
+  gFree: number;
+  /** Share of each dollar taken out of the portfolio this month that is taxed as
+   *  ordinary income (pre-tax accounts) or as a capital gain (brokerage growth).
+   *  The rest (Roth, brokerage cost basis) is tax-free. */
+  pOrd: number;
+  pGain: number;
+  /** Portfolio outflow from negative lump sums this month (a positive number). */
+  lumpOut: number;
 }
 
 export interface ProjectionBundle {
@@ -132,6 +145,90 @@ function streamNominalAt(scn: Scenario, s: Scenario['incomeStreams'][number], t:
  *  Retirement tile and the Compare table read THIS row's ending balance, so they
  *  always agree with the chart — deposits landing anywhere in the retirement-age
  *  year (e.g. a business sale months after the retirement date) are included. */
+/** Tax-free guaranteed income: marked tax-free, or a VA benefit (same rule the
+ *  income chart uses to color VA). */
+function isTaxFreeStream(s: { name: string; taxStatus: string }): boolean {
+  return s.taxStatus === 'tax-free' || /\bVA\b/i.test(s.name);
+}
+
+// Current-law tables (2026 base year), married filing jointly.
+const TAX_CFG = resolveTaxConfig();
+
+/** Calendar year of model month t (model months are age months from today). */
+function calendarYearAt(a: Scenario['assumptions'], t: number): number {
+  return a.birthYear + Math.floor((a.birthMonth + a.currentAge * 12 + t) / 12);
+}
+
+interface TaxFlows {
+  ord: number;
+  gain: number;
+  ss: number;
+  free: number;
+}
+
+/** Federal + Colorado estimate for one year of income (nominal dollars).
+ *  Ordinary income here is pre-tax withdrawals plus pensions, so all of it is
+ *  offered to Colorado's pension/annuity subtraction. */
+function estimateFlows(a: Scenario['assumptions'], f: TaxFlows, t: number, cpi: number): AnnualTaxResult {
+  const age = monthIndexToAge(t, a.currentAge);
+  return estimateAnnualTaxes({
+    income: { ordinaryIncome: f.ord, longTermGains: f.gain, socialSecurityGross: f.ss, taxExemptInterest: 0, taxFreeIncome: f.free },
+    ctx: { primaryAge: age, spouseAge: age + (a.spouseAgeOffset ?? 0), calendarYear: calendarYearAt(a, t), cpiFactor: cpi },
+    cfg: TAX_CFG,
+    coPensionSubtractable: f.ord,
+  });
+}
+
+/** Month t's guaranteed income plus its regular portfolio draw, as a full year. */
+function annualizedMonthFlows(m: MonthState): TaxFlows {
+  return {
+    ord: (m.gOrd + m.withdrawal * m.pOrd) * 12,
+    gain: m.withdrawal * m.pGain * 12,
+    ss: m.gSS * 12,
+    free: (m.gFree + m.withdrawal * (1 - m.pOrd - m.pGain)) * 12,
+  };
+}
+
+/** Estimated income tax per month at month t, treating that month's income as a
+ *  full year (the same basis as the monthly income tiles). 0 before retirement:
+ *  earned and business income are not in the plan, so a working-years figure
+ *  would be meaningless. */
+export function estimatedMonthlyTaxAt(scn: Scenario, months: MonthState[], t: number): number {
+  const m = months[t];
+  if (!m || m.age < scn.assumptions.retirementAge) return 0;
+  return estimateFlows(scn.assumptions, annualizedMonthFlows(m), t, m.cpi).totalTax / 12;
+}
+
+/** Fill each year row's tax fields from the months on or after the retirement
+ *  date (actual 12-month sums, so lump-sum withdrawals are included). */
+function applyRowTaxes(a: Scenario['assumptions'], rows: YearRow[], months: MonthState[], tRet: number): void {
+  for (let j = 0; j < rows.length; j++) {
+    const f: TaxFlows = { ord: 0, gain: 0, ss: 0, free: 0 };
+    let any = false;
+    for (let t = Math.max(j * 12, tRet); t < Math.min(j * 12 + 12, months.length); t++) {
+      const m = months[t];
+      const out = m.withdrawal + m.lumpOut;
+      f.ord += m.gOrd + out * m.pOrd;
+      f.gain += out * m.pGain;
+      f.ss += m.gSS;
+      f.free += m.gFree + out * (1 - m.pOrd - m.pGain);
+      any = true;
+    }
+    if (!any) continue;
+    const r = rows[j];
+    const tax = estimateFlows(a, f, r.monthIndexEnd, r.cpiFactor);
+    r.federalTax = tax.ordinaryTax;
+    r.capGainsTax = tax.capGainsTax;
+    r.niit = tax.niit;
+    r.stateTax = tax.stateTax;
+    r.totalTax = tax.totalTax;
+    r.ssTaxable = tax.taxableSS;
+    r.magi = tax.magi;
+    const gross = f.ord + f.gain + f.ss + f.free;
+    r.effectiveRate = gross > 0 ? tax.totalTax / gross : 0;
+  }
+}
+
 function retirementRow(rows: YearRow[], retirementAge: number): YearRow | undefined {
   const target = Math.round(retirementAge);
   return rows.find((r) => r.age === target) ?? (target < (rows[0]?.age ?? 0) ? rows[0] : rows[rows.length - 1]);
@@ -149,6 +246,18 @@ function todayRetirementIncome(retRow: YearRow | undefined, guaranteed: number, 
   };
 }
 
+/** After-tax view of the retirement income tiles, deflated by the same month. */
+function retirementTax(retRow: YearRow | undefined, monthlyIncome: number, tax: number) {
+  const cpi = retRow?.cpiFactor || 1;
+  return {
+    estimatedTaxMonthly: tax,
+    estimatedTaxMonthlyToday: tax / cpi,
+    afterTaxMonthlyIncome: monthlyIncome - tax,
+    afterTaxMonthlyIncomeToday: (monthlyIncome - tax) / cpi,
+    effectiveTaxRate: monthlyIncome > 0 ? tax / monthlyIncome : 0,
+  };
+}
+
 /** Years from now (t=0) to the month where "at age X" quantities are measured:
  *  the END of that age's projection-year row (the month retirementRow's balance
  *  and the income tiles read). The Planner and Summary "@ retirement" columns
@@ -162,7 +271,12 @@ export function measurementYearsAtAge(a: { currentAge: number }, age: number): n
 /** Legacy v1 single-balance projection. Preserved verbatim so migrated v1 documents
  *  (home/healthcare/SS off, no expenses) keep projecting identically. The v2 engine
  *  below handles tax-aware, multi-account scenarios; runProjection dispatches between them. */
-export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fixedProvider): ProjectionBundle {
+export function runProjectionLegacy(
+  scn: Scenario,
+  provider: ReturnProvider = fixedProvider,
+  /** Cost basis share for brokerage accounts that do not carry their own. */
+  defaultBasisRatio = 0.5,
+): ProjectionBundle {
   const a = scn.assumptions;
   const years = Math.max(1, Math.round(a.modelEndAge - a.currentAge + 1)); // inclusive => 40
   const T = years * 12;
@@ -192,6 +306,43 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
   let depletionAge: number | null = null;
   const months: MonthState[] = [];
 
+  // Tax-character buckets: how much of the pooled balance sits in pre-tax,
+  // Roth and brokerage accounts, plus the brokerage cost basis. They follow
+  // the single balance exactly (same flows, same return) and exist only to
+  // say how a withdrawal is taxed; they never change the balance path.
+  // Withdrawals come out of every bucket in proportion to its size.
+  let bPre = 0;
+  let bRoth = 0;
+  let bTax = 0;
+  let basis = 0;
+  {
+    const on = (scn.accounts ?? []).filter((x) => x.enabled && x.balance > 0);
+    const total = on.reduce((s, x) => s + x.balance, 0);
+    const start = Math.max(0, balance);
+    if (total > 0) {
+      const k = start / total; // the accounts total normally equals startingBalance
+      for (const x of on) {
+        const v = x.balance * k;
+        if (x.kind === 'pretax') bPre += v;
+        else if (x.kind === 'roth') bRoth += v;
+        else {
+          bTax += v;
+          basis += v * (x.costBasisRatio ?? defaultBasisRatio);
+        }
+      }
+    } else {
+      bPre = start; // no accounts entered: assume pre-tax (the cautious estimate)
+    }
+  }
+  const deposit = (kind: AccountKind, amt: number) => {
+    if (kind === 'pretax') bPre += amt;
+    else if (kind === 'roth') bRoth += amt;
+    else {
+      bTax += amt;
+      basis += amt; // brokerage deposits are after-tax money
+    }
+  };
+
   for (let t = 0; t < T; t++) {
     const age = monthIndexToAge(t, a.currentAge);
 
@@ -206,19 +357,36 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     let C = 0;
     for (const c of contribs) {
       if (t >= c.tStart && t <= c.tEnd) {
-        C += c.dollarBasis === 'today' ? c.monthlyAmount * cpiStart : c.monthlyAmount;
+        const amt = c.dollarBasis === 'today' ? c.monthlyAmount * cpiStart : c.monthlyAmount;
+        C += amt;
+        deposit(c.accountKind ?? 'pretax', amt);
       }
     }
 
     // Lump sums landing this month
     let L = 0;
+    let lumpOut = 0;
     for (const l of lumps) {
-      if (l.t === t) L += l.dollarBasis === 'today' ? l.amount * cpiStart : l.amount;
+      if (l.t !== t) continue;
+      const amt = l.dollarBasis === 'today' ? l.amount * cpiStart : l.amount;
+      L += amt;
+      if (amt >= 0) deposit(l.accountKind ?? 'taxable', amt);
+      else lumpOut -= amt;
     }
 
-    // Guaranteed income (nominal) this month
+    // Guaranteed income (nominal) this month, split by tax character
     let G = 0;
-    for (const s of scn.incomeStreams) G += streamNominalAt(scn, s, t, age);
+    let gSS = 0;
+    let gOrd = 0;
+    let gFree = 0;
+    for (const s of scn.incomeStreams) {
+      const v = streamNominalAt(scn, s, t, age);
+      if (v <= 0) continue;
+      G += v;
+      if (isTaxFreeStream(s)) gFree += v;
+      else if (isLegacySsStream(s)) gSS += v;
+      else gOrd += v;
+    }
 
     // Social Security planner (when enabled). In retirement the benefit is cash
     // income; before retirement it is either deposited into the portfolio
@@ -230,8 +398,13 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
         const ownerAge = c.owner === 'spouse' ? age + spouseOffset : age;
         if (ownerAge < Math.min(70, Math.max(62, c.claimAge))) continue;
         const nominal = ssMonthlyBenefitToday(c) * Math.pow(1 + monthlyRate(c.cola), t);
-        if (age >= a.retirementAge) G += nominal;
-        else if (scn.socialSecurity.investUntilRetirement) C += nominal;
+        if (age >= a.retirementAge) {
+          G += nominal;
+          gSS += nominal;
+        } else if (scn.socialSecurity.investUntilRetirement) {
+          C += nominal;
+          deposit('taxable', nominal);
+        }
       }
     }
 
@@ -273,6 +446,36 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
       end = 0;
     }
 
+    // Tax character of this month's outflows, then take them out proportionally.
+    let pOrd = 0;
+    let pGain = 0;
+    const pool = bPre + bRoth + bTax;
+    if (pool > 0) {
+      pOrd = bPre / pool;
+      pGain = (bTax / pool) * (bTax > 0 ? Math.max(0, 1 - basis / bTax) : 0);
+      const keep = Math.max(0, 1 - (W + lumpOut) / pool);
+      bPre *= keep;
+      bRoth *= keep;
+      bTax *= keep;
+      basis *= keep;
+    }
+    // Grow, then pin the buckets to the real balance (they differ only when
+    // the balance was clamped at zero). Basis is never scaled up by growth.
+    const grown = (bPre + bRoth + bTax) * (1 + rM);
+    if (end > 0 && grown > 0) {
+      const k = end / grown; // 1 except after a clamp
+      const g = (1 + rM) * k;
+      bPre *= g;
+      bRoth *= g;
+      bTax *= g;
+      if (k < 1) basis *= k;
+    } else {
+      bPre = Math.max(0, end);
+      bRoth = 0;
+      bTax = 0;
+      basis = 0;
+    }
+
     months.push({
       t,
       age,
@@ -286,11 +489,18 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
       withdrawal: W,
       endingBalance: end,
       cpi: cpiEnd,
+      gSS,
+      gOrd,
+      gFree,
+      pOrd,
+      pGain,
+      lumpOut,
     });
     balance = end;
   }
 
   const rows = rollupYears(months, a.currentAge, a.birthYear);
+  applyRowTaxes(a, rows, months, tRet);
   const markers: MarkerPoint[] = lumps
     .filter((l) => l.t >= 0 && l.t < T)
     .map((l) => ({
@@ -336,6 +546,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     monthlyIncomeAtRetirement: monthlyIncome,
     annualIncomeAtRetirement: monthlyIncome * 12,
     ...todayRetirementIncome(retRow, gAtRet, requiredWithdrawal),
+    ...retirementTax(retRow, monthlyIncome, mRet ? estimatedMonthlyTaxAt(scn, months, tIncome) : 0),
     endingBalance: endNominal,
     endingBalanceToday,
     depletionAge,
@@ -376,7 +587,7 @@ function rollupYears(months: MonthState[], currentAge: number, birthYear: number
 }
 
 function catForStream(s: Scenario['incomeStreams'][number]): IncomeComponent['cat'] {
-  if (s.taxStatus === 'tax-free' || /\bVA\b/i.test(s.name)) return 2;
+  if (isTaxFreeStream(s)) return 2;
   if (s.owner === 'spouse') return 4;
   if (/social security/i.test(s.name)) return 3;
   return 5;
@@ -397,12 +608,15 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   const m = months[t];
   const components: IncomeComponent[] = [];
 
-  // Investment withdrawal (portfolio) — strategy tax status
+  // Investment withdrawal (portfolio): taxed by the accounts it comes from.
   if (m && m.withdrawal > 0) {
+    const share = Math.min(1, Math.max(0, m.pOrd + m.pGain));
     components.push({
       label: 'Investment withdrawal',
       monthlyNominal: m.withdrawal,
-      taxStatus: scn.withdrawal.taxStatus,
+      taxStatus: share > 0 ? 'taxable' : 'tax-free',
+      taxableShare: share,
+      fromAgeNote: share > 0.005 && share < 0.995 ? `${Math.round(share * 100)}% taxable` : undefined,
       cat: 1,
     });
   }
@@ -457,8 +671,9 @@ export function incomeBreakdownAtAge(scn: Scenario, months: MonthState[], age: n
   }
 
   components.sort((x, y) => y.monthlyNominal - x.monthlyNominal);
-  const taxablePerMo = components.filter((c) => c.taxStatus === 'taxable').reduce((s, c) => s + c.monthlyNominal, 0);
-  const taxFreePerMo = components.filter((c) => c.taxStatus === 'tax-free').reduce((s, c) => s + c.monthlyNominal, 0);
+  const shareOf = (c: IncomeComponent) => c.taxableShare ?? (c.taxStatus === 'taxable' ? 1 : 0);
+  const taxablePerMo = components.reduce((s, c) => s + c.monthlyNominal * shareOf(c), 0);
+  const taxFreePerMo = components.reduce((s, c) => s + c.monthlyNominal * (1 - shareOf(c)), 0);
 
   return { age, components, taxablePerMo, taxFreePerMo };
 }
@@ -1134,6 +1349,13 @@ export function runProjectionV2(
         withdrawal: withdrawals / 12,
         endingBalance: liquidEnd,
         cpi: cpiToday,
+        // v2 taxes its own year rows; these month fields serve the legacy estimate only.
+        gSS: 0,
+        gOrd: guaranteedIncomeYear / 12,
+        gFree: 0,
+        pOrd: 1,
+        pGain: 0,
+        lumpOut: 0,
       });
     }
   }
@@ -1170,6 +1392,7 @@ export function runProjectionV2(
     monthlyIncomeAtRetirement: guaranteedAtRetire + withdrawalAtRetire,
     annualIncomeAtRetirement: (guaranteedAtRetire + withdrawalAtRetire) * 12,
     ...todayRetirementIncome(retRow, guaranteedAtRetire, withdrawalAtRetire),
+    ...retirementTax(retRow, guaranteedAtRetire + withdrawalAtRetire, (retRow?.totalTax ?? 0) / 12),
     endingBalance,
     endingBalanceToday,
     depletionAge,
@@ -1192,5 +1415,5 @@ export function runProjection(
   opts?: ProjectionOpts,
 ): ProjectionBundle {
   if (settings && usesV2(scn)) return runProjectionV2(scn, settings, provider, opts);
-  return runProjectionLegacy(scn, provider);
+  return runProjectionLegacy(scn, provider, settings?.defaultCostBasisRatio);
 }

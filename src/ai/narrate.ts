@@ -44,6 +44,7 @@ export async function narratePlan(cfg: AiConfig, summary: PlanSummaryModel): Pro
       : 'keyResults are in ACTUAL future dollars (not inflation-adjusted); Monte Carlo ending figures are in today\'s dollars.',
     "incomeStreams[].today is always today's dollars; incomeStreams[].atRetire is actual future dollars at retirement.",
     'contributions and lumpSums are the amounts as entered.',
+    'keyResults.estimatedTaxMonthly is an ESTIMATE of federal plus Colorado income tax (married filing jointly) at retirement, from the account mix; afterTaxMonthly is monthlyIncome minus it.',
   ].join(' ');
 
   return client.generateText({

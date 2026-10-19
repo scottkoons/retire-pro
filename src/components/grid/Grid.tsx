@@ -73,7 +73,9 @@ export function THead({
             <th
               key={i}
               scope="col"
-              style={{ width: c.w }}
+              // A pixel width is also a floor: auto table layout otherwise squeezes a
+              // narrow column (a select) below its own text.
+              style={{ width: c.w, minWidth: c.w?.endsWith('px') ? c.w : undefined }}
               className={clsx('sticky top-0 z-10 border-b border-border-strong bg-card-high px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em]', active ? 'text-ink' : 'text-muted', alignCls)}
             >
               {sortable ? (

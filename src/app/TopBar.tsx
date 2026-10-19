@@ -17,7 +17,11 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const deleteScenario = useStore((s) => s.deleteScenario);
 
   const [newOpen, setNewOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // The id being renamed, not a bare flag: if the active scenario changes any
+  // other way (deleted, created, picked in Settings) the box closes instead of
+  // offering the old name as an edit to a different scenario.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId === activeId;
   const [draft, setDraft] = useState('');
 
   const newScenario = (key: PresetKey | 'duplicate' | 'blank') => {
@@ -29,11 +33,11 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
 
   const startEdit = () => {
     setDraft(active.name);
-    setEditing(true);
+    setEditingId(active.id);
   };
   const commitEdit = () => {
-    if (draft.trim() && draft.trim() !== active.name) renameScenario(active.id, draft);
-    setEditing(false);
+    if (editing && draft.trim() && draft.trim() !== active.name) renameScenario(active.id, draft);
+    setEditingId(null);
   };
   const onDelete = () => {
     if (scenarios.length <= 1) return;
@@ -65,7 +69,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
               onBlur={commitEdit}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') commitEdit();
-                else if (e.key === 'Escape') setEditing(false);
+                else if (e.key === 'Escape') setEditingId(null);
               }}
               aria-label="Scenario name"
               className="rounded-full border border-primary bg-input px-4 py-1.5 text-[13px] font-medium text-ink focus:outline-none"
@@ -76,7 +80,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
               label={sc.name}
               active={sc.id === activeId}
               onClick={() => {
-                setEditing(false);
+                setEditingId(null);
                 select(sc.id);
               }}
             />

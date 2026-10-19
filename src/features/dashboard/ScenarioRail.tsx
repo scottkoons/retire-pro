@@ -6,7 +6,7 @@ import { IconPlus, IconTrash, IconDiamond, IconRepeat, IconGift, IconChevronDown
 import { isoFromAge, ageFromISO, isoFromMonthValue, monthValueFromISO } from '@/lib/dates';
 import { contributionOverlaps, contributionMonths, totalContributed } from '@/lib/contributions';
 import { fmtUSD, fmtAgeYM, fmtMonthsYM } from '@/lib/format';
-import type { DollarBasis, TaxStatus } from '@/domain/types';
+import type { AccountKind, DollarBasis } from '@/domain/types';
 
 // Shared control chrome. Inputs are sized for comfortable reading (13px), not the
 // 9–12px they were before.
@@ -160,9 +160,11 @@ export function ScenarioRail() {
     { value: 'today', label: "Today's $" },
     { value: 'actual', label: 'Actual $' },
   ];
-  const taxOpts: { value: TaxStatus; label: string }[] = [
-    { value: 'taxable', label: 'Taxable' },
-    { value: 'tax-free', label: 'Tax-free' },
+  // Where deposits go; decides how withdrawals of that money are taxed.
+  const acctOpts: { value: AccountKind; label: string }[] = [
+    { value: 'pretax', label: 'Pre-tax' },
+    { value: 'roth', label: 'Roth' },
+    { value: 'taxable', label: 'Brokerage' },
   ];
 
   const totalMonthly = totalContributed(scn.contributions, a);
@@ -265,6 +267,9 @@ export function ScenarioRail() {
                     <Field label="Dollar basis" className="col-span-2">
                       <Segmented size="sm" options={basisOpts} value={c.dollarBasis} onChange={(v) => s.updateContribution(c.id, { dollarBasis: v })} />
                     </Field>
+                    <Field label="Account" className="col-span-2">
+                      <Segmented size="sm" options={acctOpts} value={c.accountKind ?? 'pretax'} onChange={(v) => s.updateContribution(c.id, { accountKind: v })} />
+                    </Field>
                   </div>
 
                   {/* Footer: duration → total contributed over the window. */}
@@ -342,8 +347,12 @@ export function ScenarioRail() {
                     <Field label="Dollar basis" className="col-span-2">
                       <Segmented size="sm" options={basisOpts} value={l.dollarBasis} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} />
                     </Field>
-                    <Field label="Tax status" className="col-span-2">
-                      <Segmented size="sm" options={taxOpts} value={l.taxStatus ?? 'taxable'} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} />
+                    <Field label="Goes to" className="col-span-2">
+                      {l.amount < 0 ? (
+                        <span className="text-[12px] text-muted">A withdrawal: taken from all accounts proportionally</span>
+                      ) : (
+                        <Segmented size="sm" options={acctOpts} value={l.accountKind ?? 'taxable'} onChange={(v) => s.updateLumpSum(l.id, { accountKind: v })} />
+                      )}
                     </Field>
                   </div>
 

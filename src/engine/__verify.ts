@@ -3,7 +3,7 @@
  */
 import { runProjection, runProjectionLegacy, runProjectionV2, usesV2, incomeBreakdownAtAge, incomeYearTotalsAtAge, measurementYearsAtAge } from './project';
 import { fmtUSDAbbrev } from '@/lib/format';
-import { estimateAnnualTaxes, resolveTaxConfig } from './tax';
+import { estimateAnnualTaxes, resolveTaxConfig, DEFAULT_TAX_CONFIG_2025 } from './tax';
 import { runMonteCarlo } from './montecarlo/simulate';
 import { seedDocument } from '@/domain/seed';
 import type { Scenario, Settings, YearRow } from '@/domain/types';
@@ -40,7 +40,7 @@ console.log('\n[1] Verified tax example (age 70, MFJ, SS 60k + 401k 50k + VA 42k
   const r = estimateAnnualTaxes({
     income: { ordinaryIncome: 50_000, longTermGains: 0, socialSecurityGross: 60_000, taxExemptInterest: 0, taxFreeIncome: 42_000 },
     ctx: { primaryAge: 70, spouseAge: 70, calendarYear: 2025, cpiFactor: 1 },
-    cfg: resolveTaxConfig(),
+    cfg: DEFAULT_TAX_CONFIG_2025, // the hand-checked example predates the 2025 act
   });
   check('taxableSS ~= 36,600', near(r.taxableSS, 36_600, 5), `got ${r.taxableSS.toFixed(0)}`);
   check('federal ordinaryTax ~= 5,931', near(r.ordinaryTax, 5_931, 5), `got ${r.ordinaryTax.toFixed(0)}`);
@@ -367,6 +367,115 @@ console.log('\n[14] v2 -> v3 migration keeps every row meaning the month it disp
   check('mixed and age-only rows stay contiguous (no gap, no overlap)', dateToMonthIndex(String(g2.startDateOverride), 56, 1970, 3, 28) === dateToMonthIndex(String(m2.endDateOverride), 56, 1970, 3, 28) + 1);
   check('undated row is untouched', u2.startDateOverride === undefined && u2.endDateOverride === undefined);
   check('age-only lump frozen to the month it displayed (Oct 2027)', l2.dateOverride === '2027-10-01', String(l2.dateOverride));
+}
+
+console.log('\n[15] Current-law tax tables (2026, MFJ), hand-checked');
+{
+  const cfg = resolveTaxConfig();
+  const est = (ord: number, ss: number, age: number, year: number, pension = 0, gains = 0) =>
+    estimateAnnualTaxes({
+      income: { ordinaryIncome: ord, longTermGains: gains, socialSecurityGross: ss, taxExemptInterest: 0, taxFreeIncome: 0 },
+      ctx: { primaryAge: age, spouseAge: age, calendarYear: year, cpiFactor: 1 },
+      cfg,
+      coPensionSubtractable: pension,
+    });
+  // Age 70 in 2030 (after the senior deduction ends): SS 60k + 401k 50k.
+  // taxable SS 36,600; AGI 86,600; deduction 32,200 + 2 x 1,650 = 35,500;
+  // taxable 51,100 -> 2,480 + 26,300 x 12% = 5,636.
+  const a = est(50_000, 60_000, 70, 2030);
+  check('2026 brackets: federal tax 5,636', near(a.ordinaryTax, 5_636, 0.5), `got ${a.ordinaryTax.toFixed(2)}`);
+  check('CO 65+: all SS subtracted, no pension passed -> (51,100 - 36,600) x 4.4% = 638', near(a.stateTax, 638, 0.5), `got ${a.stateTax.toFixed(2)}`);
+  check('CO 65+: $48,000 pension cap wipes out the rest -> 0', near(est(50_000, 60_000, 70, 2030, 50_000).stateTax, 0, 0.01));
+  // Same couple in 2027: +6,000 each (MAGI under 150k) -> taxable 39,100 -> 4,196.
+  check('senior deduction applies in 2027: federal 4,196', near(est(50_000, 60_000, 70, 2027).ordinaryTax, 4_196, 0.5));
+  // Phase-out: ordinary 200k at 66 in 2027: each 6,000 - 6% x 50,000 = 3,000.
+  // deduction 32,200 + 3,300 + 6,000 = 41,500 -> taxable 158,500 -> 24,294.
+  check('senior deduction phases out per person: federal 24,294', near(est(200_000, 0, 66, 2027).ordinaryTax, 24_294, 0.5));
+  // CO 55-64 under the $95k test: SS 30k + 40k ordinary at 63 -> SS fully subtracted.
+  // taxable SS 15,350; fed taxable 55,350 - 32,200 = 23,150; CO (23,150 - 15,350) x 4.4% = 343.20.
+  check('CO 55-64 under $95k: SS fully subtracted -> 343.20', near(est(40_000, 30_000, 63, 2030).stateTax, 343.2, 0.01));
+  // Over the test: SS 40k + 100k ordinary at 63; taxable SS 34,000 shares the $40k cap.
+  // fed taxable 134,000 - 32,200 = 101,800; CO (101,800 - 34,000) x 4.4% = 2,983.20.
+  check('CO 55-64 over $95k: SS shares the pension cap -> 2,983.20', near(est(100_000, 40_000, 63, 2030).stateTax, 2_983.2, 0.01));
+  check('CO 55-64 over $95k with pensions: cap holds at $40,000 -> 2,719.20', near(est(100_000, 40_000, 63, 2030, 100_000).stateTax, 2_719.2, 0.01));
+  // Gains stack on ordinary: ordinary 80k at 70 in 2030 -> taxable 44,500; 0% band to 98,900
+  // covers 54,400 of a 100k gain; the other 45,600 at 15% = 6,840.
+  check('capital gains stack on ordinary income: 6,840', near(est(80_000, 0, 70, 2030, 0, 100_000).capGainsTax, 6_840, 0.5));
+}
+
+console.log('\n[16] Engine tax tracking: account mix decides how withdrawals are taxed');
+{
+  const make = (accounts: Scenario['accounts'], tweak?: (x: Scenario) => void) => {
+    const x: Scenario = structuredClone(sell);
+    x.accounts = accounts;
+    x.assumptions.startingBalance = accounts.reduce((t, acc) => t + acc.balance, 0);
+    x.contributions = [];
+    x.lumpSums = [];
+    x.incomeStreams = [];
+    x.socialSecurity.enabled = false;
+    x.withdrawal = { type: 'percent-of-balance', rate: 0.04, taxStatus: 'taxable' };
+    tweak?.(x);
+    return { ...runProjection(x, settings), scn: x };
+  };
+  const acct = (kind: 'pretax' | 'roth' | 'taxable', balance: number, costBasisRatio?: number) =>
+    ({ id: kind, name: kind, kind, balance, costBasisRatio, enabled: true }) as Scenario['accounts'][number];
+
+  const pre = make([acct('pretax', 1_000_000)]);
+  const roth = make([acct('roth', 1_000_000)]);
+  const brk = make([acct('taxable', 1_000_000, 0.5)]);
+  check('account type never changes the balance path', near(pre.result.endingBalance, roth.result.endingBalance, 0.01) && near(pre.result.endingBalance, brk.result.endingBalance, 0.01));
+  check('pre-tax only: every withdrawn dollar is ordinary income', pre.months.every((m) => m.pOrd === 1 && m.pGain === 0));
+  check('Roth only: no tax at all', roth.months.every((m) => m.pOrd === 0 && m.pGain === 0) && roth.result.estimatedTaxMonthly === 0);
+  // The month the retirement tiles are measured (end of the retirement-age row).
+  const tR = pre.result.rows.find((row) => row.age === Math.round(sell.assumptions.retirementAge))!.monthIndexEnd;
+  const gainNow = brk.months[0].pGain;
+  const gainLater = brk.months[tR].pGain;
+  check('brokerage: gain share starts at 1 - basis (50%)', near(gainNow, 0.5, 1e-9), String(gainNow));
+  check('brokerage: gain share grows as the account grows', gainLater > gainNow && gainLater < 1, `${gainNow} -> ${gainLater}`);
+  check('tax order: pre-tax > brokerage > Roth', pre.result.estimatedTaxMonthly > brk.result.estimatedTaxMonthly && brk.result.estimatedTaxMonthly > 0);
+
+  // Tile identities.
+  const r = pre.result;
+  check('after-tax = income - tax', near(r.afterTaxMonthlyIncome, r.monthlyIncomeAtRetirement - r.estimatedTaxMonthly, 1e-6));
+  check("today's tax uses the one retirement deflator", near(r.estimatedTaxMonthlyToday * r.retirementCpi, r.estimatedTaxMonthly, 1e-6) && near(r.afterTaxMonthlyIncomeToday * r.retirementCpi, r.afterTaxMonthlyIncome, 1e-6));
+  // Independent recomputation of the tile from the measured month's flows.
+  const m = pre.months[tR];
+  const indep = estimateAnnualTaxes({
+    income: { ordinaryIncome: m.withdrawal * 12, longTermGains: 0, socialSecurityGross: 0, taxExemptInterest: 0, taxFreeIncome: 0 },
+    // Any year after 2028 (no senior deduction); the seed retires well after that.
+    ctx: { primaryAge: m.age, spouseAge: m.age + (sell.assumptions.spouseAgeOffset ?? 0), calendarYear: 2038, cpiFactor: m.cpi },
+    cfg: resolveTaxConfig(),
+    coPensionSubtractable: m.withdrawal * 12,
+  }).totalTax / 12;
+  check('tax tile matches an independent estimate of the measured month', near(r.estimatedTaxMonthly, indep, 0.01), `${r.estimatedTaxMonthly} vs ${indep}`);
+  check('no tax shown before the retirement row', pre.result.rows.filter((row) => row.monthIndexEnd < tR - 11).every((row) => row.totalTax === undefined));
+  check('every retirement row carries a finite tax', pre.result.rows.filter((row) => row.monthIndexEnd >= tR).every((row) => finite(row.totalTax) && (row.totalTax ?? 0) >= 0));
+
+  // Contributions follow their account; a sale lands in brokerage at full basis.
+  const mixC = make([acct('pretax', 500_000)], (x) => {
+    x.contributions = [{ id: 'c', name: 'roth', startAge: x.assumptions.currentAge, endAge: x.assumptions.retirementAge - 1, monthlyAmount: 5_000, dollarBasis: 'actual', accountKind: 'roth', enabled: true }];
+  });
+  check('Roth contributions lower the taxable share at retirement', mixC.months[tR].pOrd < 1 && mixC.months[tR].pOrd > 0, String(mixC.months[tR].pOrd));
+  const sale = make([acct('pretax', 500_000)], (x) => {
+    x.lumpSums = [{ id: 's', name: 'sale', age: x.assumptions.retirementAge - 2, amount: 900_000, dollarBasis: 'actual', enabled: true }];
+  });
+  const ms = sale.months[tR];
+  check('sale deposit goes to brokerage: some withdrawal becomes tax-free basis', ms.pOrd + ms.pGain < 1 && ms.pGain > 0, `${ms.pOrd} ${ms.pGain}`);
+
+  // Guaranteed income character: VA tax-free, Social Security, pension ordinary.
+  const inc = make([acct('roth', 1_000_000)], (x) => {
+    const base = { startAge: x.assumptions.currentAge, endAge: x.assumptions.modelEndAge, inflationAdjusted: true, owner: 'self' as const, enabled: true };
+    x.incomeStreams = [
+      { ...base, id: 'va', name: 'VA Disability', monthlyAmountToday: 3_000, taxStatus: 'tax-free' },
+      { ...base, id: 'ss', name: 'Social Security', monthlyAmountToday: 3_000, taxStatus: 'taxable', isSocialSecurity: true, startAge: 67 },
+      { ...base, id: 'p', name: 'Pension', monthlyAmountToday: 2_000, taxStatus: 'taxable' },
+    ];
+  });
+  const mi = inc.months[tR];
+  check('guaranteed income splits by character and sums to the total', near(mi.gFree + mi.gSS + mi.gOrd, mi.guaranteedIncome, 1e-6) && mi.gFree > 0 && mi.gSS > 0 && mi.gOrd > 0);
+  const bd = incomeBreakdownAtAge(brk.scn, brk.months, Math.round(sell.assumptions.retirementAge));
+  check('breakdown: a brokerage draw is shown as partly taxable', (bd.components.find((c) => c.cat === 1)?.taxableShare ?? 1) < 1);
+  check('breakdown: taxable + tax-free equals the total', near(bd.taxablePerMo + bd.taxFreePerMo, bd.components.reduce((t, c) => t + c.monthlyNominal, 0), 0.01));
 }
 
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);

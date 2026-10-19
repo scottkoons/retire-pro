@@ -133,12 +133,14 @@ export default function SummaryPage() {
       </div>
 
       <Section title="Key Projected Results">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatTile label="Balance at Retirement" value={fmtUSD(k.balanceAtRetirement)} />
           <StatTile label="Monthly Income" value={fmtUSD(k.monthlyIncome)} sub={`at ${fmtAgeYM(model.assumptions.retireAge)}`} />
           <StatTile label="Annual Income" value={fmtUSD(k.annualIncome)} />
           <StatTile label="Guaranteed / mo" value={fmtUSD(k.guaranteedMonthly)} />
           <StatTile label="Portfolio Draw / mo" value={fmtUSD(k.requiredWithdrawal)} />
+          <StatTile label="Est. Tax / mo" value={fmtUSD(k.estimatedTaxMonthly)} sub="federal + Colorado" />
+          <StatTile label="After Tax / mo" value={fmtUSD(k.afterTaxMonthly)} />
           <StatTile label="Status" value={<StatusPill status={k.status} />} />
         </div>
       </Section>

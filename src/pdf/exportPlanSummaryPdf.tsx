@@ -297,6 +297,8 @@ function PlanSummaryPdf({
           <Tile label="Annual Income" value={fmtUSD(k.annualIncome)} />
           <Tile label="Guaranteed / mo" value={fmtUSD(k.guaranteedMonthly)} />
           <Tile label="Portfolio Draw / mo" value={fmtUSD(k.requiredWithdrawal)} />
+          <Tile label="Est. Tax / mo" value={fmtUSD(k.estimatedTaxMonthly)} />
+          <Tile label="After Tax / mo" value={fmtUSD(k.afterTaxMonthly)} />
           <View style={s.tile}>
             <Text style={s.tileLabel}>Status</Text>
             <Text style={[s.tileVal, { color: statusColor(k.status) }]}>{statusText(k.status)}</Text>

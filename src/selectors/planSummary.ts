@@ -23,6 +23,9 @@ export interface PlanSummaryModel {
     annualIncome: number;
     guaranteedMonthly: number;
     requiredWithdrawal: number;
+    /** Estimated federal + Colorado income tax per month at retirement. */
+    estimatedTaxMonthly: number;
+    afterTaxMonthly: number;
     status: ProjectionResult['status'];
     depletionAge: number | null;
   };
@@ -59,10 +62,10 @@ export function buildPlanSummaryModel(
   const retMeasureAge = a.currentAge + retDelta;
   const wd =
     scn.withdrawal.type === 'percent-of-balance'
-      ? `Percentage of balance, ${((scn.withdrawal.rate ?? 0.04) * 100).toFixed(1)}%, ${scn.withdrawal.taxStatus}`
+      ? `Percentage of balance, ${((scn.withdrawal.rate ?? 0.04) * 100).toFixed(1)}%, taxed by account type`
       : scn.withdrawal.type === 'fixed-amount'
-        ? `Fixed ${scn.withdrawal.amount ?? 0}/yr, ${scn.withdrawal.taxStatus}`
-        : `Target income (phases), ${scn.withdrawal.taxStatus}`;
+        ? `Fixed ${scn.withdrawal.amount ?? 0}/yr, taxed by account type`
+        : 'Target income (phases), taxed by account type';
 
   return {
     scenarioName: scn.name,
@@ -88,6 +91,8 @@ export function buildPlanSummaryModel(
       annualIncome: (displayMode === 'today' ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement) * 12,
       guaranteedMonthly: displayMode === 'today' ? result.guaranteedMonthlyIncomeToday : result.guaranteedMonthlyIncome,
       requiredWithdrawal: displayMode === 'today' ? result.requiredPortfolioWithdrawalToday : result.requiredPortfolioWithdrawal,
+      estimatedTaxMonthly: displayMode === 'today' ? result.estimatedTaxMonthlyToday : result.estimatedTaxMonthly,
+      afterTaxMonthly: displayMode === 'today' ? result.afterTaxMonthlyIncomeToday : result.afterTaxMonthlyIncome,
       status: result.status,
       depletionAge: result.depletionAge,
     },

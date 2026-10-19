@@ -1,4 +1,7 @@
-// All dollar figures are 2025 base-year, MFJ. Callers scale indexed tables by cpiFactor.
+// MFJ tax tables. Callers scale indexed tables by cpiFactor.
+// The *_2026 tables are current law (IRS Rev. Proc. 2025-32 figures under the
+// 2025 tax act, which made the 2017 brackets permanent) and are the default;
+// the *_2025 tables are kept for the regression harness's worked example.
 import type { Dollars, Rate } from '@/domain/types';
 
 export interface Bracket {
@@ -17,6 +20,43 @@ export const FED_ORDINARY_MFJ_2025: { sourceYear: number; brackets: Bracket[] } 
     { upTo: 751_600, rate: 0.35 },
     { upTo: null, rate: 0.37 },
   ],
+};
+
+export const FED_ORDINARY_MFJ_2026: { sourceYear: number; brackets: Bracket[] } = {
+  sourceYear: 2026,
+  brackets: [
+    { upTo: 24_800, rate: 0.1 },
+    { upTo: 100_800, rate: 0.12 },
+    { upTo: 211_400, rate: 0.22 },
+    { upTo: 403_550, rate: 0.24 },
+    { upTo: 512_450, rate: 0.32 },
+    { upTo: 768_700, rate: 0.35 },
+    { upTo: null, rate: 0.37 },
+  ],
+};
+
+export const STD_DEDUCTION_MFJ_2026 = {
+  sourceYear: 2026,
+  base: 32_200,
+  additional65: 1_650, // per spouse age 65+
+};
+
+/** The 2025 act's extra deduction for each spouse 65 or older, tax years
+ *  2025 through 2028 only. It phases out at 6% of MAGI above $150,000 (MFJ)
+ *  and is not inflation-indexed. */
+export const SENIOR_DEDUCTION_MFJ = {
+  perPerson: 6_000,
+  phaseoutStart: 150_000,
+  phaseoutRate: 0.06,
+  firstYear: 2025,
+  lastYear: 2028,
+};
+
+export const LTCG_MFJ_2026 = {
+  sourceYear: 2026,
+  zeroRateUpTo: 98_900,
+  fifteenRateUpTo: 613_700,
+  rates: { zero: 0, fifteen: 0.15, twenty: 0.2 },
 };
 
 export const STD_DEDUCTION_MFJ_2025 = {
@@ -62,10 +102,19 @@ export const IRMAA_PARTB_MFJ_2025 = {
 
 export const NIIT = { sourceYear: 2025, rate: 0.038, thresholdMFJ: 250_000, indexed: false };
 
+// Colorado (tax year 2025 rules, HB24-1142):
+//  - 65+: all federally taxed Social Security is subtracted, separately from
+//    the $24,000 pension cap.
+//  - 55-64: all of it too, when modified AGI is at or under $95,000 (MFJ);
+//    above that, Social Security shares the $20,000 pension/annuity cap.
+//  - Pension/annuity subtraction (IRA and 401(k) distributions count) is
+//    capped per person: $24,000 at 65+, $20,000 at 55-64.
 export const COLORADO = {
   sourceYear: 2025,
   flatRate: 0.044,
   ssSubtractionAge: 65,
+  ssEarlyAge: 55,
+  ssEarlyMagiLimitMFJ: 95_000,
   pensionSubtraction65: 24_000,
   pensionSubtraction55: 20_000,
 };

@@ -18,11 +18,17 @@ import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
 import { ageFromISO, isoFromAge, isoFromMonthValue, monthValueFromISO, birthDateISO, spouseBirthDateISO, spouseCurrentAge } from '@/lib/dates';
 import { contributionOverlaps, contributionMonths, totalContributed } from '@/lib/contributions';
 import { measurementYearsAtAge } from '@/engine/project';
-import type { DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
+import type { AccountKind, DollarBasis, TaxStatus, WithdrawalType } from '@/domain/types';
 
 const basisOpts: { value: DollarBasis; label: string }[] = [
   { value: 'today', label: "Today's $" },
   { value: 'actual', label: 'Actual $' },
+];
+// Where deposits go; decides how withdrawals of that money are taxed.
+const acctOpts: { value: AccountKind; label: string }[] = [
+  { value: 'pretax', label: 'Pre-tax' },
+  { value: 'roth', label: 'Roth' },
+  { value: 'taxable', label: 'Brokerage' },
 ];
 const taxOpts: { value: TaxStatus; label: string }[] = [
   { value: 'taxable', label: 'Taxable' },
@@ -99,6 +105,7 @@ export default function PlannerPage() {
       endAge: (c) => c.endAge,
       monthlyAmount: (c) => c.monthlyAmount,
       dollarBasis: (c) => c.dollarBasis.toLowerCase(),
+      accountKind: (c) => c.accountKind ?? 'pretax',
       months: (c) => contributionMonths(c, a),
       total: (c) => contributionMonths(c, a) * c.monthlyAmount,
     },
@@ -114,7 +121,7 @@ export default function PlannerPage() {
       age: (l) => lumpAge(l),
       amount: (l) => l.amount,
       dollarBasis: (l) => l.dollarBasis.toLowerCase(),
-      taxStatus: (l) => (l.taxStatus ?? 'taxable').toLowerCase(),
+      accountKind: (l) => (l.amount < 0 ? 'withdrawn' : l.accountKind ?? 'taxable'),
     },
     { key: 'age', dir: 'asc' },
   );
@@ -192,7 +199,7 @@ export default function PlannerPage() {
             end month, so start each period the month AFTER the previous one ends.
           </div>
         )}
-        <Grid minWidth={760}>
+        <Grid minWidth={860}>
           <THead
             sort={contribSort.sort}
             onSort={contribSort.onSort}
@@ -201,7 +208,8 @@ export default function PlannerPage() {
               { label: 'Start', sortKey: 'startAge' },
               { label: 'End', sortKey: 'endAge' },
               { label: 'Monthly $', align: 'right', sortKey: 'monthlyAmount' },
-              { label: 'Basis', sortKey: 'dollarBasis' },
+              { label: 'Basis', w: '120px', sortKey: 'dollarBasis' },
+              { label: 'Account', w: '112px', sortKey: 'accountKind' },
               { label: 'Months', align: 'right', sortKey: 'months' },
               { label: 'Total', align: 'right', sortKey: 'total' },
             ]}
@@ -249,6 +257,7 @@ export default function PlannerPage() {
                   </TD>
                   <TD align="right"><NumberInput value={c.monthlyAmount} prefix="$" onChange={(v) => s.updateContribution(c.id, { monthlyAmount: v })} /></TD>
                   <TD><SelectInput value={c.dollarBasis} options={basisOpts} onChange={(v) => s.updateContribution(c.id, { dollarBasis: v })} /></TD>
+                  <TD><SelectInput value={c.accountKind ?? 'pretax'} options={acctOpts} onChange={(v) => s.updateContribution(c.id, { accountKind: v })} /></TD>
                   <TD align="right"><span className="font-mono text-muted tabnum">{months}</span></TD>
                   <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(months * c.monthlyAmount)}</span></TD>
                   <DeleteCell onClick={() => s.removeContribution(c.id)} enabled={c.enabled} onToggle={() => s.updateContribution(c.id, { enabled: !c.enabled })} />
@@ -256,11 +265,11 @@ export default function PlannerPage() {
               );
             })}
           </tbody>
-          <AddRow colSpan={7} onClick={s.addContribution} />
+          <AddRow colSpan={8} onClick={s.addContribution} />
           <tbody>
             <TotalRow>
               <TD>Total contributed</TD>
-              <TD /><TD /><TD /><TD />
+              <TD /><TD /><TD /><TD /><TD />
               <TD align="right"><span className="font-mono text-ink tabnum">{totalContribMonths.toLocaleString('en-US')}</span></TD>
               <TD align="right"><span className="font-mono text-ink tabnum">{fmtUSD(totalCashIn)}</span></TD>
               <td />
@@ -280,8 +289,8 @@ export default function PlannerPage() {
               { label: 'Date', sortKey: 'age' },
               { label: 'Age', align: 'right', sortKey: 'age' },
               { label: 'Amount', align: 'right', sortKey: 'amount' },
-              { label: 'Basis', sortKey: 'dollarBasis' },
-              { label: 'Tax', sortKey: 'taxStatus' },
+              { label: 'Basis', w: '120px', sortKey: 'dollarBasis' },
+              { label: 'Goes to', w: '120px', sortKey: 'accountKind' },
             ]}
           />
           <tbody>
@@ -310,7 +319,14 @@ export default function PlannerPage() {
                 </TD>
                 <TD align="right"><NumberInput value={l.amount} prefix="$" onChange={(v) => s.updateLumpSum(l.id, { amount: v })} /></TD>
                 <TD><SelectInput value={l.dollarBasis} options={basisOpts} onChange={(v) => s.updateLumpSum(l.id, { dollarBasis: v })} /></TD>
-                <TD><SelectInput value={l.taxStatus ?? 'taxable'} options={taxOpts} onChange={(v) => s.updateLumpSum(l.id, { taxStatus: v })} /></TD>
+                <TD>
+                  {l.amount < 0 ? (
+                    // A negative amount is a withdrawal: it comes out of every account proportionally.
+                    <span className="px-1.5 text-[12px] text-muted" title="Taken from all accounts in proportion to their size">All accounts</span>
+                  ) : (
+                    <SelectInput value={l.accountKind ?? 'taxable'} options={acctOpts} onChange={(v) => s.updateLumpSum(l.id, { accountKind: v })} />
+                  )}
+                </TD>
                 <DeleteCell onClick={() => s.removeLumpSum(l.id)} enabled={l.enabled} onToggle={() => s.updateLumpSum(l.id, { enabled: !l.enabled })} />
               </TR>
             ))}
@@ -338,8 +354,8 @@ export default function PlannerPage() {
               { label: 'Start', align: 'right', sortKey: 'startAge' },
               { label: 'End', align: 'right', sortKey: 'endAge' },
               { label: 'COLA %', align: 'right', sortKey: 'cola' },
-              { label: 'Owner', sortKey: 'owner' },
-              { label: 'Tax', sortKey: 'taxStatus' },
+              { label: 'Owner', w: '96px', sortKey: 'owner' },
+              { label: 'Tax', w: '112px', sortKey: 'taxStatus' },
               { label: `@ ${Math.round(a.retirementAge)}`, align: 'right', sortKey: 'atRet' },
               { label: '@ 90', align: 'right', sortKey: 'at90' },
             ]}
@@ -395,11 +411,12 @@ export default function PlannerPage() {
               <div className={`${fieldCls} text-muted`}>Retirement Phase targets</div>
             </Field>
           )}
-          <Field label="Tax status">
-            <select className={fieldCls} value={scn.withdrawal.taxStatus} onChange={(e) => s.setWithdrawal({ taxStatus: e.target.value as TaxStatus })}>
-              <option value="taxable">Taxable</option>
-              <option value="tax-free">Tax-free</option>
-            </select>
+          <Field label="Taxed as">
+            {/* Withdrawals come out of every account in proportion to its size, so
+                the account mix (Settings, plus each contribution's Account) decides the tax. */}
+            <div className={`${fieldCls} text-muted`} title="Pre-tax money is taxed as income, brokerage growth as a capital gain, Roth not at all">
+              By account type
+            </div>
           </Field>
         </div>
       </Section>
