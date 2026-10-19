@@ -12,13 +12,12 @@ interface McState {
   configHash: string | null;
   run: (scenario: Scenario, settings: Settings, criterion?: SuccessCriterion) => void;
   cancel: () => void;
-  markStaleCheck: (hash: string) => void;
 }
 
 let worker: Worker | null = null;
 
 // Bump when the projection/withdrawal math changes so cached MC results invalidate.
-const ENGINE_VERSION = 9;
+const ENGINE_VERSION = 10; // 10: MC redraws when the return phase changes mid-year
 
 function mcConfigHash(scn: Scenario, settings: Settings, criterion: SuccessCriterion): string {
   return String(
@@ -135,10 +134,6 @@ export const useMcStore = create<McState>((set) => ({
     set({ running: false });
   },
 
-  markStaleCheck: (hash) => {
-    // no-op hook for components to compute staleness via selector
-    void hash;
-  },
 }));
 
 export { mcConfigHash };

@@ -26,10 +26,6 @@ export function isoFromMonthValue(v: string): string {
   return v ? `${v}-01` : '';
 }
 
-/** The stored ISO date for a contribution/lump, falling back to the age-derived date. */
-export function effectiveISO(dateOverride: string | undefined, age: number, a: ScenarioAssumptions): string {
-  return dateOverride ?? isoFromAge(age, a);
-}
 
 /**
  * Fractional age (whole-month precision) from a birth date, as of `now`.

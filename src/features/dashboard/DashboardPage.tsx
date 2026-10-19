@@ -4,7 +4,7 @@ import { useActiveScenario, useEffectiveDisplayMode, useStore } from '@/state/st
 import { useProjection } from '@/selectors/projection';
 import { useMcStore, mcConfigHash } from '@/state/mcStore';
 import { incomeBreakdownAtAge, incomeYearTotalsAtAge } from '@/engine/project';
-import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
+import { ageToMonthIndex } from '@/engine/timeline';
 import { Section, Button, Segmented, TaxChip, StatusPill } from '@/components/ui/primitives';
 import { ControlTile, Slider, StatTile, SummaryTile, BarRow } from '@/components/ui/tiles';
 import { WealthChart } from '@/components/charts/WealthChart';
@@ -36,9 +36,16 @@ export default function DashboardPage() {
 
   const mc = useMcStore();
   const a = scn.assumptions;
-  const inflM = monthlyRate(a.inflation);
-  const cpiAt = (age: number) => Math.pow(1 + inflM, ageToMonthIndex(age, a.currentAge));
-  const deflate = (nominal: number, age: number) => (displayMode === 'today' ? nominal / cpiAt(age) : nominal);
+  const today = displayMode === 'today';
+  // Deflate a figure SAMPLED at the end of an age's year row by that exact
+  // month's inflation factor — the same month incomeBreakdownAtAge reads and
+  // the same basis as the year row's today's-$ balance.
+  const deflateAtRow = (nominal: number, age: number) => {
+    if (!today) return nominal;
+    const j = Math.max(0, Math.round(age) - Math.round(a.currentAge));
+    const m = months[Math.max(0, Math.min(months.length - 1, j * 12 + 11))];
+    return nominal / (m?.cpi || 1);
+  };
 
   const [breakdownAge, setBreakdownAge] = useState(Math.round(a.retirementAge));
   const breakdown = useMemo(() => incomeBreakdownAtAge(scn, months, breakdownAge), [scn, months, breakdownAge]);
@@ -49,19 +56,11 @@ export default function DashboardPage() {
       // True 12-month sum, not one month x 12 — see incomeYearTotalsAtAge. The
       // old point-sample landed past the row's own label when the current age
       // has a fractional part, which cut a stream off a year early.
-      const y = incomeYearTotalsAtAge(scn, months, age);
-      pts.push({
-        age,
-        investment: deflate(y.investment, age),
-        va: deflate(y.va, age),
-        ssSelf: deflate(y.ssSelf, age),
-        ssSpouse: deflate(y.ssSpouse, age),
-        other: deflate(y.other, age),
-      });
+      pts.push({ age, ...incomeYearTotalsAtAge(scn, months, age, today) });
     }
     return pts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scn, months, displayMode]);
+  }, [scn, months, today]);
 
   const currentHash = mcConfigHash(scn, settings, 'survival');
   const mcFresh = mc.result && mc.configHash === currentHash;
@@ -94,9 +93,9 @@ export default function DashboardPage() {
   // Principal still invested at the end of the plan horizon (modelEndAge).
   const endHorizon = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
   const currentAssets = scn.accounts.filter((x) => x.enabled).reduce((sum, x) => sum + x.balance, 0);
-  const monthlyIncome = deflate(result.monthlyIncomeAtRetirement, a.retirementAge);
-  const guaranteedAtRet = deflate(result.guaranteedMonthlyIncome, a.retirementAge);
-  const portfolioDrawAtRet = deflate(result.requiredPortfolioWithdrawal, a.retirementAge);
+  const monthlyIncome = today ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement;
+  const guaranteedAtRet = today ? result.guaranteedMonthlyIncomeToday : result.guaranteedMonthlyIncome;
+  const portfolioDrawAtRet = today ? result.requiredPortfolioWithdrawalToday : result.requiredPortfolioWithdrawal;
   const maxComponent = Math.max(1, ...breakdown.components.map((c) => c.monthlyNominal));
 
   // On first dashboard view this session: make sure Monte Carlo has a fresh result and show the overlay.
@@ -327,7 +326,7 @@ export default function DashboardPage() {
                 <BarRow
                   key={i}
                   label={c.label}
-                  value={c.upcoming ? '—' : fmtUSD(deflate(c.monthlyNominal, breakdownAge))}
+                  value={c.upcoming ? '—' : fmtUSD(deflateAtRow(c.monthlyNominal, breakdownAge))}
                   fraction={c.upcoming ? 0 : c.monthlyNominal / maxComponent}
                   color={chart.cat[c.cat]}
                   chip={<TaxChip status={c.taxStatus} />}
@@ -338,8 +337,8 @@ export default function DashboardPage() {
               {breakdown.components.length === 0 && <p className="py-6 text-center text-muted">No active income at this age.</p>}
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:content-start">
-              <SummaryTile label="Taxable / mo" value={fmtUSD(deflate(breakdown.taxablePerMo, breakdownAge))} tone="tax" />
-              <SummaryTile label="Tax-free / mo" value={fmtUSD(deflate(breakdown.taxFreePerMo, breakdownAge))} tone="tax-free" />
+              <SummaryTile label="Taxable / mo" value={fmtUSD(deflateAtRow(breakdown.taxablePerMo, breakdownAge))} tone="tax" />
+              <SummaryTile label="Tax-free / mo" value={fmtUSD(deflateAtRow(breakdown.taxFreePerMo, breakdownAge))} tone="tax-free" />
             </div>
           </div>
         </Section>

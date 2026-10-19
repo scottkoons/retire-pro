@@ -137,6 +137,18 @@ function retirementRow(rows: YearRow[], retirementAge: number): YearRow | undefi
   return rows.find((r) => r.age === target) ?? (target < (rows[0]?.age ?? 0) ? rows[0] : rows[rows.length - 1]);
 }
 
+/** Today's-dollar retirement income, deflated by the SAME month as the
+ *  retirement row's balance (see ProjectionResult.retirementCpi). */
+function todayRetirementIncome(retRow: YearRow | undefined, guaranteed: number, draw: number) {
+  const retirementCpi = retRow?.cpiFactor || 1;
+  return {
+    retirementCpi,
+    guaranteedMonthlyIncomeToday: guaranteed / retirementCpi,
+    requiredPortfolioWithdrawalToday: draw / retirementCpi,
+    monthlyIncomeAtRetirementToday: (guaranteed + draw) / retirementCpi,
+  };
+}
+
 /** Years from now (t=0) to the month where "at age X" quantities are measured:
  *  the END of that age's projection-year row (the month retirementRow's balance
  *  and the income tiles read). The Planner and Summary "@ retirement" columns
@@ -323,6 +335,7 @@ export function runProjectionLegacy(scn: Scenario, provider: ReturnProvider = fi
     requiredPortfolioWithdrawal: requiredWithdrawal,
     monthlyIncomeAtRetirement: monthlyIncome,
     annualIncomeAtRetirement: monthlyIncome * 12,
+    ...todayRetirementIncome(retRow, gAtRet, requiredWithdrawal),
     endingBalance: endNominal,
     endingBalanceToday,
     depletionAge,
@@ -474,12 +487,21 @@ export interface IncomeYearTotals {
  * Deliberately NOT used by the tiles or the "@ age" columns — those keep
  * end-of-year sampling so the numbers Scott cross-checks do not move.
  */
-export function incomeYearTotalsAtAge(scn: Scenario, months: MonthState[], age: number): IncomeYearTotals {
+export function incomeYearTotalsAtAge(
+  scn: Scenario,
+  months: MonthState[],
+  age: number,
+  /** Today's dollars: deflate EACH month by its own inflation factor rather than
+   *  one factor for the whole year, so a partial final year is not distorted. */
+  real = false,
+): IncomeYearTotals {
   const a = scn.assumptions;
   const j = Math.max(0, Math.round(age) - Math.round(a.currentAge));
   const out: IncomeYearTotals = { investment: 0, va: 0, ssSelf: 0, ssSpouse: 0, other: 0 };
-  const add = (cat: number, v: number) => {
-    if (!(v > 0)) return;
+  let defl = 1; // set per month below
+  const add = (cat: number, nominal: number) => {
+    if (!(nominal > 0)) return;
+    const v = nominal / defl;
     if (cat === 1) out.investment += v;
     else if (cat === 2) out.va += v;
     else if (cat === 3) out.ssSelf += v;
@@ -493,6 +515,7 @@ export function incomeYearTotalsAtAge(scn: Scenario, months: MonthState[], age: 
     if (t < 0 || t >= months.length) continue;
     const ageAt = monthIndexToAge(t, a.currentAge);
     const m = months[t];
+    defl = real && m ? m.cpi : 1;
     if (m) add(1, m.withdrawal);
     for (const s of scn.incomeStreams) add(catForStream(s), streamNominalAt(scn, s, t, ageAt));
 
@@ -1146,6 +1169,7 @@ export function runProjectionV2(
     requiredPortfolioWithdrawal: withdrawalAtRetire,
     monthlyIncomeAtRetirement: guaranteedAtRetire + withdrawalAtRetire,
     annualIncomeAtRetirement: (guaranteedAtRetire + withdrawalAtRetire) * 12,
+    ...todayRetirementIncome(retRow, guaranteedAtRetire, withdrawalAtRetire),
     endingBalance,
     endingBalanceToday,
     depletionAge,

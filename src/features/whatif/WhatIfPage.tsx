@@ -145,7 +145,7 @@ export default function WhatIfPage() {
 
   const balRet = displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement;
   const ending = displayMode === 'today' ? result.endingBalanceToday : result.endingBalance;
-  const monthly = result.monthlyIncomeAtRetirement;
+  const monthly = displayMode === 'today' ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement;
 
   const makeScenario = () => {
     const real = cloneScenario(scn, whatIfName(inputs), new Date().toISOString());

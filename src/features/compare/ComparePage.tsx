@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEffectiveDisplayMode, useStore } from '@/state/store';
-import { runProjection } from '@/engine/project';
-import { ageToMonthIndex, monthlyRate } from '@/engine/timeline';
+import { projectCached } from '@/selectors/projection';
 import { Section, Button, Segmented, StatusPill } from '@/components/ui/primitives';
 import { chart } from '@/theme/tokens';
 import { fmtUSD, fmtUSDAbbrev, fmtAgeYM } from '@/lib/format';
@@ -50,7 +49,7 @@ export default function ComparePage() {
     () =>
       scenarios.map((scn, i) => ({
         scn,
-        result: runProjection(scn, settings).result,
+        result: projectCached(scn, settings).result,
         color: COLORS[i % COLORS.length],
       })),
     [scenarios, settings],
@@ -173,10 +172,8 @@ export default function ComparePage() {
             <tbody>
               {rows.map((r) => {
                 const res = r.result;
-                const a = r.scn.assumptions;
-                const cpiRet = Math.pow(1 + monthlyRate(a.inflation), ageToMonthIndex(a.retirementAge, a.currentAge));
                 const balRet = displayMode === 'today' ? res.projectedBalanceAtRetirementToday : res.projectedBalanceAtRetirement;
-                const monthly = displayMode === 'today' ? res.monthlyIncomeAtRetirement / cpiRet : res.monthlyIncomeAtRetirement;
+                const monthly = displayMode === 'today' ? res.monthlyIncomeAtRetirementToday : res.monthlyIncomeAtRetirement;
                 const ending = displayMode === 'today' ? res.endingBalanceToday : res.endingBalance;
                 const isActive = r.scn.id === activeId;
                 return (

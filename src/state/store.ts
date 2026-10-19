@@ -187,15 +187,15 @@ interface StoreState extends PersistedDocument {
 // The spouse's age is derived the same way from her OWN birth date when it has
 // been entered — spouseAgeOffset (self age -> spouse age) is recomputed from
 // it every time, so a real birth date is always authoritative over the offset.
-function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
-  for (const scn of doc.scenarios) {
-    const a = scn.assumptions;
-    a.currentAge = ageFromBirthDate(a.birthYear, a.birthMonth, a.birthDay);
-    if (a.spouseBirthYear != null && a.spouseBirthMonth != null && a.spouseBirthDay != null) {
-      const spouseAge = ageFromBirthDate(a.spouseBirthYear, a.spouseBirthMonth, a.spouseBirthDay);
-      a.spouseAgeOffset = spouseAge - a.currentAge;
-    }
+function deriveAges(a: Scenario['assumptions']): void {
+  a.currentAge = ageFromBirthDate(a.birthYear, a.birthMonth, a.birthDay);
+  if (a.spouseBirthYear != null && a.spouseBirthMonth != null && a.spouseBirthDay != null) {
+    a.spouseAgeOffset = ageFromBirthDate(a.spouseBirthYear, a.spouseBirthMonth, a.spouseBirthDay) - a.currentAge;
   }
+}
+
+function deriveCurrentAges(doc: PersistedDocument): PersistedDocument {
+  for (const scn of doc.scenarios) deriveAges(scn.assumptions);
   return doc;
 }
 
@@ -291,27 +291,10 @@ export const useStore = create<StoreState>()(
         if (!active) return;
         fn(active);
         active.updatedAt = nowISO();
-        const aa = active.assumptions;
-        aa.currentAge = ageFromBirthDate(aa.birthYear, aa.birthMonth, aa.birthDay);
-        if (aa.spouseBirthYear != null && aa.spouseBirthMonth != null && aa.spouseBirthDay != null) {
-          aa.spouseAgeOffset = ageFromBirthDate(aa.spouseBirthYear, aa.spouseBirthMonth, aa.spouseBirthDay) - aa.currentAge;
-        }
-        for (const scn of s.scenarios) {
-          if (scn !== active) {
-            scn.accounts = JSON.parse(JSON.stringify(active.accounts));
-            scn.assumptions.birthYear = aa.birthYear;
-            scn.assumptions.birthMonth = aa.birthMonth;
-            scn.assumptions.birthDay = aa.birthDay;
-            scn.assumptions.spouseBirthYear = aa.spouseBirthYear;
-            scn.assumptions.spouseBirthMonth = aa.spouseBirthMonth;
-            scn.assumptions.spouseBirthDay = aa.spouseBirthDay;
-            scn.assumptions.currentAge = aa.currentAge;
-            scn.assumptions.spouseAgeOffset = aa.spouseAgeOffset;
-          }
-          scn.assumptions.startingBalance = scn.accounts
-            .filter((a) => a.enabled)
-            .reduce((sum, a) => sum + a.balance, 0);
-        }
+        // Same two steps the loader runs, so an edit is reflected everywhere
+        // immediately rather than only after a reload.
+        deriveAges(active.assumptions);
+        mirrorAccountsFromActive(s);
       });
       schedulePersist();
     };

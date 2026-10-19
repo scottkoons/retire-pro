@@ -1,7 +1,8 @@
 /* Runtime verification harness for the v2 engine. Not shipped; run via:
  *   npx esbuild src/engine/__verify.ts --bundle --platform=node --format=esm --alias:@=./src --outfile=/tmp/verify.mjs && node /tmp/verify.mjs
  */
-import { runProjection, runProjectionLegacy, runProjectionV2, usesV2, incomeBreakdownAtAge, measurementYearsAtAge } from './project';
+import { runProjection, runProjectionLegacy, runProjectionV2, usesV2, incomeBreakdownAtAge, incomeYearTotalsAtAge, measurementYearsAtAge } from './project';
+import { fmtUSDAbbrev } from '@/lib/format';
 import { estimateAnnualTaxes, resolveTaxConfig } from './tax';
 import { runMonteCarlo } from './montecarlo/simulate';
 import { seedDocument } from '@/domain/seed';
@@ -276,6 +277,40 @@ console.log('\n[9] External audit checklist: rate conversion, timing, double-cou
   check('engine matches the independent simulation every month (<= $0.01)', maxDiff <= 0.01, `max diff $${maxDiff.toFixed(4)}`);
   check('no double-counting: deposits == flat schedule total $368,250', depositTotal === 368_250, `got ${depositTotal}`);
   check('balance on the retirement date ~= $3,064,518 (locked reference)', near(months[tRet].startingBalance, 3_064_518, 5), `got ${months[tRet].startingBalance.toFixed(0)}`);
+}
+
+// -------------------------------------------------------------------------
+console.log('\n[10] Units: every today\'s-$ retirement figure uses ONE deflator');
+for (const scn of [sell, hold]) {
+  const { result: r, months } = runProjection(scn, settings);
+  const retRow = r.rows.find((row) => row.age === Math.round(scn.assumptions.retirementAge))!;
+  check(`${scn.name}: retirementCpi is the retirement row's own inflation factor`, near(r.retirementCpi, retRow.cpiFactor, 1e-12));
+  check(`${scn.name}: balance today's-$ uses the same deflator`, near(r.projectedBalanceAtRetirementToday * r.retirementCpi, r.projectedBalanceAtRetirement, 0.01));
+  check(`${scn.name}: monthly income today's-$ uses the same deflator`, near(r.monthlyIncomeAtRetirementToday * r.retirementCpi, r.monthlyIncomeAtRetirement, 0.01));
+  check(`${scn.name}: guaranteed + draw == monthly (today's $)`, near(r.guaranteedMonthlyIncomeToday + r.requiredPortfolioWithdrawalToday, r.monthlyIncomeAtRetirementToday, 0.01));
+  // Real income chart: deflating month-by-month must equal summing each month / its own cpi.
+  const age = Math.round(scn.assumptions.retirementAge) + 5;
+  const real = incomeYearTotalsAtAge(scn, months, age, true);
+  const j = Math.max(0, age - Math.round(scn.assumptions.currentAge));
+  let expect = 0;
+  for (let k = 0; k < 12; k++) { const m = months[j * 12 + k]; if (m) expect += m.withdrawal / m.cpi; }
+  check(`${scn.name}: real income chart deflates each month by its own CPI`, near(real.investment, expect, 0.01), `${real.investment} vs ${expect}`);
+}
+
+console.log('\n[11] Formatting edge cases');
+check('fmtUSDAbbrev(999,600) rolls over to $1.0M, not $1000k', fmtUSDAbbrev(999_600) === '$1.0M', fmtUSDAbbrev(999_600));
+check('fmtUSDAbbrev(999,400) stays $999k', fmtUSDAbbrev(999_400) === '$999k', fmtUSDAbbrev(999_400));
+check('fmtUSDAbbrev(9,960,000) rolls over to $10M', fmtUSDAbbrev(9_960_000) === '$10M', fmtUSDAbbrev(9_960_000));
+
+console.log('\n[12] Undated rows stay out of the projection');
+{
+  const base = runProjection(sell, settings).result;
+  const scn: Scenario = structuredClone(sell);
+  scn.contributions.push({ id: 'u1', name: 'undated', monthlyAmount: 99_999, dollarBasis: 'actual', enabled: true });
+  scn.incomeStreams.push({ id: 'u2', name: 'undated', monthlyAmountToday: 99_999, taxStatus: 'taxable', inflationAdjusted: true, owner: 'self', enabled: true });
+  scn.lumpSums.push({ id: 'u3', name: 'undated', amount: 9_999_999, dollarBasis: 'actual', enabled: true });
+  const r = runProjection(scn, settings).result;
+  check('undated contribution, income stream and lump sum change nothing', near(r.endingBalance, base.endingBalance, 0.01) && near(r.monthlyIncomeAtRetirement, base.monthlyIncomeAtRetirement, 0.01), `${r.endingBalance} vs ${base.endingBalance}`);
 }
 
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);

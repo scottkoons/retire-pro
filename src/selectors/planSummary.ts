@@ -81,10 +81,13 @@ export function buildPlanSummaryModel(
     },
     keyResults: {
       balanceAtRetirement: displayMode === 'today' ? result.projectedBalanceAtRetirementToday : result.projectedBalanceAtRetirement,
-      monthlyIncome: result.monthlyIncomeAtRetirement,
-      annualIncome: result.annualIncomeAtRetirement,
-      guaranteedMonthly: result.guaranteedMonthlyIncome,
-      requiredWithdrawal: result.requiredPortfolioWithdrawal,
+      // Same unit as balanceAtRetirement above. These were always nominal, so
+      // the Summary and PDF mixed today's-$ balance with actual-$ income under
+      // a "Today's $" header (and told the AI narrator the same).
+      monthlyIncome: displayMode === 'today' ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement,
+      annualIncome: (displayMode === 'today' ? result.monthlyIncomeAtRetirementToday : result.monthlyIncomeAtRetirement) * 12,
+      guaranteedMonthly: displayMode === 'today' ? result.guaranteedMonthlyIncomeToday : result.guaranteedMonthlyIncome,
+      requiredWithdrawal: displayMode === 'today' ? result.requiredPortfolioWithdrawalToday : result.requiredPortfolioWithdrawal,
       status: result.status,
       depletionAge: result.depletionAge,
     },

@@ -16,13 +16,20 @@ function percentile(sorted: number[], q: number): number {
   return sorted[idx];
 }
 
-/** Stochastic provider: one lognormal draw per year, applied to all 12 months. */
+/**
+ * Stochastic provider: one lognormal draw per projection year, applied to all
+ * 12 months. A new draw is also taken when the return phase changes mid-year
+ * (phase boundaries are ages, year rows start at today's fractional age, so
+ * they rarely line up). Keying on the year alone kept the previous phase's
+ * draw — sampled around the WRONG mean — for the rest of that year.
+ */
 function makeProvider(rng: () => number, fallbackVol: number): ReturnProvider {
-  let lastYear = -1;
+  let lastKey = '';
   let lastVal = 0;
   return ({ yearIndex, expectedReturn, volatility }) => {
-    if (yearIndex !== lastYear) {
-      lastYear = yearIndex;
+    const key = `${yearIndex}|${expectedReturn}|${volatility}`;
+    if (key !== lastKey) {
+      lastKey = key;
       lastVal = sampleAnnualReturn(rng, expectedReturn, volatility || fallbackVol);
     }
     return lastVal;
@@ -60,13 +67,10 @@ export function runMonteCarlo(
 
     endingToday.push(result.endingBalanceToday);
 
+    // Both criteria currently score depletion as failure ('meetSpending' is a
+    // proxy until a spending-shortfall test exists), so one test serves both.
     const failed = result.depletionAge !== null;
-    if (criterion === 'survival') {
-      if (!failed) successCount++;
-    } else {
-      // meetSpending: treat depletion as failure (proxy)
-      if (!failed) successCount++;
-    }
+    if (!failed) successCount++;
     if (failed && result.depletionAge !== null) {
       const age = Math.round(result.depletionAge);
       failureAgeCounts.set(age, (failureAgeCounts.get(age) ?? 0) + 1);

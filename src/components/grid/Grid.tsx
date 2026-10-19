@@ -321,16 +321,6 @@ function GroupedNumberInput({
   );
 }
 
-export function DateInput({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
-  return (
-    <input
-      type="date"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className={clsx(inputCls, 'text-muted')}
-    />
-  );
-}
 
 /** Month + year picker. value/onChange use "yyyy-mm"; the day is always the 1st. */
 export function MonthYearInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {

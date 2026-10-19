@@ -35,10 +35,16 @@ const SYSTEM = [
 
 export async function narratePlan(cfg: AiConfig, summary: PlanSummaryModel): Promise<string> {
   const client = await createAiClient(cfg);
-  const dollars =
+  // Be exact about units: only the headline figures follow the display mode.
+  // Telling the model "everything is today's dollars" invited it to compare
+  // inflated stream values against deflated balances as if they matched.
+  const dollars = [
     summary.displayMode === 'today'
-      ? "All dollar amounts are in TODAY'S dollars, already adjusted for inflation."
-      : 'All dollar amounts are in ACTUAL future dollars, not adjusted for inflation.';
+      ? "keyResults and the Monte Carlo figures are in TODAY'S dollars (inflation-adjusted)."
+      : 'keyResults are in ACTUAL future dollars (not inflation-adjusted); Monte Carlo ending figures are in today\'s dollars.',
+    "incomeStreams[].today is always today's dollars; incomeStreams[].atRetire is actual future dollars at retirement.",
+    'contributions and lumpSums are the amounts as entered.',
+  ].join(' ');
 
   return client.generateText({
     system: SYSTEM,

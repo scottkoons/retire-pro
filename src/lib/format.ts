@@ -15,7 +15,8 @@ export function fmtUSDAbbrev(n: number): string {
   if (!Number.isFinite(n)) return '$0';
   const abs = Math.abs(n);
   const sign = n < 0 ? '-' : '';
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+  // 999,500+ rounds to "1000k" in the k branch, so hand it to the M branch.
+  if (abs >= 999_500) return `${sign}$${(abs / 1_000_000).toFixed(abs >= 9_950_000 ? 0 : 1)}M`;
   if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
   return `${sign}$${Math.round(abs)}`;
 }

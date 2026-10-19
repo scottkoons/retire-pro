@@ -461,6 +461,18 @@ export interface ProjectionResult {
   requiredPortfolioWithdrawal: number;
   monthlyIncomeAtRetirement: number;
   annualIncomeAtRetirement: number;
+  /**
+   * Inflation factor at the month the retirement tiles are measured (the end of
+   * the retirement-age year row). Every "today's dollars" retirement figure is
+   * the nominal one divided by THIS, so the income tiles and Balance at
+   * Retirement are always deflated by the same month. Consumers must not
+   * recompute a deflator from the retirement age: that lands on a different
+   * month (up to 11 months early) and overstates today's-$ income.
+   */
+  retirementCpi: number;
+  guaranteedMonthlyIncomeToday: number;
+  requiredPortfolioWithdrawalToday: number;
+  monthlyIncomeAtRetirementToday: number;
   endingBalance: number;
   endingBalanceToday: number;
   depletionAge: number | null;

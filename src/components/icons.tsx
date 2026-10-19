@@ -104,11 +104,6 @@ export const IconDownload = (p: P) => (
     <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   </svg>
 );
-export const IconUpload = (p: P) => (
-  <svg {...base(p)}>
-    <path d="M12 21V9M7 14l5-5 5 5M5 3h14" />
-  </svg>
-);
 export const IconMenu = (p: P) => (
   <svg {...base(p)}>
     <path d="M3 6h18M3 12h18M3 18h18" />
@@ -122,12 +117,6 @@ export const IconChevronLeft = (p: P) => (
 export const IconChevronDown = (p: P) => (
   <svg {...base(p)}>
     <path d="M6 9l6 6 6-6" />
-  </svg>
-);
-export const IconPanelLeft = (p: P) => (
-  <svg {...base(p)}>
-    <rect x="3" y="4" width="18" height="16" rx="2" />
-    <path d="M9 4v16" />
   </svg>
 );
 export const IconDiamond = (p: P) => (
@@ -150,23 +139,10 @@ export const IconGift = (p: P) => (
     <path d="M12 8C12 8 11 3 8 3a2.5 2.5 0 0 0 0 5zM12 8C12 8 13 3 16 3a2.5 2.5 0 0 1 0 5z" />
   </svg>
 );
-export const IconHome = (p: P) => (
-  <svg {...base(p)}>
-    <path d="M3 11.5 12 4l9 7.5" />
-    <path d="M5 10v10h14V10" />
-    <path d="M9 20v-6h6v6" />
-  </svg>
-);
 export const IconPencil = (p: P) => (
   <svg {...base(p)}>
     <path d="M12 20h9" />
     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-  </svg>
-);
-export const IconFilePlus = (p: P) => (
-  <svg {...base(p)}>
-    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-    <path d="M14 3v5h5M12 12v6M9 15h6" />
   </svg>
 );
 export const IconSliders = (p: P) => (
